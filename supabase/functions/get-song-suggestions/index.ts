@@ -80,7 +80,7 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-goog-api-key': 'AIzaSyA2ttTBc4G6GpAsnW7i5-09998S748RKTo'
+          'X-goog-api-key': ''
         },
         body: JSON.stringify({
           contents: [{
