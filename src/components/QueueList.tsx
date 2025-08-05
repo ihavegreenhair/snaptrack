@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from 'react';
-import { ChevronUp, ChevronDown, Clock, Star, Play } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { ThumbsUp, ThumbsDown, Clock, Star, Play, Trash2 } from 'lucide-react';
 import { supabase, type QueueItem } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { formatTimeAgo } from '../lib/time';
@@ -13,16 +13,26 @@ interface QueueListProps {
   currentSongId?: string;
   title: string;
   isHistory?: boolean;
+  isHost: boolean;
 }
 
 interface UserVotes {
   [queueId: string]: number;
 }
 
-export default function QueueList({ queue, currentSongId, title, isHistory }: QueueListProps) {
+export default function QueueList({ queue, currentSongId, title, isHistory, isHost }: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
   const [voting, setVoting] = useState<string | null>(null);
+  const [animatingVotes, setAnimatingVotes] = useState<{[key: string]: number}>({});
+  const [isAnimating, setIsAnimating] = useState(false);
+  const previousOrder = useRef<string[]>([]);
+  const itemRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  
+  // Create a stable order for animations
+  const sortedQueue = useMemo(() => {
+    return queue.map((song, index) => ({ ...song, position: index }));
+  }, [queue]);
 
   useEffect(() => {
     const initializeFingerprint = async () => {
@@ -37,6 +47,69 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
       loadUserVotes();
     }
   }, [fingerprint, queue]);
+  
+  // FLIP animation for queue reordering
+  useEffect(() => {
+    const currentOrder = queue.map(song => song.id);
+    
+    // Skip animation on first render or if no previous order
+    if (previousOrder.current.length === 0) {
+      previousOrder.current = currentOrder;
+      return;
+    }
+    
+    // Skip if order hasn't changed
+    if (JSON.stringify(previousOrder.current) === JSON.stringify(currentOrder)) {
+      return;
+    }
+    
+    // FLIP: First - record current positions
+    const firstPositions: {[key: string]: DOMRect} = {};
+    Object.keys(itemRefs.current).forEach(id => {
+      const element = itemRefs.current[id];
+      if (element) {
+        firstPositions[id] = element.getBoundingClientRect();
+      }
+    });
+    
+    // Update the order (this causes a re-render)
+    previousOrder.current = currentOrder;
+    
+    // FLIP: Last - get new positions after re-render
+    requestAnimationFrame(() => {
+      const lastPositions: {[key: string]: DOMRect} = {};
+      Object.keys(itemRefs.current).forEach(id => {
+        const element = itemRefs.current[id];
+        if (element && firstPositions[id]) {
+          lastPositions[id] = element.getBoundingClientRect();
+          
+          // All songs in the queue can be animated (queue only contains upcoming songs)
+          
+          // FLIP: Invert - calculate the difference
+          const deltaY = firstPositions[id].top - lastPositions[id].top;
+          
+          if (Math.abs(deltaY) > 1) { // Only animate if there's a meaningful change
+            // FLIP: Play - animate from old position to new with smooth transition
+            element.style.transform = `translateY(${deltaY}px)`;
+            element.style.transition = 'none';
+            element.style.zIndex = '10'; // Elevate during animation
+            
+            requestAnimationFrame(() => {
+              element.style.transform = 'translateY(0)';
+              element.style.transition = 'transform 0.6s cubic-bezier(0.2, 0, 0.2, 1)';
+              
+              // Clean up after animation
+              setTimeout(() => {
+                element.style.transition = '';
+                element.style.transform = '';
+                element.style.zIndex = '';
+              }, 600);
+            });
+          }
+        }
+      });
+    });
+  }, [queue]);
 
   const loadUserVotes = async () => {
     const queueIds = queue.map(item => item.id);
@@ -62,11 +135,13 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
 
     setVoting(queueId);
 
-    const existingVote = userVotes[queueId];
+    const existingVote = userVotes[queueId] || 0;
+    console.log(`Voting: ${voteValue} for song ${queueId}, existing vote: ${existingVote}`);
 
     try {
       if (existingVote === voteValue) {
         // User is clicking the same button again, so remove the vote
+        console.log('Removing vote (clicked same button)');
         await supabase
           .from('votes')
           .delete()
@@ -78,17 +153,46 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
           delete updated[queueId];
           return updated;
         });
-      } else {
-        // Add or update vote
+      } else if (existingVote === 0) {
+        // No existing vote, add new vote
+        console.log('Adding new vote:', voteValue);
         await supabase
           .from('votes')
-          .upsert({ queue_id: queueId, fingerprint, vote: voteValue }, { onConflict: 'queue_id,fingerprint' });
+          .insert({ queue_id: queueId, fingerprint, vote: voteValue });
 
         setUserVotes(prev => ({
           ...prev,
           [queueId]: voteValue,
         }));
+      } else {
+        // User has an existing opposite vote - change it to the new vote
+        console.log('Changing vote from', existingVote, 'to', voteValue);
+        await supabase
+          .from('votes')
+          .update({ vote: voteValue })
+          .eq('queue_id', queueId)
+          .eq('fingerprint', fingerprint);
+        
+        setUserVotes(prev => ({
+          ...prev,
+          [queueId]: voteValue,
+        }));
       }
+      
+      // Trigger vote animation
+      setAnimatingVotes(prev => ({
+        ...prev,
+        [queueId]: Date.now()
+      }));
+      
+      // Clear animation after delay
+      setTimeout(() => {
+        setAnimatingVotes(prev => {
+          const updated = { ...prev };
+          delete updated[queueId];
+          return updated;
+        });
+      }, 600);
     } catch (error) {
       console.error('Error handling vote:', error);
       alert('Failed to cast vote. Please try again.');
@@ -110,45 +214,36 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
           </div>
         ) : (
         <div className="space-y-3">
-          {queue.map((song, index) => {
+          {sortedQueue.map((song, index) => {
             const userVote = userVotes[song.id] || 0;
-            const isCurrent = song.id === currentSongId;
-            // Find the index of the currently playing song in the queue
-            const currentSongIndex = queue.findIndex(s => s.id === currentSongId);
-            // The next song is the one immediately after the current song
-            const isNextUp = !isCurrent && index === currentSongIndex + 1 && !isHistory && currentSongIndex >= 0;
-            const isUpcoming = index > currentSongIndex + 1 && !isHistory && !isCurrent; // Future songs
+            // Queue no longer contains current song, so first item (index 0) is "Next Up"
+            const isNextUp = index === 0 && !isHistory;
 
             return (
               <Card
                 key={song.id}
-                className={`transition-all duration-300 ease-in-out relative overflow-hidden ${
-                  isCurrent 
-                    ? 'border-primary ring-2 ring-primary/20 shadow-lg bg-primary/5' 
-                    : isNextUp
+                ref={(el) => { itemRefs.current[song.id] = el; }}
+                className={`relative overflow-hidden transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out hover:scale-[1.01] ${
+                  isNextUp
                     ? 'border-amber-500/50 ring-2 ring-amber-500/20 shadow-md bg-amber-50/50 dark:bg-amber-900/10'
                     : 'hover:shadow-md hover:bg-accent/50'
                 }`}
               >
                 {/* Status indicator bar */}
-                {(isCurrent || isNextUp) && (
-                  <div className={`absolute top-0 left-0 right-0 h-1 ${
-                    isCurrent ? 'bg-primary' : 'bg-amber-500'
-                  }`} />
+                {isNextUp && (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
                 )}
 
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
+                <CardContent className="p-3 sm:p-4 transition-all duration-300">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     {/* Position indicator */}
                     {!isHistory && (
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm ${
-                        isCurrent 
-                          ? 'bg-primary text-primary-foreground' 
-                          : isNextUp
+                      <div className={`flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm ${
+                        isNextUp
                           ? 'bg-amber-500 text-white'
                           : 'bg-muted text-muted-foreground'
                       }`}>
-                        {isCurrent ? <Play className="w-5 h-5" /> : `#${index + 1}`}
+                        {`#${index + 1}`}
                       </div>
                     )}
                     
@@ -157,22 +252,20 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
                       src={song.photo_url} 
                       alt="Song submitter's photo"
                       song={song}
-                      isCurrentSong={isCurrent}
+                      isCurrentSong={false}
                       isHistory={isHistory}
                       queue={queue}
                       currentIndex={index}
                       currentSongId={currentSongId}
                       className={`flex-shrink-0 transition-all duration-200 hover:scale-105 ${
-                        isHistory ? 'w-20 h-20 rounded-xl shadow-lg' : 'w-16 h-16 rounded-full shadow-md'
+                        isHistory ? 'w-16 h-16 sm:w-20 sm:h-20 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-md'
                       }`}
                     >
                       <img
                         src={song.photo_url}
                         alt="Song submitter's photo"
                         className={`w-full h-full object-cover border-2 ${
-                          isCurrent 
-                            ? 'border-primary/50' 
-                            : isNextUp 
+                          isNextUp 
                             ? 'border-amber-500/50' 
                             : 'border-border'
                         } ${isHistory ? 'rounded-xl' : 'rounded-full'}`}
@@ -181,64 +274,85 @@ export default function QueueList({ queue, currentSongId, title, isHistory }: Qu
                     
                     {/* Song info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg truncate">{song.title}</h3>
-                        {isCurrent && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary text-primary-foreground">
-                            <Play className="w-3 h-3" />
-                            Now Playing
-                          </span>
-                        )}
-                        {isNextUp && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
-                            <Star className="w-3 h-3" />
-                            Next Up
-                          </span>
-                        )}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                        <h3 className="font-semibold text-base sm:text-lg break-words line-clamp-2">{song.title}</h3>
+                        <div className="flex gap-1 sm:gap-2">
+                          {isNextUp && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white flex-shrink-0">
+                              <Star className="w-3 h-3" />
+                              <span className="hidden sm:inline">Next Up</span>
+                              <span className="sm:hidden">Next</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <ChevronUp className="w-4 h-4" />
-                          {song.votes} votes
+                          <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span 
+                            className={`transition-all duration-300 ${animatingVotes[song.id] ? 'vote-glow' : ''}`}
+                            key={`votes-${song.votes}`}
+                          >
+                            {song.votes} votes
+                          </span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                           {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : `Added ${formatTimeAgo(song.submitted_at)}`}
                         </span>
                       </div>
                       
-                      <p className="text-xs text-muted-foreground/70 mt-1">Click photo to view details</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1 hidden sm:block">Click photo to view details</p>
                     </div>
                     
                     {/* Voting controls */}
                     {!isHistory && (
-                      <div className="flex flex-col items-center gap-1">
-                        <Button
-                          onClick={() => handleVote(song.id, 1)}
-                          disabled={voting === song.id}
-                          size="icon"
-                          variant={userVote === 1 ? "default" : "outline"}
-                          className={`rounded-full w-10 h-10 ${
-                            userVote === 1 ? 'bg-green-600 hover:bg-green-700' : ''
-                          }`}
-                        >
-                          <ChevronUp className="w-5 h-5" />
-                        </Button>
-                        
-                        <span className="text-xl font-bold w-12 text-center">
-                          {song.votes}
-                        </span>
-                        
-                        <Button
-                          onClick={() => handleVote(song.id, -1)}
-                          disabled={voting === song.id}
-                          size="icon"
-                          variant={userVote === -1 ? "destructive" : "outline"}
-                          className="rounded-full w-10 h-10"
-                        >
-                          <ChevronDown className="w-5 h-5" />
-                        </Button>
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        {isHost ? (
+                          <Button
+                            onClick={() => { /* Implement remove song logic */ }}
+                            size="icon"
+                            variant="destructive"
+                            className="rounded-full w-10 h-10"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              onClick={() => handleVote(song.id, 1)}
+                              disabled={voting === song.id}
+                              size="icon"
+                              variant={userVote === 1 ? "default" : "outline"}
+                              className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
+                                userVote === 1 ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/25' : 'hover:bg-green-50 hover:border-green-300'
+                              } ${voting === song.id ? 'animate-pulse' : ''} ${
+                                animatingVotes[song.id] && userVote === 1 ? 'scale-125 shadow-lg shadow-green-600/50' : ''
+                              }`}
+                            >
+                              <ThumbsUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </Button>
+                            
+                            <span className="text-lg sm:text-xl font-bold w-8 sm:w-12 text-center">
+                              {song.votes}
+                            </span>
+                            
+                            <Button
+                              onClick={() => handleVote(song.id, -1)}
+                              disabled={voting === song.id}
+                              size="icon"
+                              variant={userVote === -1 ? "destructive" : "outline"}
+                              className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
+                                userVote === -1 ? 'shadow-lg shadow-red-600/25' : 'hover:bg-red-50 hover:border-red-300'
+                              } ${voting === song.id ? 'animate-pulse' : ''} ${
+                                animatingVotes[song.id] && userVote === -1 ? 'scale-125 shadow-lg shadow-red-600/50' : ''
+                              }`}
+                            >
+                              <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

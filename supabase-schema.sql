@@ -36,7 +36,7 @@ CREATE POLICY "Enable update access for all users" ON votes FOR UPDATE USING (tr
 
 -- Create function to update vote count
 CREATE OR REPLACE FUNCTION update_queue_votes()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $
 BEGIN
   UPDATE queue_items 
   SET votes = (

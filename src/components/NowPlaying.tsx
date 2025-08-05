@@ -12,6 +12,7 @@ interface NowPlayingProps {
   onSkip: () => void;
   onClearQueue: () => void;
   onSongStartedPlaying: (songId: string) => void;
+  isHost: boolean;
 }
 
 declare global {
@@ -21,7 +22,7 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -150,7 +151,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
 
   useEffect(() => {
     const loadVideo = () => {
-      if (playerRef.current && song && isPlayerReady) {
+      if (playerRef.current && song && isPlayerReady && typeof playerRef.current.loadVideoById === 'function') {
         console.log('Loading video:', song.video_id, '| Autoplay:', hasUserInteracted);
         setPlayerError(null);
 
@@ -158,25 +159,18 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
         // Always use loadVideoById. The `autoplay` playerVar will handle whether it plays.
         playerRef.current.loadVideoById(videoId, 0);
 
-      } else if (playerRef.current && !song && isPlayerReady) {
+      } else if (playerRef.current && !song && isPlayerReady && typeof playerRef.current.stopVideo === 'function') {
         console.log('No song, stopping video');
         playerRef.current.stopVideo();
         setIsPlaying(false);
+      } else {
+        console.log('Cannot load video - playerRef:', !!playerRef.current, 'song:', !!song, 'isPlayerReady:', isPlayerReady, 'loadVideoById function exists:', playerRef.current && typeof playerRef.current.loadVideoById === 'function');
       }
     };
 
     loadVideo();
-  }, [song, isPlayerReady]);
+  }, [song?.video_id, isPlayerReady, hasUserInteracted]);
 
-  // Effect to load the video into the player
-  useEffect(() => {
-    if (song && isPlayerReady && playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
-      console.log('Loading video:', song.video_id);
-      playerRef.current.loadVideoById(song.video_id);
-    } else if (!song && isPlayerReady && playerRef.current && typeof playerRef.current.stopVideo === 'function') {
-      playerRef.current.stopVideo();
-    }
-  }, [song, isPlayerReady]);
 
   
 
@@ -248,7 +242,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
                 <Button 
                   onClick={() => {
                     setPlayerError(null);
-                    if (playerRef.current && song) {
+                    if (playerRef.current && song && typeof playerRef.current.loadVideoById === 'function') {
                       playerRef.current.loadVideoById(song.video_id);
                     }
                   }} 
@@ -280,14 +274,14 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           )}
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           <PhotoZoom 
             src={song.photo_url} 
             alt="Song submitter's photo"
             song={song}
             isCurrentSong={true}
             isHistory={false}
-            className="w-24 h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
+            className="w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
           >
             <img
               src={song.photo_url}
@@ -295,45 +289,47 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               className="w-full h-full rounded-full object-cover"
             />
           </PhotoZoom>
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold mb-1">{song.title}</h3>
-            <p className="text-muted-foreground text-sm mb-2">Submitted by a party-goer</p>
-            <p className="text-xs text-muted-foreground/80">Click photo to view details</p>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg sm:text-xl font-semibold mb-1 break-words">{song.title}</h3>
+            <p className="text-muted-foreground text-xs sm:text-sm mb-2">Submitted by a party-goer</p>
+            <p className="text-xs text-muted-foreground/80 hidden sm:block">Click photo to view details</p>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-4 bg-muted/50 p-4 rounded-xl">
-          <Button
-            onClick={handlePlayButtonClick}
-            variant="ghost"
-            size="icon"
-            className="w-20 h-20 rounded-full bg-primary/20 hover:bg-primary/30"
-            disabled={!isPlayerReady || !!playerError}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? <Pause className="w-10 h-10 text-primary" /> : <Play className="w-10 h-10 text-primary" />}
-          </Button>
-          <Button
-            onClick={onSkip}
-            variant="ghost"
-            size="icon"
-            className="w-16 h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-transform duration-200 ease-in-out hover:scale-105"
-            disabled={!isPlayerReady || !!playerError}
-            aria-label="Skip song"
-          >
-            <SkipForward className="w-8 h-8 text-secondary-foreground" />
-          </Button>
-          <Button
-            onClick={onClearQueue}
-            variant="ghost"
-            size="icon"
-            className="w-12 h-12 rounded-full bg-destructive/20 hover:bg-destructive/30"
-            title="Clear entire queue"
-            aria-label="Clear queue"
-          >
-            <Trash2 className="w-6 h-6 text-destructive-foreground" />
-          </Button>
-        </div>
+        {isHost && (
+          <div className="flex items-center justify-center gap-2 sm:gap-4 bg-muted/50 p-3 sm:p-4 rounded-xl">
+            <Button
+              onClick={handlePlayButtonClick}
+              variant="ghost"
+              size="icon"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/20 hover:bg-primary/30"
+              disabled={!isPlayerReady || !!playerError}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 text-primary" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />}
+            </Button>
+            <Button
+              onClick={onSkip}
+              variant="ghost"
+              size="icon"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-transform duration-200 ease-in-out hover:scale-105"
+              disabled={!isPlayerReady || !!playerError}
+              aria-label="Skip song"
+            >
+              <SkipForward className="w-6 h-6 sm:w-8 sm:h-8 text-secondary-foreground" />
+            </Button>
+            <Button
+              onClick={onClearQueue}
+              variant="ghost"
+              size="icon"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/20 hover:bg-destructive/30"
+              title="Clear entire queue"
+              aria-label="Clear queue"
+            >
+              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6 text-destructive-foreground" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

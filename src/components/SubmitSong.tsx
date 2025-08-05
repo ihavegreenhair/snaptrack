@@ -15,9 +15,10 @@ interface SubmitSongProps {
   suggestionsLoading: boolean;
   suggestionsType: 'instant' | 'personalized';
   onRefreshSuggestions: () => Promise<void>;
+  partyId: string;
 }
 
-const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions }) => {
+const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions, partyId }) => {
   const [selectedVideo, setSelectedVideo] = useState<YouTubeVideo | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestedSong | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -146,6 +147,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       thumbnail_url: songData.thumbnail,
       submitted_by: fingerprint,
       photo_url: publicUrl,
+      party_id: partyId,
     });
     console.log('Database insert completed:', { error: queueError });
 
@@ -183,10 +185,10 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
   const currentSelection = selectedVideo || selectedSuggestion;
 
   return (
-    <div className="space-y-6 min-w-0 overflow-hidden">
+    <div className="space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {!showPhotoUploader ? (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Search for a Song</h3>
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-lg sm:text-xl font-semibold">Search for a Song</h3>
           
           {/* YouTube Search */}
           <YouTubeSearch 
@@ -206,25 +208,25 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
             <div className="space-y-4">
               {suggestions.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                  <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                     {suggestionsType === 'personalized' ? 'Personalized suggestions:' : 'Popular suggestions:'}
                   </h4>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {suggestions.map((suggestion, index) => (
                       <div
                         key={index}
-                        className="bg-card border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer max-w-full"
+                        className="bg-card border rounded-lg p-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer max-w-full"
                         onClick={() => handleSuggestionSelect(suggestion)}
                       >
-                        <div className="flex items-start justify-between gap-3 min-w-0">
+                        <div className="flex items-start justify-between gap-2 sm:gap-3 min-w-0">
                           <div className="flex-1 min-w-0 overflow-hidden">
-                            <h4 className="font-semibold text-sm mb-1 break-words leading-tight">
+                            <h4 className="font-semibold text-sm sm:text-base mb-1 break-words leading-tight">
                               {suggestion.title}
                             </h4>
                             <p className="text-xs text-muted-foreground mb-1 break-words leading-tight">
                               by {suggestion.artist}
                             </p>
-                            <p className="text-xs text-muted-foreground/80 italic break-words leading-tight">
+                            <p className="text-xs text-muted-foreground/80 italic break-words leading-tight line-clamp-2">
                               {suggestion.reason}
                             </p>
                           </div>
@@ -235,10 +237,11 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
                               handleSuggestionSelect(suggestion);
                             }}
                             size="sm"
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 px-2 sm:px-3"
                           >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Search
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                            <span className="hidden sm:inline">Search</span>
+                            <span className="sm:hidden">+</span>
                           </Button>
                         </div>
                       </div>
@@ -266,16 +269,16 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Take Your Photo</h3>
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-lg sm:text-xl font-semibold">Take Your Photo</h3>
           {currentSelection && (
-            <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 sm:gap-4 p-3 bg-muted rounded-lg">
               <img 
                 src={selectedVideo ? selectedVideo.thumbnail : `https://img.youtube.com/vi/${selectedSuggestion!.videoId}/hqdefault.jpg`} 
                 alt={selectedVideo ? selectedVideo.title : selectedSuggestion!.title} 
-                className="w-20 h-auto rounded-md" 
+                className="w-16 sm:w-20 h-auto rounded-md flex-shrink-0" 
               />
-              <p className="text-lg font-medium">
+              <p className="text-base sm:text-lg font-medium break-words leading-tight">
                 {selectedVideo ? selectedVideo.title : `${selectedSuggestion!.title} - ${selectedSuggestion!.artist}`}
               </p>
             </div>

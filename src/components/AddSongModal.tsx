@@ -17,9 +17,10 @@ interface AddSongModalProps {
   suggestionsLoading: boolean;
   suggestionsType: 'instant' | 'personalized';
   onRefreshSuggestions: () => Promise<void>;
+  partyId: string;
 }
 
-export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions }: AddSongModalProps) {
+export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions, partyId }: AddSongModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSongAdded = () => {
@@ -30,12 +31,13 @@ export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoad
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Song to Queue
+        <Button size="lg" className="w-full sm:w-auto text-base px-4 py-3 sm:px-6">
+          <Plus className="w-5 h-5 mr-2" />
+          <span className="hidden sm:inline">Add Song to Queue</span>
+          <span className="sm:hidden">Add Song</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto overflow-x-hidden w-[96vw] sm:w-auto mx-2 sm:mx-auto">
         <DialogHeader>
           <DialogTitle>Add a Song to the Queue</DialogTitle>
         </DialogHeader>
@@ -46,6 +48,7 @@ export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoad
             suggestionsLoading={suggestionsLoading}
             suggestionsType={suggestionsType}
             onRefreshSuggestions={onRefreshSuggestions}
+            partyId={partyId}
           />
         </div>
       </DialogContent>

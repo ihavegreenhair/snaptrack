@@ -27,6 +27,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({ onPhotoSelected, autoStar
     onPhotoSelected(file);
     setPhoto(URL.createObjectURL(file));
     setCameraError(null);
+    setIsCameraModalOpen(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,62 +79,71 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({ onPhotoSelected, autoStar
       )}
 
       {!photo && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button
-            onClick={() => setIsCameraModalOpen(true)}
-            className="h-12"
-            variant="default"
-          >
-            <Camera className="w-4 h-4 mr-2" />
-            Take Selfie
-          </Button>
+        <div className="space-y-3">
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-semibold mb-2">Add Your Photo</h3>
+            <p className="text-sm text-muted-foreground">Take a selfie or upload a photo to add your song</p>
+          </div>
           
-          <input 
-            ref={fileInputRef}
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileChange} 
-            className="hidden" 
-            id="file-upload" 
-          />
-          <Button asChild variant="outline" className="h-12">
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Photo
-            </label>
-          </Button>
+          <div className="grid grid-cols-1 gap-3">
+            <Button
+              onClick={() => setIsCameraModalOpen(true)}
+              className="h-14 text-base font-semibold"
+              variant="default"
+            >
+              <Camera className="w-5 h-5 mr-3" />
+              Take Selfie
+            </Button>
+            
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept="image/*" 
+              capture="user"
+              onChange={handleFileChange} 
+              className="hidden" 
+              id="file-upload" 
+            />
+            <Button asChild variant="outline" className="h-14 text-base font-semibold">
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <Upload className="w-5 h-5 mr-3" />
+                Upload Photo
+              </label>
+            </Button>
+          </div>
         </div>
       )}
 
       {photo && (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 p-6">
-            <h3 className="text-lg font-medium">Your Selected Photo</h3>
-            <div className="relative">
-              <img 
-                src={photo} 
-                alt="Preview" 
-                className="w-48 h-48 object-cover rounded-lg border-2 border-border shadow-lg" 
-              />
-            </div>
-            <Button
-              onClick={retakePhoto}
-              variant="outline"
-              className="gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Retake / Change Photo
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center space-y-4">
+          <h3 className="text-lg font-semibold">Photo Ready!</h3>
+          <div className="flex justify-center">
+            <img 
+              src={photo} 
+              alt="Preview" 
+              className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-full border-4 border-primary shadow-lg" 
+            />
+          </div>
+          <Button
+            onClick={retakePhoto}
+            variant="outline"
+            className="gap-2"
+            size="sm"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Change Photo
+          </Button>
+        </div>
       )}
 
-      {/* Camera Modal */}
-      <CameraModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-        onPhotoTaken={handleCameraPhotoTaken}
-      />
+      {/* Camera Modal - only render when open to avoid conflicts */}
+      {isCameraModalOpen && (
+        <CameraModal
+          isOpen={isCameraModalOpen}
+          onClose={() => setIsCameraModalOpen(false)}
+          onPhotoTaken={handleCameraPhotoTaken}
+        />
+      )}
     </div>
   );
 };

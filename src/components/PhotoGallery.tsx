@@ -62,9 +62,9 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
                 
                 {/* Song info overlay */}
-                <div className="absolute inset-0 p-3 flex flex-col justify-end text-white">
+                <div className="absolute inset-0 p-2 sm:p-3 flex flex-col justify-end text-white">
                   <div className="space-y-1">
-                    <h3 className="font-semibold text-sm leading-tight line-clamp-2">
+                    <h3 className="font-semibold text-xs sm:text-sm leading-tight line-clamp-2">
                       {song.title}
                     </h3>
                     
@@ -83,14 +83,14 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
                 </div>
                 
                 {/* Hover indicator */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-1">
-                    <Play className="w-4 h-4 text-white" />
+                    <Play className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                   </div>
                 </div>
                 
                 {/* Position number */}
-                <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center text-white text-xs font-bold">
+                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-black/50 backdrop-blur-sm rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-white text-xs font-bold">
                   {index + 1}
                 </div>
               </div>
@@ -100,32 +100,32 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
         
         {/* Summary stats */}
         {queue.length > 0 && (
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-muted/50 rounded-lg">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-primary">{queue.length}</div>
-                <div className="text-sm text-muted-foreground">Songs Played</div>
+                <div className="text-xl sm:text-2xl font-bold text-primary">{queue.length}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Songs Played</div>
               </div>
               
               <div>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
                   {queue.reduce((sum, song) => sum + song.votes, 0)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Votes</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Votes</div>
               </div>
               
               <div>
-                <div className="text-2xl font-bold text-amber-600">
+                <div className="text-xl sm:text-2xl font-bold text-amber-600">
                   {Math.max(...queue.map(song => song.votes))}
                 </div>
-                <div className="text-sm text-muted-foreground">Top Votes</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Top Votes</div>
               </div>
               
               <div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">
                   {queue.length > 0 ? Math.round(queue.reduce((sum, song) => sum + song.votes, 0) / queue.length * 10) / 10 : 0}
                 </div>
-                <div className="text-sm text-muted-foreground">Avg Votes</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Avg Votes</div>
               </div>
             </div>
           </div>
