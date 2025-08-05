@@ -30,35 +30,30 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-  // Initialize YouTube API and create player when DOM is ready
+  // Initialize YouTube API and create player when DOM is ready - ONLY FOR HOSTS
   useEffect(() => {
-    console.log('🎵 NowPlaying useEffect triggered - hasUserInteracted:', hasUserInteracted, 'song:', song?.title);
+    // Only initialize YouTube player for hosts
+    if (!isHost) {
+      return;
+    }
 
     const initializePlayer = () => {
-      console.log('🚀 initializePlayer called - containerRef.current:', !!containerRef.current, 'playerRef.current:', !!playerRef.current);
-      
       // Wait for container to be available
       if (!containerRef.current) {
-        console.log('📭 Container not available yet, will retry when container ref changes');
         return;
       }
 
       // If player exists, destroy it before creating a new one
       if (playerRef.current) {
-        console.log('🗑️ Destroying existing player');
         try {
           playerRef.current.destroy();
         } catch (e) {
-          console.log('⚠️ Error destroying player:', e);
+          // Ignore destroy errors
         }
         playerRef.current = null;
       }
 
-      console.log('📦 Container available, creating YT.Player with videoId:', song?.video_id, 'autoplay:', hasUserInteracted);
-      console.log('🔧 YouTube API available:', !!window.YT, 'YT.Player:', !!window.YT?.Player);
-      
       if (!window.YT?.Player) {
-        console.error('❌ YouTube Player constructor not available');
         return;
       }
 
@@ -69,20 +64,14 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           videoId: song?.video_id || '',
           events: {
             onReady: (event: any) => {
-              console.log('✅ YouTube player ready, setting isPlayerReady to true');
               setIsPlayerReady(true);
               setPlayerError(null);
-              // When the player is ready, if there's a song, it should start playing
-              // if autoplay is enabled.
               if (song && hasUserInteracted) {
-                console.log('▶️ Auto-playing video after ready');
                 event.target.playVideo();
               }
             },
             onStateChange: (event: any) => {
-              console.log('🎬 Player state changed:', event.data);
               if (event.data === window.YT.PlayerState.ENDED) {
-                console.log('🏁 Video ended, calling onEnded callback');
                 onEnded();
               }
               if (event.data === window.YT.PlayerState.PLAYING && song && onSongStartedPlaying) {
@@ -91,7 +80,6 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
             },
             onError: (event: any) => {
-              console.error('💥 YouTube player error:', event.data);
               const errorMessages: { [key: number]: string } = {
                 2: 'Invalid video ID - the video may have been removed or is private',
                 5: 'HTML5 player error - try refreshing the page',
@@ -112,95 +100,74 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             origin: window.location.origin
           },
         });
-        console.log('🎉 Player created successfully:', !!playerRef.current);
       } catch (error) {
-        console.error('💀 Error creating YouTube player:', error);
+        console.error('Error creating YouTube player:', error);
       }
     };
 
     if (!window.YT) {
-      console.log('📥 YouTube API not loaded, loading script...');
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       const firstScriptTag = document.getElementsByTagName('script')[0];
       firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
       window.onYouTubeIframeAPIReady = () => {
-        console.log('🎯 YouTube API ready callback triggered');
-        // Use setTimeout to ensure DOM is ready
         setTimeout(initializePlayer, 100);
       };
     } else {
-      console.log('✨ YouTube API already loaded, initializing player');
-      // Use setTimeout to ensure DOM is ready
       setTimeout(initializePlayer, 100);
     }
 
     // Cleanup function to destroy the player instance
     return () => {
-      console.log('🧹 Cleanup function called');
-      if (playerRef.current) {
-        // Check if destroy is a function before calling it
-        if (playerRef.current && typeof playerRef.current.destroy === 'function') {
-          console.log('🗑️ Destroying player in cleanup');
-          playerRef.current.destroy();
-        }
+      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+        playerRef.current.destroy();
         playerRef.current = null;
       }
     };
-  }, [song?.video_id, hasUserInteracted]); // Re-initialize when song or user interaction changes
+  }, [song?.video_id, hasUserInteracted, isHost]); // Re-initialize when song, user interaction, or host status changes
 
   useEffect(() => {
+    // Only load videos for hosts
+    if (!isHost) {
+      return;
+    }
+
     const loadVideo = () => {
       if (playerRef.current && song && isPlayerReady && typeof playerRef.current.loadVideoById === 'function') {
-        console.log('Loading video:', song.video_id, '| Autoplay:', hasUserInteracted);
         setPlayerError(null);
-
         const videoId = song.video_id;
-        // Always use loadVideoById. The `autoplay` playerVar will handle whether it plays.
         playerRef.current.loadVideoById(videoId, 0);
-
       } else if (playerRef.current && !song && isPlayerReady && typeof playerRef.current.stopVideo === 'function') {
-        console.log('No song, stopping video');
         playerRef.current.stopVideo();
         setIsPlaying(false);
-      } else {
-        console.log('Cannot load video - playerRef:', !!playerRef.current, 'song:', !!song, 'isPlayerReady:', isPlayerReady, 'loadVideoById function exists:', playerRef.current && typeof playerRef.current.loadVideoById === 'function');
       }
     };
 
     loadVideo();
-  }, [song?.video_id, isPlayerReady, hasUserInteracted]);
+  }, [song?.video_id, isPlayerReady, hasUserInteracted, isHost]);
 
 
   
 
   const handlePlayButtonClick = () => {
-    console.log('🖱️ Play button clicked - hasUserInteracted:', hasUserInteracted, 'isPlayerReady:', isPlayerReady, 'playerRef.current:', !!playerRef.current);
+    // Only hosts can control playback
+    if (!isHost) {
+      return;
+    }
     
-    // This is the first and most important user interaction.
+    // First user interaction enables autoplay
     if (!hasUserInteracted) {
-      console.log('👆 First user interaction - setting hasUserInteracted to true');
       setHasUserInteracted(true);
     }
 
-    if (!playerRef.current) {
-      console.log('⏳ Player not ready yet, interaction will trigger re-initialization');
-      return;
-    }
-
-    if (!isPlayerReady) {
-      console.log('⏳ Player not ready yet, waiting...');
+    if (!playerRef.current || !isPlayerReady) {
       return;
     }
 
     const state = playerRef.current.getPlayerState();
-    console.log('🎮 Current player state:', state);
-    
     if (state === window.YT.PlayerState.PLAYING) {
-      console.log('⏸️ Pausing video');
       playerRef.current.pauseVideo();
     } else {
-      console.log('▶️ Playing video');
       playerRef.current.playVideo();
     }
   };
@@ -219,10 +186,37 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
     );
   }
 
+  // Show different content for host vs guests
+  if (!isHost) {
+    // GUEST VIEW: Just show the song info card
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Now Playing</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+              <Play className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg line-clamp-2">{song.title}</h3>
+              <p className="text-sm text-muted-foreground">Host is controlling playback</p>
+            </div>
+          </div>
+          <div className="text-center text-sm text-muted-foreground">
+            Only the host can control music playback
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // HOST VIEW: Full YouTube player controls
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Now Playing</CardTitle>
+        <CardTitle>Now Playing (Host)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">

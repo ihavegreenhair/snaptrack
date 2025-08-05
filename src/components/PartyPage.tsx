@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase, type QueueItem } from '../lib/supabase';
-import { clearSuggestionsCache, getSongSuggestions, getAISuggestionsBackground, type SuggestedSong } from '../lib/gemini';
+import { getUserFingerprint } from '../lib/fingerprint';
+import { clearSuggestionsCache, getAISuggestionsBackground, getInstantSuggestions, type SuggestedSong } from '../lib/gemini';
 import NowPlaying from './NowPlaying';
 import QueueList from './QueueList';
 import AddSongModal from './AddSongModal';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
-import { Music } from 'lucide-react';
+import QRCodeModal from './QRCodeModal';
+import { Music, QrCode } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
 function PartyPage() {
@@ -22,28 +24,74 @@ function PartyPage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsType, setSuggestionsType] = useState<'instant' | 'personalized'>('instant');
   const [showHostModal, setShowHostModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [userFingerprint, setUserFingerprint] = useState<string>('');
+
+  const nowPlayingEl = useRef<HTMLDivElement>(null);
+  const [nowPlayingHeight, setNowPlayingHeight] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    const fetchPartyId = async () => {
+    const element = nowPlayingEl.current;
+    if (element) {
+      const resizeObserver = new ResizeObserver(() => {
+        setNowPlayingHeight(element.offsetHeight);
+      });
+      resizeObserver.observe(element);
+      setNowPlayingHeight(element.offsetHeight);
+      return () => resizeObserver.disconnect();
+    }
+  }, [nowPlayingSong, isHost]);
+
+  const verifyHostStatus = async (fingerprint: string, partyCode: string) => {
+    try {
       const { data, error } = await supabase
         .from('parties')
-        .select('id')
+        .select('host_fingerprint')
+        .eq('party_code', partyCode)
+        .single();
+
+      if (error) {
+        setIsHost(false);
+        return false;
+      }
+
+      const isHostFromDB = data.host_fingerprint === fingerprint;
+      setIsHost(isHostFromDB);
+      return isHostFromDB;
+    } catch (error) {
+      console.error('Host verification failed:', error);
+      setIsHost(false);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const initializeParty = async () => {
+      if (!partyCode) return;
+      
+      const fingerprint = await getUserFingerprint();
+      setUserFingerprint(fingerprint);
+
+      const { data, error } = await supabase
+        .from('parties')
+        .select('id, host_fingerprint')
         .eq('party_code', partyCode)
         .single();
 
       if (error || !data) {
-        console.error('Error fetching party ID:', error);
-        // Handle error, e.g., redirect to home page
+        console.error('Error fetching party info:', error);
         return;
       }
+      
       setPartyId(data.id);
+      
+      await verifyHostStatus(fingerprint, partyCode);
     };
 
-    fetchPartyId();
+    initializeParty();
 
     clearSuggestionsCache();
     loadQueue();
-    loadSuggestions();
 
     const channel = supabase
       .channel(`party-${partyCode}`)
@@ -52,7 +100,7 @@ function PartyPage() {
         { event: '*', schema: 'public', table: 'queue_items', filter: `party_id=eq.${partyId}` },
         (payload) => {
           console.log('Queue item changed:', payload);
-          loadQueue(); // Reload and re-sort the entire queue
+          loadQueue();
         }
       )
       .on(
@@ -60,8 +108,6 @@ function PartyPage() {
         { event: '*', schema: 'public', table: 'votes' },
         (payload) => {
           console.log('Vote changed:', payload);
-          // The vote trigger should update queue_items, which will trigger the above listener
-          // But let's add a small delay to ensure the trigger has processed
           setTimeout(() => loadQueue(), 100);
         }
       )
@@ -72,7 +118,11 @@ function PartyPage() {
     };
   }, [partyCode, partyId]);
 
-  // Clean separation: nowPlayingSong managed separately from queue
+  useEffect(() => {
+    if (partyId) {
+      loadSuggestions();
+    }
+  }, [nowPlayingSong, partyId]);
 
   const loadQueue = async () => {
     if (!partyId) return;
@@ -92,7 +142,6 @@ function PartyPage() {
       const unplayed = data.filter(item => !item.played);
       const played = data.filter(item => item.played);
       
-      // SIMPLE APPROACH: Sort all songs, set nowPlaying if needed, remove it from queue
       const allSortedUnplayed = unplayed.sort((a, b) => {
         if (a.votes !== b.votes) {
           return b.votes - a.votes;
@@ -100,35 +149,19 @@ function PartyPage() {
         return new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
       });
       
-      // Use ref to prevent nowPlayingSong from changing due to vote updates
-      console.log('🎵 QUEUE LOAD - nowPlayingRef.current:', nowPlayingRef.current?.title);
-      
-      // ONLY change nowPlayingSong in these exact cases:
       if (!nowPlayingRef.current && allSortedUnplayed.length > 0) {
-        // CASE 1: No song is playing, start the first one
         const firstSong = allSortedUnplayed[0];
-        console.log('🎵 STARTING FIRST SONG:', firstSong.title);
         nowPlayingRef.current = firstSong;
         setNowPlayingSong(firstSong);
       } else if (nowPlayingRef.current && !unplayed.some(item => item.id === nowPlayingRef.current.id)) {
-        // CASE 2: Current song was marked as played, move to next
         const nextSong = allSortedUnplayed[0] || null;
-        console.log('🎵 SONG ENDED, MOVING TO NEXT:', nextSong?.title || 'none');
         nowPlayingRef.current = nextSong;
         setNowPlayingSong(nextSong);
-      } else {
-        // CASE 3: Keep current song playing regardless of vote changes
-        console.log('🔒 KEEPING NOW PLAYING:', nowPlayingRef.current?.title || 'none');
       }
       
-      // Remove nowPlayingSong from queue - queue contains only upcoming songs
       const queueWithoutNowPlaying = nowPlayingRef.current 
         ? allSortedUnplayed.filter(item => item.id !== nowPlayingRef.current!.id)
         : allSortedUnplayed;
-      
-      console.log('=== CLEAN QUEUE SYSTEM ===');
-      console.log('Now playing:', nowPlayingSong?.title || 'none');
-      console.log('Queue (upcoming only):', queueWithoutNowPlaying.length, 'songs');
       
       setQueue(queueWithoutNowPlaying);
       setHistory(played.sort((a, b) => new Date(b.played_at || 0).getTime() - new Date(a.played_at || 0).getTime()));
@@ -138,6 +171,13 @@ function PartyPage() {
   const loadSuggestions = async () => {
     if (!partyId) return;
     setSuggestionsLoading(true);
+    
+    if (suggestions.length === 0) {
+      const instantSuggestions = getInstantSuggestions();
+      setSuggestions(instantSuggestions);
+      setSuggestionsType('instant');
+    }
+    
     try {
       const { data: fullQueueData } = await supabase
         .from('queue_items')
@@ -147,7 +187,6 @@ function PartyPage() {
         .order('submitted_at', { ascending: true });
 
       const fullQueue = fullQueueData || [];
-      const unplayedQueue = fullQueue.filter(item => !item.played);
       const playedHistory = fullQueue.filter(item => item.played);
 
       const currentSongForSuggestions = nowPlayingSong;
@@ -155,20 +194,21 @@ function PartyPage() {
         .sort((a, b) => new Date(b.played_at || 0).getTime() - new Date(a.played_at || 0).getTime())
         .slice(0, 10);
 
-      const cachedSuggestions = await getSongSuggestions(currentSongForSuggestions, recentSongs, unplayedQueue);
-      
-      if (cachedSuggestions.length > 0) {
-        setSuggestions(cachedSuggestions);
-        setSuggestionsType('personalized');
-      } else {
-        await getAISuggestionsBackground(currentSongForSuggestions, recentSongs, unplayedQueue, (personalizedSuggestions) => {
+      try {
+        await getAISuggestionsBackground(currentSongForSuggestions, recentSongs, fullQueue, (personalizedSuggestions) => {
           setSuggestions(personalizedSuggestions);
           setSuggestionsType('personalized');
         });
+      } catch (aiError) {
+        const instantSuggestions = getInstantSuggestions();
+        setSuggestions(instantSuggestions);
+        setSuggestionsType('instant');
       }
     } catch (error) {
       console.error('Error loading suggestions:', error);
-      setSuggestions([]);
+      const instantSuggestions = getInstantSuggestions();
+      setSuggestions(instantSuggestions);
+      setSuggestionsType('instant');
     } finally {
       setSuggestionsLoading(false);
     }
@@ -177,20 +217,14 @@ function PartyPage() {
   const handleSongEnd = async () => {
     if (!partyId || !nowPlayingRef.current) return;
     
-    console.log('🎵 MANUALLY ENDING SONG:', nowPlayingRef.current.title);
-    
-    // Mark current song as played
     await supabase
       .from('queue_items')
       .update({ played: true, played_at: new Date().toISOString() })
       .eq('id', nowPlayingRef.current.id)
       .eq('party_id', partyId);
     
-    // Clear the ref so loadQueue will pick up the next song
     nowPlayingRef.current = null;
     setNowPlayingSong(null);
-    
-    // loadQueue will be called by the real-time subscription and will set the next song
   };
 
   const skipSong = () => {
@@ -206,7 +240,6 @@ function PartyPage() {
         .eq('played', false)
         .eq('party_id', partyId);
       
-      // Clear both ref and state
       nowPlayingRef.current = null;
       setNowPlayingSong(null);
     }
@@ -222,8 +255,21 @@ function PartyPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">SnapTrack</h1>
             <span className="text-muted-foreground text-sm sm:text-base">Party: {partyCode}</span>
+            {isHost && (
+              <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full">
+                HOST
+              </span>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <button 
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
+              title="Show QR code for joining"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="hidden sm:inline">Join QR</span>
+            </button>
             {!isHost && (
               <button 
                 onClick={() => setShowHostModal(true)}
@@ -246,7 +292,7 @@ function PartyPage() {
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <div>
+          <div className="h-full" ref={nowPlayingEl}>
             <NowPlaying
               song={nowPlayingSong}
               onEnded={handleSongEnd}
@@ -256,8 +302,8 @@ function PartyPage() {
               isHost={isHost}
             />
           </div>
-          <div>
-            <QueueList title="Up Next" queue={queue} currentSongId={null} isHost={isHost} />
+          <div className="h-full">
+            <QueueList title="Up Next" queue={queue} currentSongId={null} isHost={isHost} height={nowPlayingHeight} />
           </div>
         </div>
         
@@ -270,10 +316,19 @@ function PartyPage() {
         <HostAuthModal
           partyCode={partyCode!}
           onClose={() => setShowHostModal(false)}
-          onSuccess={() => {
-            setIsHost(true);
+          onSuccess={async () => {
+            if (userFingerprint && partyCode) {
+              await verifyHostStatus(userFingerprint, partyCode);
+            }
             setShowHostModal(false);
           }}
+        />
+      )}
+
+      {showQRModal && (
+        <QRCodeModal
+          partyCode={partyCode!}
+          onClose={() => setShowQRModal(false)}
         />
       )}
     </div>

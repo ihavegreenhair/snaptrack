@@ -43,7 +43,7 @@ function getSessionId(): string {
 function getCacheKey(currentSong: QueueItem | null, recentSongs: QueueItem[], fullQueue: QueueItem[]): string {
   const current = currentSong?.title || 'none';
   const recent = recentSongs.slice(0, 5).map(s => s.title).join(',');
-  const queueCount = fullQueue.length; // Use full queue length for cache key
+  const queueCount = fullQueue.length;
   
   // Add time context for different party phases
   const now = new Date();
@@ -85,7 +85,6 @@ function getCachedSuggestions(context: string): SuggestedSuggestions | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) {
-      console.log('No cached suggestions found');
       return null;
     }
     
@@ -94,38 +93,24 @@ function getCachedSuggestions(context: string): SuggestedSuggestions | null {
     
     // Check version compatibility
     if (data.version !== CACHE_VERSION) {
-      console.log('Cache version mismatch, clearing cache');
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
     
-    // Check session ID (should match since cache is cleared on page load)
+    // Check session ID
     if (data.sessionId !== currentSessionId) {
-      console.log('Session mismatch, cache should have been cleared:', { 
-        cachedSession: data.sessionId, 
-        currentSession: currentSessionId 
-      });
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
     
     const isExpired = Date.now() - data.timestamp > CACHE_DURATION;
     const isWrongContext = data.context !== context;
-    const age = Math.floor((Date.now() - data.timestamp) / (1000 * 60)); // age in minutes
     
     if (isExpired || isWrongContext) {
-      console.log('Cache invalidated:', { 
-        isExpired, 
-        isWrongContext, 
-        age: `${age}m`, 
-        cachedContext: data.context, 
-        currentContext: context 
-      });
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
     
-    console.log(`Using cached suggestions from current session (${age}m old):`, { context, count: data.suggestions.length });
     return {
       suggestions: data.suggestions,
       isCached: true
@@ -152,14 +137,13 @@ function setCachedSuggestions(suggestions: SuggestedSong[], context: string): vo
       sessionId: getSessionId()
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    console.log('Cached suggestions saved for session:', { context, count: suggestions.length, sessionId: data.sessionId });
   } catch (error) {
     console.warn('Failed to cache suggestions:', error);
   }
 }
 
 // Vibe-aware instant suggestions with subtle time consideration
-function getInstantSuggestions(): SuggestedSong[] {
+export function getInstantSuggestions(): SuggestedSong[] {
   const hour = new Date().getHours();
   const timePhase = getTimePhase(hour);
   
@@ -224,23 +208,19 @@ export async function getSongSuggestions(
   // Try cache first
   const cachedResult = getCachedSuggestions(context);
   if (cachedResult) {
-    console.log('Returning cached suggestions');
     return cachedResult.suggestions;
   }
   
   // No cache available - return empty array to indicate we need fresh suggestions
-  console.log('No cached suggestions available, will request fresh ones');
   return [];
 }
 
 // Clear cache when song context changes significantly
 export function clearSuggestionsCache(): void {
   try {
-    const hadCache = localStorage.getItem(CACHE_KEY) !== null;
     localStorage.removeItem(CACHE_KEY);
-    console.log(`🗑️ CACHE CLEARED: ${hadCache ? 'Previous cache removed' : 'No cache to remove'}`);
   } catch (error) {
-    console.warn('⚠️ Failed to clear cache:', error);
+    console.warn('Failed to clear cache:', error);
   }
 }
 
@@ -277,12 +257,10 @@ export async function getAISuggestionsBackground(
   // Check cache first - only use if we have cached data
   const cachedResult = getCachedSuggestions(context);
   if (cachedResult) {
-    console.log('Using cached AI suggestions for context:', context);
     onUpdate(cachedResult.suggestions);
     return;
   }
   
-  console.log('No cache found, requesting new AI suggestions for context:', context);
   
   try {
     // Set shorter timeout for faster fallback
@@ -321,27 +299,21 @@ export async function getAISuggestionsBackground(
     }
     
     const rawSuggestions = data.suggestions || [];
+    
     if (rawSuggestions.length > 0) {
-      // Gemini function now handles filtering, but we still filter here as a fallback
+      // Filter out already queued songs
       const filteredSuggestions = filterRecentlyPlayed(rawSuggestions, currentSong, fullQueue);
       
       if (filteredSuggestions.length > 0) {
-        // Cache the filtered AI suggestions
-        console.log('Caching new filtered AI suggestions for context:', context);
         setCachedSuggestions(filteredSuggestions, context);
         onUpdate(filteredSuggestions);
-      } else {
-        console.log('All AI suggestions were filtered out, keeping current suggestions');
       }
     }
     
   } catch (error) {
-    if (error.name === 'AbortError') {
-      console.log('AI suggestions timed out, will rely on instant suggestions.');
-    } else {
-      console.log('AI suggestions failed:', error);
+    if (error.name !== 'AbortError') {
+      console.warn('AI suggestions failed:', error);
     }
-    // Do not update suggestions on failure, keep existing ones
     throw error;
   }
 }

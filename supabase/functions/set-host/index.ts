@@ -17,10 +17,10 @@ serve(async (req) => {
   }
 
   try {
-    const { party_code, host_password } = await req.json()
+    const { party_code, host_password, host_fingerprint } = await req.json()
 
-    if (!party_code || !host_password) {
-      throw new Error('Party code and host password are required.')
+    if (!party_code || !host_password || !host_fingerprint) {
+      throw new Error('Party code, host password, and fingerprint are required.')
     }
 
     const supabase = createClient(
@@ -45,6 +45,16 @@ serve(async (req) => {
 
     if (!is_match) {
       throw new Error('Invalid host password.')
+    }
+
+    // Store the host fingerprint for this party
+    const { error: updateError } = await supabase
+      .from('parties')
+      .update({ host_fingerprint })
+      .eq('party_code', party_code)
+
+    if (updateError) {
+      throw new Error('Failed to store host fingerprint.')
     }
 
     return new Response(JSON.stringify({ success: true }), {

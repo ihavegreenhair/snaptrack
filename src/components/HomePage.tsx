@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { getUserFingerprint } from '../lib/fingerprint';
+import { useParty } from '../lib/PartyContext';
 
 const HomePage: React.FC = () => {
   const [partyCode, setPartyCode] = useState('');
   const [hostPassword, setHostPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { setIsHost } = useParty();
 
   const handleCreateParty = async () => {
     if (!hostPassword) {
@@ -16,12 +19,20 @@ const HomePage: React.FC = () => {
 
     setIsLoading(true);
     try {
+      // Get the creator's fingerprint to automatically set them as host
+      const creatorFingerprint = await getUserFingerprint();
+      
       const { data, error } = await supabase.functions.invoke('create-party', {
-        body: { host_password: hostPassword },
+        body: { 
+          host_password: hostPassword,
+          creator_fingerprint: creatorFingerprint
+        },
       });
 
       if (error) throw error;
 
+      // Set the creator as host immediately
+      setIsHost(true);
       navigate(`/party/${data.party.party_code}`);
     } catch (error) {
       console.error('Error creating party:', error);

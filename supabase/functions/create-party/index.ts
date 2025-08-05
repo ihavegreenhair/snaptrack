@@ -18,11 +18,16 @@ serve(async (req) => {
   }
 
   try {
-    const { host_password } = await req.json()
+    const { host_password, creator_fingerprint } = await req.json()
 
     if (!host_password) {
       console.error('Error: Host password is required.');
       throw new Error('Host password is required.')
+    }
+
+    if (!creator_fingerprint) {
+      console.error('Error: Creator fingerprint is required.');
+      throw new Error('Creator fingerprint is required.')
     }
 
     const supabase = createClient(
@@ -34,9 +39,14 @@ serve(async (req) => {
     const party_code = nanoid(6) // Generate a 6-character unique code
     const host_password_hash = await sha256(host_password + party_code); // Basic hashing with party_code as salt
 
+    // Create party with creator automatically set as host
     const { data, error } = await supabase
       .from('parties')
-      .insert([{ party_code, host_password_hash }])
+      .insert([{ 
+        party_code, 
+        host_password_hash,
+        host_fingerprint: creator_fingerprint  // Set creator as host immediately
+      }])
       .select()
 
     if (error) {

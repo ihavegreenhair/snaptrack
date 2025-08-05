@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getUserFingerprint } from '../lib/fingerprint';
 
 interface HostAuthModalProps {
   onClose: () => void;
@@ -11,13 +12,26 @@ const HostAuthModal: React.FC<HostAuthModalProps> = ({ onClose, onSuccess, party
   const [hostPassword, setHostPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fingerprint, setFingerprint] = useState<string>('');
+
+  useEffect(() => {
+    const initFingerprint = async () => {
+      const fp = await getUserFingerprint();
+      setFingerprint(fp);
+    };
+    initFingerprint();
+  }, []);
 
   const handleAuth = async () => {
     setIsLoading(true);
     setError('');
     try {
       const { data, error } = await supabase.functions.invoke('set-host', {
-        body: { party_code: partyCode, host_password: hostPassword },
+        body: { 
+          party_code: partyCode, 
+          host_password: hostPassword,
+          host_fingerprint: fingerprint
+        },
       });
 
       if (error) {

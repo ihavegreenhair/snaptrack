@@ -39,7 +39,6 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
   }, [isOpen]);
 
   const startCamera = async () => {
-    console.log('CameraModal: Starting camera...');
     setIsLoading(true);
     setCameraError(null);
     
@@ -52,34 +51,13 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
     const isAndroidWebView = isAndroid && /wv|WebView/i.test(userAgent);
     
     try {
-      
-      console.log('🔍 DEVICE DETECTION:');
-      console.log('- Is Android:', isAndroid);
-      console.log('- Is iOS:', isIOS);
-      console.log('- Is Mobile:', isMobile);
-      console.log('- Is Android Chrome:', isAndroidChrome);
-      console.log('- Is Android WebView:', isAndroidWebView);
-      console.log('- User agent:', userAgent);
-      console.log('- Is HTTPS:', location.protocol === 'https:');
-      console.log('- MediaDevices available:', !!navigator.mediaDevices);
-      console.log('- getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
-      
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera not supported by this browser');
       }
 
       // Check if we're on HTTPS (required for camera access on most browsers)
-      console.log('🔒 URL CHECK:');
-      console.log('- Current URL:', window.location.href);
-      console.log('- Protocol:', location.protocol);
-      console.log('- Hostname:', location.hostname);
-      console.log('- Is localhost/127.0.0.1:', (location.hostname === 'localhost' || location.hostname === '127.0.0.1'));
-      
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        console.log('❌ HTTPS REQUIRED: Camera needs HTTPS when not on localhost!');
         throw new Error('Camera requires HTTPS connection (except on localhost)');
-      } else {
-        console.log('✅ URL is OK for camera access');
       }
 
       // Android-specific constraints (ultra-minimal)
@@ -90,7 +68,6 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
           video: true,  // No constraints at all for Android
           audio: false
         };
-        console.log('🤖 Using ANDROID ultra-basic constraints (video: true)');
       } else if (isMobile) {
         constraints = {
           video: {
@@ -98,7 +75,6 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
           },
           audio: false
         };
-        console.log('📱 Using mobile constraints with facingMode');
       } else {
         constraints = {
           video: {
@@ -108,109 +84,51 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
           },
           audio: false
         };
-        console.log('💻 Using desktop constraints');
-      }
-
-      console.log('CameraModal: Requesting user media with constraints:', constraints);
-      
-      // Check camera permissions (Android-aware)
-      if (navigator.permissions) {
-        try {
-          const permission = await navigator.permissions.query({ name: 'camera' as PermissionName });
-          console.log('📋 PERMISSION CHECK:');
-          console.log('- Permission state:', permission.state);
-          
-          if (isAndroid) {
-            console.log('⚠️  ANDROID NOTE: Permission state might be inaccurate on Android!');
-            if (permission.state === 'denied') {
-              console.log('❌ Android reports DENIED - but this might be wrong!');
-            } else if (permission.state === 'prompt') {
-              console.log('❓ Android reports PROMPT - let\'s see if it actually prompts...');
-            } else {
-              console.log('✅ Android reports GRANTED - proceeding...');
-            }
-          }
-        } catch (permErr) {
-          console.log('Could not check camera permissions:', permErr);
-          if (isAndroid) {
-            console.log('🤖 This is common on Android - permissions API not fully supported');
-          }
-        }
-      } else {
-        if (isAndroid) {
-          console.log('🤖 ANDROID: Permissions API not available (normal)');
-        }
       }
       
-      console.log('🎥 ABOUT TO CALL getUserMedia with constraints:', JSON.stringify(constraints));
-      
-      if (isAndroid) {
-        console.log('🤖 ANDROID: About to call getUserMedia - should trigger permission popup NOW!');
-        console.log('🤖 ANDROID: If you don\'t see a popup asking for camera permission, that\'s the problem!');
-        
-        // Add a small delay for Android to ensure user gesture is preserved
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
       
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('✅ getUserMedia SUCCESS - got stream:', stream);
-      
-      if (isAndroid) {
-        console.log('🎉 ANDROID SUCCESS: You must have clicked "Allow" in the permission popup!');
-      }
-      console.log('Stream tracks:', stream.getTracks().map(track => ({ kind: track.kind, enabled: track.enabled, readyState: track.readyState })));
       
       streamRef.current = stream;
       
       if (videoRef.current) {
-        console.log('CameraModal: Setting video source');
         videoRef.current.srcObject = stream;
         
         // Wait for the video to load
         const videoElement = videoRef.current;
         
         videoElement.onloadedmetadata = () => {
-          console.log('📺 Video metadata loaded, dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
-          
           if (isAndroid) {
-            console.log('🤖 ANDROID: Video metadata loaded successfully');
             // Android sometimes needs extra time
             setTimeout(() => {
-              console.log('🤖 ANDROID: Attempting delayed video play...');
               videoElement.play().then(() => {
-                console.log('🤖 ANDROID: Video playing successfully!');
                 setVideoReady(true);
                 setTimeout(() => {
                   if (!countdown) {
-                    console.log('🤖 ANDROID: Starting countdown...');
                     startCountdown();
                   }
-                }, 1500); // Extra time for Android
+                }, 1500);
               }).catch((playError) => {
-                console.error('🤖 ANDROID: Video play failed:', playError);
+                console.error('Android video play failed:', playError);
                 setCameraError('Android video playback failed: ' + playError.message);
               });
-            }, 500); // 500ms delay for Android
+            }, 500);
           } else {
-            console.log('📺 Attempting to play video...');
             videoElement.play().then(() => {
-              console.log('📺 Video playing successfully');
               setVideoReady(true);
               setTimeout(() => {
                 if (!countdown) {
-                  console.log('Starting countdown...');
                   startCountdown();
                 }
               }, 1000);
             }).catch((playError) => {
-              console.error('📺 Video play failed:', playError);
+              console.error('Video play failed:', playError);
               setCameraError('Video playback failed: ' + playError.message);
             });
           }
         };
         
         videoElement.oncanplay = () => {
-          console.log('CameraModal: Video can play, readyState:', videoElement.readyState);
         };
         
         videoElement.onerror = (e) => {
@@ -218,16 +136,9 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
           setCameraError('Video element error occurred');
         };
         
-        // Additional debugging
-        videoElement.onloadstart = () => console.log('Video load started');
-        videoElement.onprogress = () => console.log('Video loading progress');
-        videoElement.onsuspend = () => console.log('Video loading suspended');
-        videoElement.onstalled = () => console.log('Video loading stalled');
-        
         // Force load metadata in case it doesn't auto-load
         setTimeout(() => {
           if (!videoReady) {
-            console.log('Forcing video load...');
             videoElement.load();
           }
         }, 2000);
@@ -308,7 +219,6 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
             audio: false 
           });
           
-          console.log('✅ FALLBACK SUCCESS: Got basic stream');
           streamRef.current = basicStream;
           
           if (videoRef.current) {

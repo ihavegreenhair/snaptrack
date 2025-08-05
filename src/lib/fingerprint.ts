@@ -30,12 +30,13 @@ export async function getUserFingerprint(): Promise<string> {
     // Get the fingerprint
     const result = await fpAgent.get();
     cachedFingerprint = result.visitorId ?? '';
+    
     return cachedFingerprint;
   } catch (error) {
     // Fallback to a simple random ID if fingerprinting fails
-    console.warn('Fingerprinting failed, using fallback ID:', error);
+    console.warn('Fingerprinting failed:', error);
     const fallbackId = 'fallback_' + Math.random().toString(36).substr(2, 9);
-    cachedFingerprint = fallbackId
-    return cachedFingerprint
+    cachedFingerprint = fallbackId;
+    return cachedFingerprint;
   }
 }
