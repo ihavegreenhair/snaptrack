@@ -563,9 +563,8 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                   </CardContent>
                 </Card>
               );
-                    })}
-                  </div>
-                )}
+                  })}
+                </div>
               </div>
             )}
           </div>

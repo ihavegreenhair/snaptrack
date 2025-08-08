@@ -27,7 +27,7 @@ export default function NameInputModal({ isOpen, onSubmit, partyCode }: NameInpu
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md w-[95vw] sm:w-full" hideCloseButton>
+      <DialogContent className="max-w-md w-[95vw] sm:w-full">
         <DialogHeader className="text-center space-y-3 pb-4">
           <div className="flex items-center justify-center">
             <div className="p-3 rounded-full bg-primary/10">

@@ -33,7 +33,7 @@ function PartyPage() {
   const [userFingerprint, setUserFingerprint] = useState<string>('');
   const [partyMood, setPartyMood] = useState<string>('');
   const [showNameModal, setShowNameModal] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[fingerprint: string]: string}>({});
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);

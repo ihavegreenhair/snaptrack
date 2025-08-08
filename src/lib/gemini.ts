@@ -260,8 +260,8 @@ async function analyzeUserBehavior(partyId: string, userProfiles: {[fingerprint:
       return null;
     }
 
-    // Get all votes for this party
-    const { data: votesData, error: votesError } = await supabase
+    // Get all votes for this party (for future expansion)
+    const { error: votesError } = await supabase
       .from('votes')
       .select('*')
       .in('queue_id', queueData?.map(item => item.id) || []);
