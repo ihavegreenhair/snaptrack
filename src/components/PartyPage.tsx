@@ -364,7 +364,7 @@ function PartyPage() {
                       <div className="space-y-3">
                         <div className="w-40 h-40 mx-auto bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center p-3">
                           <QRCode 
-                            value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
+                            value={`${window.location.origin}/party/${partyCode}`} 
                             size={140} 
                           />
                         </div>
@@ -420,7 +420,7 @@ function PartyPage() {
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                       <div className="flex-shrink-0 p-3 bg-white rounded-lg shadow-sm border border-gray-100">
                         <QRCode 
-                          value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
+                          value={`${window.location.origin}/party/${partyCode}`} 
                           size={120} 
                         />
                       </div>
@@ -433,7 +433,7 @@ function PartyPage() {
                           </div>
                           <button
                             onClick={async () => {
-                              const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
+                              const partyUrl = `${window.location.origin}/party/${partyCode}`;
                               try {
                                 await navigator.clipboard.writeText(partyUrl);
                                 const button = event?.target as HTMLButtonElement;
