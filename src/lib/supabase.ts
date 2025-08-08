@@ -43,3 +43,16 @@ export type Vote = {
   fingerprint: string
   vote: number // 1 for upvote, -1 for downvote
 }
+
+/**
+ * Type definition for user profiles in the database
+ * Maps fingerprints to display names within parties
+ */
+export type UserProfile = {
+  id: string;
+  fingerprint: string;
+  party_id: string;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
+}

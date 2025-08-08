@@ -246,13 +246,108 @@ function filterRecentlyPlayed(
   });
 }
 
+// Analyze user behavior patterns for AI suggestions
+async function analyzeUserBehavior(partyId: string, userProfiles: {[fingerprint: string]: string}) {
+  try {
+    // Get all queue items with votes for this party
+    const { data: queueData, error: queueError } = await supabase
+      .from('queue_items')
+      .select('*')
+      .eq('party_id', partyId);
+
+    if (queueError) {
+      console.error('Error fetching queue data for behavior analysis:', queueError);
+      return null;
+    }
+
+    // Get all votes for this party
+    const { data: votesData, error: votesError } = await supabase
+      .from('votes')
+      .select('*')
+      .in('queue_id', queueData?.map(item => item.id) || []);
+
+    if (votesError) {
+      console.error('Error fetching votes data for behavior analysis:', votesError);
+      return null;
+    }
+
+    // Analyze top contributors
+    const contributorStats: {[fingerprint: string]: {count: number, songs: string[]}} = {};
+    queueData?.forEach(song => {
+      if (!contributorStats[song.submitted_by]) {
+        contributorStats[song.submitted_by] = {count: 0, songs: []};
+      }
+      contributorStats[song.submitted_by].count++;
+      contributorStats[song.submitted_by].songs.push(song.title);
+    });
+
+    const topContributors = Object.entries(contributorStats)
+      .map(([fingerprint, stats]) => ({
+        name: userProfiles[fingerprint] || 'Anonymous',
+        songCount: stats.count,
+        songs: stats.songs
+      }))
+      .sort((a, b) => b.songCount - a.songCount)
+      .slice(0, 5);
+
+    // Analyze highest voted songs
+    const highestVotedSongs = queueData
+      ?.map(song => ({
+        title: song.title,
+        votes: song.votes,
+        submitter: userProfiles[song.submitted_by] || 'Anonymous'
+      }))
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, 10) || [];
+
+    // Simple genre analysis based on song patterns
+    const genrePatterns = {
+      'Pop/Mainstream': ['pop', 'taylor swift', 'dua lipa', 'harry styles', 'olivia rodrigo', 'the weeknd'],
+      'Hip-Hop/Rap': ['hip hop', 'rap', 'drake', 'kendrick', 'travis scott', 'lil nas x'],
+      'Rock/Alternative': ['rock', 'alternative', 'indie', 'killers', 'arctic monkeys', 'foo fighters'],
+      'Electronic/Dance': ['electronic', 'edm', 'house', 'techno', 'calvin harris', 'marshmello'],
+      'R&B/Soul': ['r&b', 'soul', 'sza', 'frank ocean', 'daniel caesar', 'the weeknd']
+    };
+
+    const popularGenres = Object.entries(genrePatterns)
+      .map(([genre, keywords]) => {
+        const matchingSongs = queueData?.filter(song => 
+          keywords.some(keyword => 
+            song.title.toLowerCase().includes(keyword) ||
+            (song.title + ' ' + (userProfiles[song.submitted_by] || '')).toLowerCase().includes(keyword)
+          )
+        ) || [];
+        
+        return {
+          genre,
+          count: matchingSongs.length,
+          songs: matchingSongs.map(s => s.title)
+        };
+      })
+      .filter(genre => genre.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      topContributors,
+      popularGenres,
+      highestVotedSongs,
+      userVotingPatterns: [] // Could be expanded later
+    };
+  } catch (error) {
+    console.error('Error analyzing user behavior:', error);
+    return null;
+  }
+}
+
 // Get AI suggestions in background (non-blocking)
 export async function getAISuggestionsBackground(
   currentSong: QueueItem | null,
   recentSongs: QueueItem[],
   fullQueue: QueueItem[], // Pass full queue
   mood: string = '', // Add mood parameter
-  onUpdate: (suggestions: SuggestedSong[]) => void
+  onUpdate: (suggestions: SuggestedSong[]) => void,
+  partyId?: string, // Add partyId for behavior analysis
+  userProfiles?: {[fingerprint: string]: string} // Add user profiles
 ): Promise<void> {
   const context = getCacheKey(currentSong, recentSongs, fullQueue, mood);
   
@@ -274,6 +369,12 @@ export async function getAISuggestionsBackground(
     const hour = now.getHours();
     const timePhase = getTimePhase(hour);
     
+    // Analyze user behavior patterns if party data is available
+    let behaviorData = null;
+    if (partyId && userProfiles && Object.keys(userProfiles).length > 0) {
+      behaviorData = await analyzeUserBehavior(partyId, userProfiles);
+    }
+    
     // Build context with timing information and mood/style preferences
     const contextData = {
       currentSong: currentSong?.title,
@@ -288,7 +389,8 @@ export async function getAISuggestionsBackground(
       },
       fullQueue: fullQueue.map(s => s.title), // Pass full queue titles
       musicStyle: mood || '', // Add music style/mood preference
-      stylePreference: mood ? `User wants music that is: ${mood}` : ''
+      stylePreference: mood ? `User wants music that is: ${mood}` : '',
+      userBehaviorData: behaviorData
     };
     
     const { data, error } = await supabase.functions.invoke('get-song-suggestions', {

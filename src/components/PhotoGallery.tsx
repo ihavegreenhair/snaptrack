@@ -7,9 +7,10 @@ import PhotoZoom from './PhotoZoom';
 interface PhotoGalleryProps {
   queue: QueueItem[];
   title: string;
+  userProfiles?: {[fingerprint: string]: string};
 }
 
-export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
+export default function PhotoGallery({ queue, title, userProfiles = {} }: PhotoGalleryProps) {
   if (queue.length === 0) {
     return (
       <Card>
@@ -48,6 +49,7 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
               queue={queue}
               currentIndex={index}
               className="group cursor-pointer"
+              submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
             >
               <div className="relative aspect-square rounded-xl overflow-hidden bg-muted transition-all duration-300 hover:scale-105 hover:shadow-lg">
                 {/* Photo */}

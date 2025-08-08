@@ -15,6 +15,28 @@ interface SongContext {
   fullQueue: string[];
   musicStyle?: string;
   stylePreference?: string;
+  userBehaviorData?: {
+    topContributors: Array<{
+      name: string;
+      songCount: number;
+      songs: string[];
+    }>;
+    popularGenres: Array<{
+      genre: string;
+      count: number;
+      songs: string[];
+    }>;
+    highestVotedSongs: Array<{
+      title: string;
+      votes: number;
+      submitter: string;
+    }>;
+    userVotingPatterns: Array<{
+      user: string;
+      votedFor: string[];
+      preferences: string[];
+    }>;
+  };
 }
 
 interface SuggestedSong {
@@ -38,7 +60,7 @@ serve(async (req) => {
       });
     }
 
-    const { currentSong, recentSongs, timeContext, fullQueue, musicStyle, stylePreference }: SongContext = await req.json();
+    const { currentSong, recentSongs, timeContext, fullQueue, musicStyle, stylePreference, userBehaviorData }: SongContext = await req.json();
 
     // Prepare the enhanced song context with timing and user preferences
     const songContext = [];
@@ -82,6 +104,34 @@ serve(async (req) => {
 
     if (fullQueue && fullQueue.length > 0) {
       songContext.push(`\nCRITICAL: DO NOT suggest any of the songs in the following list (they are already in the queue or were recently played):\n- ${fullQueue.join('\n- ')}`);
+    }
+    
+    // Add user behavior analytics for better personalization
+    if (userBehaviorData) {
+      songContext.push(`\n=== PARTY BEHAVIOR ANALYSIS ===`);
+      
+      if (userBehaviorData.topContributors.length > 0) {
+        songContext.push(`Top contributors and their musical preferences:`);
+        userBehaviorData.topContributors.forEach(contributor => {
+          songContext.push(`• ${contributor.name} (${contributor.songCount} songs): ${contributor.songs.slice(0, 3).join(', ')}`);
+        });
+      }
+      
+      if (userBehaviorData.highestVotedSongs.length > 0) {
+        songContext.push(`\nCrowd favorites (highest voted songs):`);
+        userBehaviorData.highestVotedSongs.slice(0, 5).forEach(song => {
+          songContext.push(`• "${song.title}" (${song.votes} votes) by ${song.submitter}`);
+        });
+      }
+      
+      if (userBehaviorData.popularGenres.length > 0) {
+        songContext.push(`\nPopular genres/styles at this party:`);
+        userBehaviorData.popularGenres.slice(0, 3).forEach(genre => {
+          songContext.push(`• ${genre.genre}: ${genre.songs.slice(0, 2).join(', ')}`);
+        });
+      }
+      
+      songContext.push(`\nIMPORTANT: Use this behavior data to suggest songs that match the party's demonstrated preferences. Consider what styles get the most votes and which contributors have similar taste to what's working well.`);
     }
     
     const styleInstructions = musicStyle && musicStyle.trim() 

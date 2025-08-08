@@ -15,6 +15,7 @@ interface QueueListProps {
   isHost: boolean;
   height?: number;
   isHostView?: boolean;
+  userProfiles?: {[fingerprint: string]: string};
 }
 
 interface UserVotes {
@@ -22,7 +23,7 @@ interface UserVotes {
 }
 
 
-export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height, isHostView }: QueueListProps) {
+export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height, isHostView, userProfiles = {} }: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
   const [voting, setVoting] = useState<string | null>(null);
@@ -183,6 +184,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                           currentIndex={index}
                           currentSongId={currentSongId}
                           className="transition-all duration-200 hover:scale-105 flex-shrink-0"
+                          submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
                         >
                           <img
                             src={song.photo_url}
@@ -280,6 +282,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             className={`transition-all duration-200 hover:scale-105 ${
                               isHistory ? 'w-16 h-16 sm:w-18 sm:h-18 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full shadow-md'
                             }`}
+                            submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
                           >
                             <img
                               src={song.photo_url}

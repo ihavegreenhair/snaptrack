@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase, type QueueItem } from '../lib/supabase';
+import { supabase, type QueueItem, type UserProfile } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { clearSuggestionsCache, getAISuggestionsBackground, getInstantSuggestions, type SuggestedSong } from '../lib/gemini';
 import { searchYouTubeVideos, getSongLengthError } from '../lib/youtube';
@@ -11,6 +11,7 @@ import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
 import MoodSelector from './MoodSelector';
+import NameInputModal from './NameInputModal';
 import { Music, QrCode, X, Copy } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
@@ -31,6 +32,9 @@ function PartyPage() {
   const addSongModalRef = useRef<{ openModal: () => void }>(null);
   const [userFingerprint, setUserFingerprint] = useState<string>('');
   const [partyMood, setPartyMood] = useState<string>('');
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfiles, setUserProfiles] = useState<{[fingerprint: string]: string}>({});
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);
   const [nowPlayingHeight, setNowPlayingHeight] = useState<number | undefined>(undefined);
@@ -70,6 +74,85 @@ function PartyPage() {
     }
   };
 
+  const checkUserProfile = async (fingerprint: string, partyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('fingerprint', fingerprint)
+        .eq('party_id', partyId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error checking user profile:', error);
+      return null;
+    }
+  };
+
+  const createUserProfile = async (fingerprint: string, partyId: string, displayName: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .insert({
+          fingerprint,
+          party_id: partyId,
+          display_name: displayName
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      return null;
+    }
+  };
+
+  const loadUserProfiles = async (partyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('fingerprint, display_name')
+        .eq('party_id', partyId);
+
+      if (error) {
+        console.error('Error loading user profiles:', error);
+        return;
+      }
+
+      const profilesMap: {[fingerprint: string]: string} = {};
+      data?.forEach(profile => {
+        profilesMap[profile.fingerprint] = profile.display_name;
+      });
+      
+      setUserProfiles(profilesMap);
+    } catch (error) {
+      console.error('Error loading user profiles:', error);
+    }
+  };
+
+  const handleNameSubmit = async (displayName: string) => {
+    if (!partyId || !userFingerprint) return;
+
+    const profile = await createUserProfile(userFingerprint, partyId, displayName);
+    if (profile) {
+      setUserProfile(profile);
+      setUserProfiles(prev => ({ ...prev, [userFingerprint]: displayName }));
+      setShowNameModal(false);
+    }
+  };
+
   useEffect(() => {
     const initializeParty = async () => {
       if (!partyCode) return;
@@ -91,6 +174,18 @@ function PartyPage() {
       setPartyId(data.id);
       
       await verifyHostStatus(fingerprint, partyCode);
+      
+      // Load all user profiles for the party
+      await loadUserProfiles(data.id);
+      
+      // Check if current user has a profile
+      const existingProfile = await checkUserProfile(fingerprint, data.id);
+      if (existingProfile) {
+        setUserProfile(existingProfile);
+      } else {
+        // Show name input modal for new users
+        setShowNameModal(true);
+      }
     };
 
     initializeParty();
@@ -215,7 +310,7 @@ function PartyPage() {
         await getAISuggestionsBackground(currentSongForSuggestions, recentSongs, fullQueue, partyMood, (personalizedSuggestions) => {
           setSuggestions(personalizedSuggestions);
           setSuggestionsType('personalized');
-        });
+        }, partyId, userProfiles);
       } catch (aiError) {
         const instantSuggestions = getInstantSuggestions();
         setSuggestions(instantSuggestions);
@@ -610,12 +705,13 @@ function PartyPage() {
                   isHost={isHost} 
                   height={showQRCode ? undefined : nowPlayingHeight}
                   isHostView={isHost}
+                  userProfiles={userProfiles}
                 />
               </div>
             </div>
             
             <div className="mt-4 sm:mt-6">
-              <PhotoGallery title="Previously Played" queue={history} />
+              <PhotoGallery title="Previously Played" queue={history} userProfiles={userProfiles} />
             </div>
             
             {/* Hidden AddSongModal for when we have content */}
@@ -644,6 +740,14 @@ function PartyPage() {
             }
             setShowHostModal(false);
           }}
+        />
+      )}
+
+      {showNameModal && partyCode && (
+        <NameInputModal
+          isOpen={showNameModal}
+          partyCode={partyCode}
+          onSubmit={handleNameSubmit}
         />
       )}
 

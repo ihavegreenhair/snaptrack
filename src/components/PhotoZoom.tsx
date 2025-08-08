@@ -14,6 +14,7 @@ interface PhotoZoomProps {
   queue?: QueueItem[]; // Array of all queue items for navigation
   currentIndex?: number; // Current item index in the queue
   currentSongId?: string; // ID of currently playing song
+  submitterName?: string; // Name of person who submitted the song
 }
 
 export default function PhotoZoom({ 
@@ -24,7 +25,8 @@ export default function PhotoZoom({
   song, 
   queue = [], 
   currentIndex = 0,
-  currentSongId 
+  currentSongId,
+  submitterName
 }: PhotoZoomProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(currentIndex);
@@ -142,7 +144,7 @@ export default function PhotoZoom({
                       <div className="flex-1 text-white space-y-6 max-w-md">
                         <div>
                           <h2 className="text-3xl font-bold mb-2 text-white">{currentSong?.title}</h2>
-                          <p className="text-white/70 text-lg">Submitted by a party-goer</p>
+                          <p className="text-white/70 text-lg">Submitted by {submitterName || 'a party-goer'}</p>
                         </div>
 
                         {/* Navigation hints */}
@@ -182,7 +184,7 @@ export default function PhotoZoom({
                 <div className="flex-1 text-white space-y-6 max-w-md">
                   <div>
                     <h2 className="text-3xl font-bold mb-2 text-white">{song.title}</h2>
-                    <p className="text-white/70 text-lg">Submitted by a party-goer</p>
+                    <p className="text-white/70 text-lg">Submitted by {submitterName || 'a party-goer'}</p>
                   </div>
                 </div>
               </div>
