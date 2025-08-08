@@ -490,30 +490,30 @@ function PartyPage() {
               <div className="space-y-4 xl:col-span-1 2xl:col-span-2">
                 {/* QR Code Section - Only appears above queue */}
                 {showQRCode && (
-                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-6">
+                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-6 xl:p-6 2xl:p-8">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-foreground">Join This Party</h3>
+                      <h3 className="text-lg xl:text-xl 2xl:text-2xl font-semibold text-foreground">Join This Party</h3>
                       <button
                         onClick={() => setShowQRCode(false)}
-                        className="w-8 h-8 rounded-full hover:bg-muted/50 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12 rounded-full hover:bg-muted/50 flex items-center justify-center transition-colors"
                       >
-                        <X className="w-4 h-4 text-muted-foreground" />
+                        <X className="w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6 text-muted-foreground" />
                       </button>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="flex-shrink-0 p-3 bg-white rounded-lg shadow-sm border border-gray-100">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 xl:gap-6 2xl:gap-8">
+                      <div className="flex-shrink-0 p-3 xl:p-4 2xl:p-6 bg-white rounded-lg shadow-sm border border-gray-100">
                         <QRCode 
                           value={`${window.location.origin}/party/${partyCode}`} 
-                          size={120} 
+                          size={120}
                         />
                       </div>
                       <div className="flex-1 text-center sm:text-left">
-                        <p className="text-sm text-muted-foreground mb-3">Scan QR code or share party code</p>
+                        <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground mb-3">Scan QR code or share party code</p>
                         <div className="flex flex-col sm:flex-row items-center gap-3">
                           <div>
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Code:</span>
-                            <span className="text-xl font-bold tracking-wider font-mono bg-background px-3 py-2 rounded border">{partyCode}</span>
+                            <span className="text-xs xl:text-sm 2xl:text-base font-medium text-muted-foreground uppercase tracking-wide block mb-1">Code:</span>
+                            <span className="text-xl xl:text-2xl 2xl:text-3xl font-bold tracking-wider font-mono bg-background px-3 py-2 xl:px-4 xl:py-3 2xl:px-6 2xl:py-4 rounded border">{partyCode}</span>
                           </div>
                           <button
                             onClick={async () => {

@@ -268,8 +268,8 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
     const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
     
     return (
-      <Card className="h-full min-h-[400px]">
-        <CardContent className="flex flex-col items-center justify-center h-full p-4 sm:p-6">
+      <Card className="h-full max-h-[90vh] xl:max-h-[95vh] min-h-[400px]">
+        <CardContent className="flex flex-col items-center justify-center h-full p-4 sm:p-6 xl:p-8 2xl:p-12">
           <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
             <Play className="w-10 h-10 text-muted-foreground" />
           </div>
@@ -343,11 +343,11 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   if (!isHost) {
     // GUEST VIEW: Just show the song info card
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Now Playing</CardTitle>
+      <Card className="h-full max-h-[90vh] xl:max-h-[95vh] flex flex-col">
+        <CardHeader className="flex-shrink-0">
+          <CardTitle className="xl:text-xl 2xl:text-2xl">Now Playing</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
           <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
               <Play className="w-8 h-8 text-primary-foreground" />
@@ -385,11 +385,11 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
 
   // HOST VIEW: Full YouTube player controls
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Now Playing</CardTitle>
+    <Card className="h-full max-h-[90vh] xl:max-h-[95vh] flex flex-col">
+      <CardHeader className="flex-shrink-0">
+        <CardTitle className="xl:text-xl 2xl:text-2xl">Now Playing</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 overflow-hidden flex flex-col">
         <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
           {playerError ? (
             <div className="w-full h-full flex items-center justify-center bg-red-50 border-2 border-red-200">
@@ -439,13 +439,13 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           )}
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-6 flex-shrink-0">
           <PhotoZoom 
             src={song.photo_url} 
             alt="Song submitter's photo"
             song={song}
             isCurrentSong={true}
-            className="w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
+            className="w-16 h-16 sm:w-24 sm:h-24 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
           >
             <img
               src={song.photo_url}
@@ -454,23 +454,23 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             />
           </PhotoZoom>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg sm:text-xl font-semibold mb-1 break-words">{song.title}</h3>
-            <p className="text-muted-foreground text-xs sm:text-sm mb-2">Submitted by a party-goer</p>
-            <p className="text-xs text-muted-foreground/80 hidden sm:block">Click photo to view details</p>
+            <h3 className="text-lg sm:text-xl xl:text-lg 2xl:text-xl font-semibold mb-1 break-words">{song.title}</h3>
+            <p className="text-muted-foreground text-xs sm:text-sm xl:text-xs 2xl:text-sm mb-2">Submitted by a party-goer</p>
+            <p className="text-xs xl:text-xs 2xl:text-sm text-muted-foreground/80 hidden sm:block">Click photo to view details</p>
           </div>
         </div>
 
         {isHost && (
-          <div className="flex items-center justify-center gap-2 sm:gap-4 bg-muted/50 p-3 sm:p-4 rounded-xl">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 bg-muted/50 p-3 sm:p-4 xl:p-3 2xl:p-4 rounded-xl flex-shrink-0">
             <Button
               onClick={handlePlayButtonClick}
               variant="ghost"
               size="icon"
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/20 hover:bg-primary/30"
+              className="w-16 h-16 sm:w-20 sm:h-20 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full bg-primary/20 hover:bg-primary/30"
               disabled={!isPlayerReady || !!playerError}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
-              {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 text-primary" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />}
+              {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" />}
             </Button>
             <Button
               onClick={onSkip}

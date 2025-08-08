@@ -157,10 +157,10 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                   {isNextUp && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
                   )}
-                  <CardContent className="p-3 sm:p-4">
-                    <div className="flex items-center gap-2 sm:gap-4">
+                  <CardContent className="p-3 sm:p-4 xl:p-6 2xl:p-8">
+                    <div className="flex items-center gap-2 sm:gap-4 xl:gap-6 2xl:gap-8">
                       {!isHistory && (
-                        <div className={`flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm ${
+                        <div className={`flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm xl:text-base 2xl:text-lg ${
                           isNextUp
                             ? 'bg-amber-500 text-white'
                             : 'bg-muted text-muted-foreground'
@@ -177,7 +177,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         currentIndex={index}
                         currentSongId={currentSongId}
                         className={`flex-shrink-0 transition-all duration-200 hover:scale-105 ${
-                          isHistory ? 'w-16 h-16 sm:w-20 sm:h-20 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-md'
+                          isHistory ? 'w-16 h-16 sm:w-20 sm:h-20 xl:w-24 xl:h-24 2xl:w-32 2xl:h-32 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-16 sm:h-16 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-full shadow-md'
                         }`}
                       >
                         <img
@@ -192,7 +192,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                       </PhotoZoom>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-                          <h3 className="font-semibold text-base sm:text-lg break-words line-clamp-2">{song.title}</h3>
+                          <h3 className="font-semibold text-base sm:text-lg xl:text-xl 2xl:text-2xl break-words line-clamp-2">{song.title}</h3>
                           {isNextUp && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white flex-shrink-0">
                               <Star className="w-3 h-3" />
@@ -201,19 +201,19 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm xl:text-base 2xl:text-lg text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
                             <span className={`transition-all duration-300 ${animatingVotes[song.id] ? 'scale-110 text-green-600' : ''}`}>
                               {song.votes} votes
                             </span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
                             {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : `Added ${formatTimeAgo(song.submitted_at)}`}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground/70 mt-1 hidden sm:block">Click photo for details</p>
+                        <p className="text-xs xl:text-sm 2xl:text-base text-muted-foreground/70 mt-1 hidden sm:block">Click photo for details</p>
                       </div>
                       {!isHistory && (
                         <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -222,10 +222,10 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                               onClick={() => handleRemoveSong(song.id)}
                               size="icon"
                               variant="destructive"
-                              className="rounded-full w-8 h-8 mb-1"
+                              className="rounded-full w-8 h-8 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 mb-1"
                               title="Remove song (Host only)"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
                             </Button>
                           )}
                           <Button
@@ -233,13 +233,13 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             disabled={voting === song.id}
                             size="icon"
                             variant={userVote === 1 ? "default" : "outline"}
-                            className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
+                            className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
                               userVote === 1 ? 'bg-green-600 hover:bg-green-700 shadow-lg' : 'hover:bg-green-50'
                             }`}
                           >
-                            <ThumbsUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <ThumbsUp className="w-4 h-4 sm:w-5 sm:h-5 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8" />
                           </Button>
-                          <span className="text-lg sm:text-xl font-bold w-8 sm:w-12 text-center">
+                          <span className="text-lg sm:text-xl xl:text-2xl 2xl:text-3xl font-bold w-8 sm:w-12 xl:w-16 2xl:w-20 text-center">
                             {song.votes}
                           </span>
                           <Button
@@ -247,11 +247,11 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             disabled={voting === song.id}
                             size="icon"
                             variant={userVote === -1 ? "destructive" : "outline"}
-                            className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
+                            className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16 transition-all duration-300 hover:scale-110 active:scale-95 transform ${
                               userVote === -1 ? 'shadow-lg' : 'hover:bg-red-50'
                             }`}
                           >
-                            <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8" />
                           </Button>
                         </div>
                       )}
