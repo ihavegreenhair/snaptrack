@@ -473,11 +473,11 @@ function PartyPage() {
           </div>
         ) : (
           <>
-            <div className={`grid grid-cols-1 gap-4 sm:gap-6 xl:gap-8 2xl:gap-12 ${
-              isHost ? 'xl:grid-cols-3 2xl:grid-cols-5' : 'xl:grid-cols-4 2xl:grid-cols-6'
+            <div className={`grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8 ${
+              isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6'
             }`}>
               <div className={`h-full ${
-                isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-1 2xl:col-span-2'
+                isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2'
               }`} ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlayingSong}
@@ -492,44 +492,42 @@ function PartyPage() {
                 />
               </div>
               <div className={`space-y-4 ${
-                isHost ? 'xl:col-span-1 2xl:col-span-2' : 'xl:col-span-3 2xl:col-span-4'
+                isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-3 2xl:col-span-4'
               }`}>
                 {/* QR Code Section - Only appears above queue */}
                 {showQRCode && (
-                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-6 xl:p-6 2xl:p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg xl:text-xl 2xl:text-2xl font-semibold text-foreground">Join This Party</h3>
+                  <div className={`bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl ${
+                    isHost ? 'p-4' : 'p-4 sm:p-6 xl:p-6 2xl:p-8'
+                  }`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className={`font-semibold text-foreground ${
+                        isHost ? 'text-base xl:text-lg' : 'text-lg xl:text-xl 2xl:text-2xl'
+                      }`}>Join This Party</h3>
                       <button
                         onClick={() => setShowQRCode(false)}
-                        className="w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12 rounded-full hover:bg-muted/50 flex items-center justify-center transition-colors"
+                        className={`rounded-full hover:bg-muted/50 flex items-center justify-center transition-colors ${
+                          isHost ? 'w-6 h-6 xl:w-8 xl:h-8' : 'w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12'
+                        }`}
                       >
-                        <X className="w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6 text-muted-foreground" />
+                        <X className={`text-muted-foreground ${
+                          isHost ? 'w-3 h-3 xl:w-4 xl:h-4' : 'w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6'
+                        }`} />
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8 2xl:gap-10 items-center">
-                      {/* QR Code Section */}
-                      <div className="flex justify-center xl:justify-start">
-                        <div className="p-4 xl:p-5 2xl:p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                    {isHost ? (
+                      // Compact host layout - vertical stack
+                      <div className="text-center space-y-4">
+                        <div className="inline-block p-3 bg-white rounded-lg shadow-sm border border-gray-100">
                           <QRCode 
                             value={`${window.location.origin}/party/${partyCode}`} 
-                            size={140}
+                            size={100}
                           />
                         </div>
-                      </div>
-                      
-                      {/* Party Info Section */}
-                      <div className="text-center xl:text-left space-y-4">
-                        <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground">Scan QR code or share party code</p>
-                        
-                        <div className="space-y-3">
-                          <div className="space-y-2">
-                            <span className="text-xs xl:text-sm 2xl:text-base font-medium text-muted-foreground uppercase tracking-wide block">Party Code:</span>
-                            <div className="inline-block bg-background border-2 border-primary/20 rounded-lg p-3 xl:p-4 2xl:p-5 shadow-sm">
-                              <span className="text-2xl xl:text-3xl 2xl:text-4xl font-bold tracking-widest font-mono text-primary">{partyCode}</span>
-                            </div>
+                        <div className="space-y-2">
+                          <div className="bg-background border border-primary/20 rounded-md p-2">
+                            <span className="text-lg xl:text-xl font-bold tracking-widest font-mono text-primary">{partyCode}</span>
                           </div>
-                          
                           <button
                             onClick={async () => {
                               const partyUrl = `${window.location.origin}/party/${partyCode}`;
@@ -545,14 +543,62 @@ function PartyPage() {
                                 alert(`Share this link: ${partyUrl}`);
                               }
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-3 xl:px-6 xl:py-4 2xl:px-8 2xl:py-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg xl:rounded-xl font-medium xl:text-lg 2xl:text-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                           >
-                            <Copy className="w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
-                            Copy Party Link
+                            <Copy className="w-3 h-3" />
+                            Copy Link
                           </button>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      // Full guest layout - horizontal
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8 2xl:gap-10 items-center">
+                        {/* QR Code Section */}
+                        <div className="flex justify-center xl:justify-start">
+                          <div className="p-4 xl:p-5 2xl:p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+                            <QRCode 
+                              value={`${window.location.origin}/party/${partyCode}`} 
+                              size={140}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Party Info Section */}
+                        <div className="text-center xl:text-left space-y-4">
+                          <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground">Scan QR code or share party code</p>
+                          
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <span className="text-xs xl:text-sm 2xl:text-base font-medium text-muted-foreground uppercase tracking-wide block">Party Code:</span>
+                              <div className="inline-block bg-background border-2 border-primary/20 rounded-lg p-3 xl:p-4 2xl:p-5 shadow-sm">
+                                <span className="text-2xl xl:text-3xl 2xl:text-4xl font-bold tracking-widest font-mono text-primary">{partyCode}</span>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={async () => {
+                                const partyUrl = `${window.location.origin}/party/${partyCode}`;
+                                try {
+                                  await navigator.clipboard.writeText(partyUrl);
+                                  const button = event?.target as HTMLButtonElement;
+                                  const originalText = button.textContent;
+                                  button.textContent = '✓ Copied!';
+                                  setTimeout(() => {
+                                    button.textContent = originalText;
+                                  }, 2000);
+                                } catch {
+                                  alert(`Share this link: ${partyUrl}`);
+                                }
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-3 xl:px-6 xl:py-4 2xl:px-8 2xl:py-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg xl:rounded-xl font-medium xl:text-lg 2xl:text-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md"
+                            >
+                              <Copy className="w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                              Copy Party Link
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -563,6 +609,7 @@ function PartyPage() {
                   currentSongId={nowPlayingSong?.id} 
                   isHost={isHost} 
                   height={showQRCode ? undefined : nowPlayingHeight}
+                  isHostView={isHost}
                 />
               </div>
             </div>
