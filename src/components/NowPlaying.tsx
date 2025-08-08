@@ -1,10 +1,11 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause, SkipForward, Trash2 } from 'lucide-react';
+import { Play, Pause, SkipForward, Trash2, Plus, QrCode, Copy } from 'lucide-react';
 import { type QueueItem } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
+import QRCode from './QRCode';
 
 interface NowPlayingProps {
   song: QueueItem | null;
@@ -13,6 +14,8 @@ interface NowPlayingProps {
   onClearQueue: () => void;
   onSongStartedPlaying: (songId: string) => void;
   isHost: boolean;
+  partyCode?: string;
+  onAddSong?: () => void;
 }
 
 declare global {
@@ -22,7 +25,7 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -173,14 +176,75 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   };
 
   if (!song) {
+    const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
+    
     return (
       <Card className="h-full min-h-[400px]">
-        <CardContent className="flex flex-col items-center justify-center h-full p-6">
-          <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
-            <Play className="w-12 h-12 text-muted-foreground" />
+        <CardContent className="flex flex-col items-center justify-center h-full p-4 sm:p-6">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Play className="w-10 h-10 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">No songs in queue</h2>
-          <p className="text-muted-foreground text-center">Add a song to get the party started!</p>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-center">No songs in queue</h2>
+          <p className="text-muted-foreground text-center mb-6">Add a song to get the party started!</p>
+          
+          {/* Action buttons for empty state */}
+          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+            {onAddSong && (
+              <Button
+                onClick={onAddSong}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Plus className="w-5 h-5" />
+                Add First Song
+              </Button>
+            )}
+            
+            {partyCode && (
+              <div className="relative group">
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-center gap-2 px-6 py-3 border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 text-muted-foreground hover:text-primary rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <QrCode className="w-5 h-5" />
+                  Invite Friends
+                </Button>
+                
+                {/* QR Code tooltip on hover */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  <div className="bg-white dark:bg-gray-900 border border-border rounded-lg shadow-lg p-4 min-w-64">
+                    <div className="text-center space-y-3">
+                      <div className="inline-block p-3 bg-white rounded-lg shadow-inner border border-gray-100">
+                        <QRCode value={partyUrl} size={120} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Party Code</p>
+                        <p className="text-lg font-bold tracking-wider text-foreground font-mono">{partyCode}</p>
+                      </div>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(partyUrl);
+                            // Could add toast notification here
+                          } catch {
+                            // Fallback handled
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2 text-xs bg-muted hover:bg-muted/80 px-3 py-1 rounded transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                        Copy Link
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <p className="text-xs text-muted-foreground text-center mt-4 leading-relaxed max-w-sm">
+            {partyCode ? 'Share the QR code with friends so they can add songs and join the fun!' : 'Start the party by adding your first song!'}
+          </p>
         </CardContent>
       </Card>
     );

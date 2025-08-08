@@ -230,13 +230,13 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
   };
 
   return (
-    <Card className="flex flex-col" style={{ height }}>
+    <Card className={`flex flex-col ${!height ? 'h-auto' : ''}`} style={height ? { height } : {}}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow overflow-y-auto min-h-0">
+      <CardContent className={`${height ? 'flex-grow overflow-y-auto min-h-0' : 'min-h-[400px]'}`}>
         {queue.length === 0 ? (
-          <div className="text-center py-8 bg-muted rounded-lg p-4 h-full flex flex-col justify-center">
+          <div className="text-center py-8 bg-muted rounded-lg p-4 flex flex-col justify-center min-h-[200px]">
             <p className="text-lg font-medium">No songs in {isHistory ? 'history' : 'queue'}</p>
             {!isHistory && <p className="text-muted-foreground text-sm mt-2">Be the first to add a song!</p>}
           </div>

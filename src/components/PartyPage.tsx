@@ -9,7 +9,7 @@ import AddSongModal from './AddSongModal';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
-import { Music, QrCode } from 'lucide-react';
+import { Music, Copy, QrCode, X } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
 function PartyPage() {
@@ -25,24 +25,7 @@ function PartyPage() {
   const [suggestionsType, setSuggestionsType] = useState<'instant' | 'personalized'>('instant');
   const [showHostModal, setShowHostModal] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
-  const qrCodeRef = useRef<HTMLDivElement>(null);
-  
-  // Close QR code when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (qrCodeRef.current && !qrCodeRef.current.contains(event.target as Node)) {
-        setShowQRCode(false);
-      }
-    };
-    
-    if (showQRCode) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showQRCode]);
+  const addSongModalRef = useRef<{ openModal: () => void }>(null);
   const [userFingerprint, setUserFingerprint] = useState<string>('');
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);
@@ -300,49 +283,14 @@ function PartyPage() {
             )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-            <div className="relative" ref={qrCodeRef}>
-              <button 
-                onClick={() => setShowQRCode(!showQRCode)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
-                title="Toggle QR code for joining"
-              >
-                <QrCode className="w-4 h-4" />
-                <span className="hidden sm:inline">Join QR</span>
-              </button>
-              
-              {/* Inline QR Code Dropdown */}
-              {showQRCode && (
-                <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-border rounded-lg shadow-lg z-50 min-w-64">
-                  <div className="text-center space-y-3">
-                    <h3 className="font-semibold text-sm">Join This Party</h3>
-                    <div className="bg-white p-3 rounded border">
-                      <QRCode 
-                        value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
-                        size={150} 
-                      />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Party Code</p>
-                      <p className="text-lg font-bold tracking-wider">{partyCode}</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
-                        try {
-                          await navigator.clipboard.writeText(partyUrl);
-                          alert('Party URL copied to clipboard!');
-                        } catch {
-                          alert(`Share this link: ${partyUrl}`);
-                        }
-                      }}
-                      className="text-xs bg-muted hover:bg-muted/80 px-3 py-1 rounded transition-colors"
-                    >
-                      Copy Link
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button 
+              onClick={() => setShowQRCode(!showQRCode)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
+              title="Toggle QR code for joining"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="hidden sm:inline">Join QR</span>
+            </button>
             {!isHost && (
               <button 
                 onClick={() => setShowHostModal(true)}
@@ -352,6 +300,7 @@ function PartyPage() {
               </button>
             )}
             <AddSongModal
+              ref={addSongModalRef}
               onSongAdded={loadQueue}
               suggestions={suggestions}
               suggestionsLoading={suggestionsLoading}
@@ -364,33 +313,128 @@ function PartyPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <div className="h-full" ref={nowPlayingEl}>
-            <NowPlaying
-              song={nowPlayingSong}
-              onEnded={handleSongEnd}
-              onSkip={skipSong}
-              onClearQueue={clearQueue}
-              onSongStartedPlaying={(songId) => console.log('Song started playing:', songId)}
-              isHost={isHost}
-            />
-          </div>
-          <div className="h-full">
-            <QueueList 
-              title="Up Next" 
-              queue={queue} 
-              currentSongId={nowPlayingSong?.id} 
-              isHost={isHost} 
-              height={nowPlayingHeight}
-              onSkipSong={skipSongById}
-              skipVotesRequired={3}
-            />
-          </div>
-        </div>
         
-        <div className="mt-4 sm:mt-6">
-          <PhotoGallery title="Previously Played" queue={history} />
-        </div>
+        
+        {/* Main Content - Show AddSong when empty, otherwise show NowPlaying + Queue */}
+        {!nowPlayingSong && queue.length === 0 ? (
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Music className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">Let's Get This Party Started!</h2>
+              <p className="text-muted-foreground text-lg">Add the first song to begin the music experience</p>
+            </div>
+            <AddSongModal
+              ref={addSongModalRef}
+              onSongAdded={loadQueue}
+              suggestions={suggestions}
+              suggestionsLoading={suggestionsLoading}
+              suggestionsType={suggestionsType}
+              onRefreshSuggestions={loadSuggestions}
+              partyId={partyId!}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="h-full" ref={nowPlayingEl}>
+                <NowPlaying
+                  song={nowPlayingSong}
+                  onEnded={handleSongEnd}
+                  onSkip={skipSong}
+                  onClearQueue={clearQueue}
+                  onSongStartedPlaying={(songId) => console.log('Song started playing:', songId)}
+                  isHost={isHost}
+                  partyCode={partyCode || undefined}
+                  onAddSong={() => addSongModalRef.current?.openModal()}
+                />
+              </div>
+              <div className="space-y-4">
+                {/* QR Code Section - Only appears above queue */}
+                {showQRCode && (
+                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-foreground">Join This Party</h3>
+                      <button
+                        onClick={() => setShowQRCode(false)}
+                        className="w-8 h-8 rounded-full hover:bg-muted/50 flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="flex-shrink-0 p-3 bg-white rounded-lg shadow-sm border border-gray-100">
+                        <QRCode 
+                          value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
+                          size={120} 
+                        />
+                      </div>
+                      <div className="flex-1 text-center sm:text-left">
+                        <p className="text-sm text-muted-foreground mb-3">Scan QR code or share party code</p>
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                          <div>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Code:</span>
+                            <span className="text-xl font-bold tracking-wider font-mono bg-background px-3 py-2 rounded border">{partyCode}</span>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
+                              try {
+                                await navigator.clipboard.writeText(partyUrl);
+                                const button = event?.target as HTMLButtonElement;
+                                const originalText = button.textContent;
+                                button.textContent = '✓ Copied!';
+                                setTimeout(() => {
+                                  button.textContent = originalText;
+                                }, 2000);
+                              } catch {
+                                alert(`Share this link: ${partyUrl}`);
+                              }
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+                          >
+                            <Copy className="w-4 h-4" />
+                            Copy Link
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Queue List */}
+                <QueueList 
+                  title="Up Next" 
+                  queue={queue} 
+                  currentSongId={nowPlayingSong?.id} 
+                  isHost={isHost} 
+                  height={showQRCode ? undefined : nowPlayingHeight}
+                  onSkipSong={skipSongById}
+                  skipVotesRequired={3}
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4 sm:mt-6">
+              <PhotoGallery title="Previously Played" queue={history} />
+            </div>
+            
+            {/* Hidden AddSongModal for when we have content */}
+            <div className="hidden">
+              <AddSongModal
+                ref={addSongModalRef}
+                onSongAdded={loadQueue}
+                suggestions={suggestions}
+                suggestionsLoading={suggestionsLoading}
+                suggestionsType={suggestionsType}
+                onRefreshSuggestions={loadSuggestions}
+                partyId={partyId!}
+              />
+            </div>
+          </>
+        )}
       </main>
 
       {showHostModal && (

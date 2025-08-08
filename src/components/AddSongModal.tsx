@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +20,12 @@ interface AddSongModalProps {
   partyId: string;
 }
 
-export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions, partyId }: AddSongModalProps) {
+export default forwardRef<{ openModal: () => void }, AddSongModalProps>(function AddSongModal({ onSongAdded, suggestions, suggestionsLoading, suggestionsType, onRefreshSuggestions, partyId }, ref) {
   const [isOpen, setIsOpen] = useState(false);
+  
+  useImperativeHandle(ref, () => ({
+    openModal: () => setIsOpen(true)
+  }));
 
   const handleSongAdded = () => {
     setIsOpen(false);
@@ -54,4 +58,4 @@ export default function AddSongModal({ onSongAdded, suggestions, suggestionsLoad
       </DialogContent>
     </Dialog>
   );
-}
+});
