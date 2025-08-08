@@ -118,13 +118,11 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
   const handleRemoveSong = async (songId: string) => {
     if (!isHost) return;
 
-    if (window.confirm('Are you sure you want to remove this song?')) {
-      try {
-        await supabase.from('queue_items').delete().eq('id', songId);
-      } catch (error) {
-        console.error('Error removing song:', error);
-        alert('Failed to remove song. Please try again.');
-      }
+    try {
+      await supabase.from('queue_items').delete().eq('id', songId);
+    } catch (error) {
+      console.error('Error removing song:', error);
+      alert('Failed to remove song. Please try again.');
     }
   };
 
@@ -199,7 +197,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-col items-center gap-1">
                             <Button
                               onClick={() => handleVote(nextSong.id, 1)}
                               disabled={voting === nextSong.id}
@@ -227,7 +225,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                                 onClick={() => handleRemoveSong(nextSong.id)}
                                 size="icon"
                                 variant="destructive"
-                                className="rounded-full w-7 h-7 xl:w-8 xl:h-8 ml-1"
+                                className="rounded-full w-7 h-7 xl:w-8 xl:h-8 mt-1"
                                 title="Remove song"
                               >
                                 <Trash2 className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
