@@ -43,12 +43,19 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
     const query = `${suggestion.title} ${suggestion.artist}`;
     setSearchQuery(query);
     setHasSearched(true); // Hide suggestions since we're now searching
+    setSelectedSuggestion(null); // Clear the selected suggestion since we're searching now
   };
 
   const handlePhotoSelected = async (file: File | null) => {
     console.log('handlePhotoSelected called', { file: !!file, submitting, hasSubmitted, submissionInProgress: submissionInProgress.current });
     if (!file || submitting || hasSubmitted || submissionInProgress.current) {
       console.log('handlePhotoSelected early return');
+      return;
+    }
+    
+    // Verify we have a selected video before proceeding
+    if (!selectedVideo) {
+      console.log('handlePhotoSelected: No selected video, cannot proceed');
       return;
     }
     
@@ -72,50 +79,51 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
     setSubmitting(true);
     
     const photoToUse = photoFile || photo;
-    if ((!selectedVideo && !selectedSuggestion) || !photoToUse) {
-      // Reset flags if submission fails early
+    if (!selectedVideo || !photoToUse) {
+      // Reset flags if submission fails early - only allow actual video submissions
+      console.log('No selected video or photo, cannot submit');
       submissionInProgress.current = false;
       setSubmitting(false);
       return;
     }
 
-    // Determine which song data to use
-    const songData = selectedVideo || {
-      id: 'suggested-song-' + Date.now(),
-      title: `${selectedSuggestion!.title} - ${selectedSuggestion!.artist}`,
-      thumbnail: 'https://via.placeholder.com/320x180/cccccc/666666?text=Suggested+Song',
-      duration: 0 // We don't have duration for suggestions
-    };
+    // Use the selected video data (suggestions should have been converted to search queries)
+    const songData = selectedVideo;
 
-    // Check song length before proceeding (skip for personalized suggestions)
-    if (selectedVideo) {
-      const lengthError = getSongLengthError(selectedVideo.duration);
-      if (lengthError) {
-        // Reset flags if song is too long
-        submissionInProgress.current = false;
-        setSubmitting(false);
-        return;
-      }
+    // Check song length before proceeding
+    const lengthError = getSongLengthError(songData.duration);
+    if (lengthError) {
+      // Reset flags if song is too long
+      submissionInProgress.current = false;
+      setSubmitting(false);
+      setHasSubmitted(false);
+      return;
     }
 
     // 0. Check for duplicates
+    console.log('Checking for duplicates:', { videoId: songData.id, partyId });
     const { data: existingSongs, error: existingError } = await supabase
       .from('queue_items')
-      .select('id')
+      .select('id, title')
       .eq('video_id', songData.id)
-      .eq('played', false);
+      .eq('played', false)
+      .eq('party_id', partyId);
 
     if (existingError) {
       console.error('Error checking for existing songs:', existingError);
       submissionInProgress.current = false;
       setSubmitting(false);
+      setHasSubmitted(false);
       return;
     }
 
-    if (existingSongs.length > 0) {
-      console.log('Song already in queue, skipping');
+    console.log('Duplicate check result:', { existingSongs, count: existingSongs?.length || 0 });
+
+    if (existingSongs && existingSongs.length > 0) {
+      console.log('Song already in queue, skipping:', existingSongs);
       submissionInProgress.current = false;
       setSubmitting(false);
+      setHasSubmitted(false); // Reset submission state so user can try again
       return;
     }
 
@@ -131,6 +139,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       console.error('Error uploading photo:', photoError);
       submissionInProgress.current = false;
       setSubmitting(false);
+      setHasSubmitted(false);
       return;
     }
 
