@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase, type QueueItem } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { clearSuggestionsCache, getAISuggestionsBackground, getInstantSuggestions, type SuggestedSong } from '../lib/gemini';
+import { searchYouTubeVideos, getSongLengthError } from '../lib/youtube';
 import NowPlaying from './NowPlaying';
 import QueueList from './QueueList';
 import AddSongModal from './AddSongModal';
@@ -23,6 +24,7 @@ function PartyPage() {
   const [suggestions, setSuggestions] = useState<SuggestedSong[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsType, setSuggestionsType] = useState<'instant' | 'personalized'>('instant');
+  const [autoAddInProgress, setAutoAddInProgress] = useState(false);
   const [showHostModal, setShowHostModal] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const addSongModalRef = useRef<{ openModal: () => void }>(null);
@@ -124,6 +126,18 @@ function PartyPage() {
       loadSuggestions();
     }
   }, [nowPlayingSong, partyId]);
+  
+  // Auto-add suggestion when queue is empty (host only)
+  useEffect(() => {
+    if (isHost && !nowPlayingSong && queue.length === 0 && suggestions.length > 0 && history.length > 0 && !autoAddInProgress) {
+      // Delay to avoid rapid-fire auto-adds
+      const timer = setTimeout(() => {
+        autoAddSuggestion();
+      }, 2000); // 2 second delay
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isHost, nowPlayingSong, queue.length, suggestions.length, history.length, autoAddInProgress]);
 
   const loadQueue = async () => {
     if (!partyId) return;
@@ -252,6 +266,61 @@ function PartyPage() {
     }
   };
 
+  const autoAddSuggestion = async () => {
+    if (!isHost || !partyId || autoAddInProgress) return;
+    if (suggestions.length === 0 || queue.length > 0) return;
+    if (history.length === 0) return; // Only auto-add if there's history to base suggestions on
+    
+    setAutoAddInProgress(true);
+    
+    try {
+      const firstSuggestion = suggestions[0];
+      const query = `${firstSuggestion.title} ${firstSuggestion.artist}`;
+      
+      console.log(`Host auto-adding suggestion: ${query}`);
+      
+      // Search for the song
+      const searchResults = await searchYouTubeVideos(query);
+      
+      if (searchResults.length === 0) {
+        console.log('No search results for auto-add');
+        return;
+      }
+      
+      const firstResult = searchResults[0];
+      
+      // Check song length
+      const lengthError = getSongLengthError(firstResult.duration);
+      if (lengthError) {
+        console.log(`Auto-add skipped: ${lengthError}`);
+        return;
+      }
+      
+      // Auto-add the song (no photo required for host auto-add)
+      const { error: queueError } = await supabase.from('queue_items').insert({
+        party_id: partyId,
+        video_id: firstResult.id,
+        title: firstResult.title,
+        thumbnail_url: firstResult.thumbnail,
+        submitted_by: userFingerprint,
+        photo_url: 'https://via.placeholder.com/150/6366f1/white?text=AUTO', // Special auto-add placeholder
+        played: false,
+      });
+      
+      if (queueError) {
+        console.error('Auto-add failed:', queueError);
+        return;
+      }
+      
+      console.log(`Auto-added: ${firstResult.title}`);
+      
+    } catch (error) {
+      console.error('Auto-add error:', error);
+    } finally {
+      setAutoAddInProgress(false);
+    }
+  };
+
   const clearQueue = async () => {
     if (!partyId) return;
     if (confirm('Are you sure you want to clear the entire queue?')) {
@@ -323,7 +392,9 @@ function PartyPage() {
                 <Music className="w-10 h-10 text-muted-foreground" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold mb-2">Let's Get This Party Started!</h2>
-              <p className="text-muted-foreground text-lg">Add the first song and invite friends to join</p>
+              <p className="text-muted-foreground text-lg">
+                {autoAddInProgress && isHost ? 'Adding a suggested song...' : 'Add the first song and invite friends to join'}
+              </p>
             </div>
             
             {/* Single card with two column layout: AddSong + QR Code */}
@@ -339,15 +410,22 @@ function PartyPage() {
                   </div>
                   
                   <div className="flex-shrink-0 py-4">
-                    <AddSongModal
-                      ref={addSongModalRef}
-                      onSongAdded={loadQueue}
-                      suggestions={suggestions}
-                      suggestionsLoading={suggestionsLoading}
-                      suggestionsType={suggestionsType}
-                      onRefreshSuggestions={loadSuggestions}
-                      partyId={partyId!}
-                    />
+                    {autoAddInProgress && isHost ? (
+                      <div className="flex items-center justify-center gap-2 px-6 py-3 bg-primary/20 text-primary rounded-lg font-medium">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        Auto-adding song...
+                      </div>
+                    ) : (
+                      <AddSongModal
+                        ref={addSongModalRef}
+                        onSongAdded={loadQueue}
+                        suggestions={suggestions}
+                        suggestionsLoading={suggestionsLoading}
+                        suggestionsType={suggestionsType}
+                        onRefreshSuggestions={loadSuggestions}
+                        partyId={partyId!}
+                      />
+                    )}
                   </div>
                   
                   <div className="flex-1 flex items-start justify-center pt-4">
