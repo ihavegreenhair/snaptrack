@@ -9,7 +9,7 @@ import AddSongModal from './AddSongModal';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
-import { Music, Copy, QrCode, X } from 'lucide-react';
+import { Music, QrCode, X, Copy } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
 function PartyPage() {
@@ -317,23 +317,76 @@ function PartyPage() {
         
         {/* Main Content - Show AddSong when empty, otherwise show NowPlaying + Queue */}
         {!nowPlayingSong && queue.length === 0 ? (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <Music className="w-10 h-10 text-muted-foreground" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold mb-2">Let's Get This Party Started!</h2>
-              <p className="text-muted-foreground text-lg">Add the first song to begin the music experience</p>
+              <p className="text-muted-foreground text-lg">Add the first song and invite friends to join</p>
             </div>
-            <AddSongModal
-              ref={addSongModalRef}
-              onSongAdded={loadQueue}
-              suggestions={suggestions}
-              suggestionsLoading={suggestionsLoading}
-              suggestionsType={suggestionsType}
-              onRefreshSuggestions={loadSuggestions}
-              partyId={partyId!}
-            />
+            
+            {/* Single card with two column layout: AddSong + QR Code */}
+            <div className="bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-border rounded-xl p-8 shadow-lg">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 min-h-[400px]">
+                {/* Left: Add Song */}
+                <div className="text-center flex flex-col">
+                  <div className="flex-1 flex items-end justify-center pb-4">
+                    <div className="space-y-3">
+                      <h3 className="text-2xl font-semibold text-foreground">Add First Song</h3>
+                      <p className="text-sm text-muted-foreground">Start the party by adding your first song</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-shrink-0 py-4">
+                    <AddSongModal
+                      ref={addSongModalRef}
+                      onSongAdded={loadQueue}
+                      suggestions={suggestions}
+                      suggestionsLoading={suggestionsLoading}
+                      suggestionsType={suggestionsType}
+                      onRefreshSuggestions={loadSuggestions}
+                      partyId={partyId!}
+                    />
+                  </div>
+                  
+                  <div className="flex-1 flex items-start justify-center pt-4">
+                    <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center">
+                      <Music className="w-8 h-8 text-secondary" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Right: QR Code */}
+                {partyCode && (
+                  <div className="text-center flex flex-col">
+                    <div className="flex-1 flex items-end justify-center pb-4">
+                      <div className="space-y-3">
+                        <div className="w-40 h-40 mx-auto bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center p-3">
+                          <QRCode 
+                            value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
+                            size={140} 
+                          />
+                        </div>
+                        <h3 className="text-2xl font-semibold text-foreground">Join Party</h3>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-shrink-0 py-4">
+                      <div className="bg-muted/50 rounded-lg p-3 border inline-block">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Code: <span className="text-lg font-bold tracking-wider font-mono text-foreground">{partyCode}</span></p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 flex items-start justify-center pt-4">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Scan this QR code with your phone to join the party
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           <>
