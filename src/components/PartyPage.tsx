@@ -306,7 +306,7 @@ function PartyPage() {
         title: selectedResult.title,
         thumbnail_url: selectedResult.thumbnail,
         submitted_by: userFingerprint,
-        photo_url: 'https://via.placeholder.com/150/6366f1/white?text=AUTO', // Special auto-add placeholder
+        photo_url: 'https://via.placeholder.com/150/6366f1/white?text=Auto', // Special auto-add placeholder
         played: false,
       });
       
@@ -489,6 +489,7 @@ function PartyPage() {
                   isHost={isHost}
                   partyCode={partyCode || undefined}
                   onAddSong={() => addSongModalRef.current?.openModal()}
+                  skipVotesRequired={3}
                 />
               </div>
               <div className="space-y-4">

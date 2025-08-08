@@ -22,17 +22,12 @@ interface UserVotes {
   [queueId: string]: number;
 }
 
-interface UserSkipVotes {
-  [queueId: string]: boolean;
-}
 
 export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height, onSkipSong, skipVotesRequired = 3 }: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
-  const [userSkipVotes, setUserSkipVotes] = useState<UserSkipVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
   const [voting, setVoting] = useState<string | null>(null);
   const [animatingVotes, setAnimatingVotes] = useState<{[key: string]: number}>({});
-  const [skipVoteCounts, setSkipVoteCounts] = useState<{[key: string]: number}>({});
   const itemRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
 
   const sortedQueue = useMemo(() => {
@@ -50,8 +45,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
   useEffect(() => {
     if (fingerprint) {
       loadUserVotes();
-      loadUserSkipVotes();
-      loadSkipVoteCounts();
     }
   }, [fingerprint, queue]);
 
@@ -74,42 +67,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
     }
   };
 
-  const loadUserSkipVotes = async () => {
-    const queueIds = queue.map(item => item.id);
-    if (queueIds.length === 0) return;
-
-    const { data } = await supabase
-      .from('skip_votes')
-      .select('queue_id')
-      .eq('fingerprint', fingerprint)
-      .in('queue_id', queueIds);
-
-    if (data) {
-      const skipVotes: UserSkipVotes = {};
-      data.forEach(skipVote => {
-        skipVotes[skipVote.queue_id] = true;
-      });
-      setUserSkipVotes(skipVotes);
-    }
-  };
-
-  const loadSkipVoteCounts = async () => {
-    const queueIds = queue.map(item => item.id);
-    if (queueIds.length === 0) return;
-
-    const { data } = await supabase
-      .from('skip_votes')
-      .select('queue_id')
-      .in('queue_id', queueIds);
-
-    if (data) {
-      const counts: {[key: string]: number} = {};
-      data.forEach(skipVote => {
-        counts[skipVote.queue_id] = (counts[skipVote.queue_id] || 0) + 1;
-      });
-      setSkipVoteCounts(counts);
-    }
-  };
 
   const handleVote = async (queueId: string, voteValue: number) => {
     if (!fingerprint || voting) return;
@@ -171,63 +128,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
     }
   };
 
-  const handleSkipVote = async (queueId: string) => {
-    if (!fingerprint || voting) return;
-
-    setVoting(queueId);
-    
-    try {
-      const hasSkipVoted = userSkipVotes[queueId];
-      
-      if (hasSkipVoted) {
-        // Remove skip vote
-        await supabase
-          .from('skip_votes')
-          .delete()
-          .eq('queue_id', queueId)
-          .eq('fingerprint', fingerprint);
-          
-        setUserSkipVotes(prev => {
-          const updated = { ...prev };
-          delete updated[queueId];
-          return updated;
-        });
-        
-        // Update skip vote count
-        setSkipVoteCounts(prev => ({
-          ...prev,
-          [queueId]: Math.max(0, (prev[queueId] || 0) - 1)
-        }));
-      } else {
-        // Add skip vote
-        await supabase
-          .from('skip_votes')
-          .insert({ queue_id: queueId, fingerprint });
-          
-        setUserSkipVotes(prev => ({
-          ...prev,
-          [queueId]: true
-        }));
-        
-        // Update skip vote count and check if we should skip
-        const newCount = (skipVoteCounts[queueId] || 0) + 1;
-        setSkipVoteCounts(prev => ({
-          ...prev,
-          [queueId]: newCount
-        }));
-        
-        // If we've reached the required votes or host voted, skip the song
-        if ((newCount >= skipVotesRequired || isHost) && onSkipSong) {
-          onSkipSong(queueId);
-        }
-      }
-    } catch (error) {
-      console.error('Error handling skip vote:', error);
-      alert('Failed to cast skip vote. Please try again.');
-    } finally {
-      setVoting(null);
-    }
-  };
 
   return (
     <Card className={`flex flex-col ${!height ? 'h-auto' : ''}`} style={height ? { height } : {}}>
@@ -244,8 +144,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
           <div className="space-y-3">
             {sortedQueue.map((song, index) => {
               const userVote = userVotes[song.id] || 0;
-              const userSkipVote = userSkipVotes[song.id] || false;
-              const skipVoteCount = skipVoteCounts[song.id] || 0;
               const isNextUp = index === 0 && !isHistory;
 
               return (
@@ -358,23 +256,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                           >
                             <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5" />
                           </Button>
-                          
-                          {/* Skip vote button - separate from regular voting */}
-                          <div className="mt-2 pt-2 border-t border-border/20">
-                            <Button
-                              onClick={() => handleSkipVote(song.id)}
-                              disabled={voting === song.id}
-                              size="sm"
-                              variant={userSkipVote ? "destructive" : "outline"}
-                              className={`rounded-full px-3 py-1 text-xs transition-all duration-300 hover:scale-105 ${
-                                userSkipVote ? 'bg-orange-600 hover:bg-orange-700 shadow-lg text-white' : 'hover:bg-orange-50 hover:border-orange-300'
-                              }`}
-                              title={isHost ? 'Skip song (Host - immediate)' : `Skip song (${skipVoteCount}/${skipVotesRequired} votes)`}
-                            >
-                              <SkipForward className="w-3 h-3 mr-1" />
-                              {isHost ? 'Skip' : `${skipVoteCount}/${skipVotesRequired}`}
-                            </Button>
-                          </div>
                         </div>
                       )}
                     </div>

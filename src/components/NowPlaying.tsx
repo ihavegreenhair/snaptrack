@@ -1,7 +1,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipForward, Trash2, Plus, QrCode, Copy } from 'lucide-react';
-import { type QueueItem } from '../lib/supabase';
+import { type QueueItem, supabase } from '../lib/supabase';
+import { getUserFingerprint } from '../lib/fingerprint';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
@@ -16,6 +17,7 @@ interface NowPlayingProps {
   isHost: boolean;
   partyCode?: string;
   onAddSong?: () => void;
+  skipVotesRequired?: number;
 }
 
 declare global {
@@ -25,13 +27,100 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3 }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  
+  // Vote skip functionality
+  const [fingerprint, setFingerprint] = useState<string>('');
+  const [hasSkipVoted, setHasSkipVoted] = useState(false);
+  const [skipVoteCount, setSkipVoteCount] = useState(0);
+  const [skipVoting, setSkipVoting] = useState(false);
+
+  // Initialize fingerprint
+  useEffect(() => {
+    getUserFingerprint().then(setFingerprint);
+  }, []);
+
+  // Load skip votes when song changes
+  useEffect(() => {
+    if (!song || !fingerprint) {
+      setHasSkipVoted(false);
+      setSkipVoteCount(0);
+      return;
+    }
+
+    const loadSkipVotes = async () => {
+      // Get user's skip vote for this song
+      const { data: userVote } = await supabase
+        .from('skip_votes')
+        .select('id')
+        .eq('queue_id', song.id)
+        .eq('fingerprint', fingerprint)
+        .single();
+
+      setHasSkipVoted(!!userVote);
+
+      // Get total skip vote count for this song
+      const { data: skipVotes } = await supabase
+        .from('skip_votes')
+        .select('id')
+        .eq('queue_id', song.id);
+
+      setSkipVoteCount(skipVotes?.length || 0);
+    };
+
+    loadSkipVotes();
+  }, [song?.id, fingerprint]);
+
+  // Handle skip vote functionality
+  const handleSkipVote = async () => {
+    if (!song || !fingerprint || skipVoting) return;
+
+    setSkipVoting(true);
+    
+    try {
+      if (hasSkipVoted) {
+        // Remove skip vote
+        await supabase
+          .from('skip_votes')
+          .delete()
+          .eq('queue_id', song.id)
+          .eq('fingerprint', fingerprint);
+
+        setHasSkipVoted(false);
+        setSkipVoteCount(prev => Math.max(0, prev - 1));
+      } else {
+        // Add skip vote
+        const { error } = await supabase
+          .from('skip_votes')
+          .insert({
+            queue_id: song.id,
+            fingerprint: fingerprint,
+            party_id: song.party_id
+          });
+
+        if (!error) {
+          setHasSkipVoted(true);
+          const newCount = skipVoteCount + 1;
+          setSkipVoteCount(newCount);
+
+          // Check if we've reached the threshold or if user is host
+          if (newCount >= skipVotesRequired || isHost) {
+            onSkip();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error handling skip vote:', error);
+    } finally {
+      setSkipVoting(false);
+    }
+  };
 
   // Initialize YouTube API and create player when DOM is ready - ONLY FOR HOSTS
   useEffect(() => {
@@ -268,6 +357,24 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               <p className="text-sm text-muted-foreground">Host is controlling playback</p>
             </div>
           </div>
+          
+          {/* Vote to skip button for guests */}
+          <div className="flex justify-center">
+            <Button
+              onClick={handleSkipVote}
+              disabled={skipVoting}
+              size="sm"
+              variant={hasSkipVoted ? "destructive" : "outline"}
+              className={`rounded-full px-4 py-2 text-sm transition-all duration-300 hover:scale-105 ${
+                hasSkipVoted ? 'bg-orange-600 hover:bg-orange-700 shadow-lg text-white' : 'hover:bg-orange-50 hover:border-orange-300'
+              }`}
+              title={isHost ? 'Skip song (Host - immediate)' : `Vote to skip (${skipVoteCount}/${skipVotesRequired} votes needed)`}
+            >
+              <SkipForward className="w-4 h-4 mr-2" />
+              {isHost ? 'Skip Song' : `Vote Skip (${skipVoteCount}/${skipVotesRequired})`}
+            </Button>
+          </div>
+          
           <div className="text-center text-sm text-muted-foreground">
             Only the host can control music playback
           </div>
