@@ -43,6 +43,7 @@ function PartyPage() {
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);
   const [nowPlayingHeight, setNowPlayingHeight] = useState<number | undefined>(undefined);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
   useEffect(() => {
     const element = nowPlayingEl.current;
@@ -55,6 +56,17 @@ function PartyPage() {
       return () => resizeObserver.disconnect();
     }
   }, [nowPlayingSong, isHost]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const verifyHostStatus = async (fingerprint: string, partyCode: string) => {
     try {
@@ -778,7 +790,7 @@ function PartyPage() {
                   queue={queue} 
                   currentSongId={nowPlayingSong?.id} 
                   isHost={isHost} 
-                  height={showQRCode ? undefined : nowPlayingHeight}
+                  height={screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined)}
                   isHostView={isHost}
                   userProfiles={userProfiles}
                 />
