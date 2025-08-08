@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, ZoomIn, Play, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { formatTimeAgo } from '../lib/time';
 import { type QueueItem } from '../lib/supabase';
 
 interface PhotoZoomProps {
@@ -12,7 +11,6 @@ interface PhotoZoomProps {
   children?: React.ReactNode;
   song?: QueueItem;
   isCurrentSong?: boolean;
-  isHistory?: boolean;
   queue?: QueueItem[]; // Array of all queue items for navigation
   currentIndex?: number; // Current item index in the queue
   currentSongId?: string; // ID of currently playing song
@@ -24,7 +22,6 @@ export default function PhotoZoom({
   className, 
   children, 
   song, 
-  isHistory, 
   queue = [], 
   currentIndex = 0,
   currentSongId 

@@ -173,7 +173,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         alt="Submitter photo"
                         song={song}
                         isCurrentSong={false}
-                        isHistory={isHistory}
                         queue={queue}
                         currentIndex={index}
                         currentSongId={currentSongId}

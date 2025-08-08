@@ -445,7 +445,6 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             alt="Song submitter's photo"
             song={song}
             isCurrentSong={true}
-            isHistory={false}
             className="w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
           >
             <img

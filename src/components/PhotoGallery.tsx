@@ -45,7 +45,6 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
               alt="Song submitter's photo"
               song={song}
               isCurrentSong={false}
-              isHistory={true}
               queue={queue}
               currentIndex={index}
               className="group cursor-pointer"

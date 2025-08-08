@@ -248,25 +248,6 @@ function PartyPage() {
     handleSongEnd();
   };
   
-  const skipSongById = async (songId: string) => {
-    if (!partyId) return;
-    
-    try {
-      // Mark the specific song as played (skipped)
-      await supabase
-        .from('queue_items')
-        .update({ played: true, played_at: new Date().toISOString() })
-        .eq('id', songId)
-        .eq('party_id', partyId);
-        
-      // If it's the currently playing song, move to next
-      if (nowPlayingSong?.id === songId) {
-        handleSongEnd();
-      }
-    } catch (error) {
-      console.error('Error skipping song:', error);
-    }
-  };
 
   const autoAddSuggestion = async () => {
     if (!isHost || !partyId || autoAddInProgress) return;
@@ -358,13 +339,13 @@ function PartyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between p-4 gap-4 sm:gap-0">
+        <div className="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between p-4 xl:p-6 2xl:p-8 gap-4 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary">
-              <Music className="h-4 w-4 sm:h-6 sm:w-6 text-primary-foreground" />
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 xl:h-12 xl:w-12 2xl:h-16 2xl:w-16 items-center justify-center rounded-lg bg-primary">
+              <Music className="h-4 w-4 sm:h-6 sm:w-6 xl:h-7 xl:w-7 2xl:h-9 2xl:w-9 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">SnapTrack</h1>
-            <span className="text-muted-foreground text-sm sm:text-base">Party: {partyCode}</span>
+            <h1 className="text-2xl sm:text-3xl xl:text-4xl 2xl:text-5xl font-bold tracking-tight">SnapTrack</h1>
+            <span className="text-muted-foreground text-sm sm:text-base xl:text-lg 2xl:text-xl">Party: {partyCode}</span>
             {isHost && (
               <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full">
                 HOST
@@ -405,31 +386,31 @@ function PartyPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 sm:p-6">
+      <main className="max-w-[1920px] mx-auto p-4 sm:p-6 xl:p-8 2xl:p-12">
         
         
         {/* Main Content - Show AddSong when empty, otherwise show NowPlaying + Queue */}
         {!nowPlayingSong && queue.length === 0 ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Music className="w-10 h-10 text-muted-foreground" />
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-8 xl:mb-12 2xl:mb-16">
+              <div className="w-20 h-20 xl:w-28 xl:h-28 2xl:w-36 2xl:h-36 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 xl:mb-6 2xl:mb-8">
+                <Music className="w-10 h-10 xl:w-14 xl:h-14 2xl:w-18 2xl:h-18 text-muted-foreground" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2">Let's Get This Party Started!</h2>
-              <p className="text-muted-foreground text-lg">
+              <h2 className="text-2xl sm:text-3xl xl:text-4xl 2xl:text-6xl font-bold mb-2 xl:mb-4">Let's Get This Party Started!</h2>
+              <p className="text-muted-foreground text-lg xl:text-xl 2xl:text-2xl">
                 {autoAddInProgress && isHost ? 'Adding a suggested song...' : 'Add the first song and invite friends to join'}
               </p>
             </div>
             
             {/* Single card with two column layout: AddSong + QR Code */}
-            <div className="bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-border rounded-xl p-8 shadow-lg">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 min-h-[400px]">
+            <div className="bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-border rounded-xl p-8 xl:p-12 2xl:p-16 shadow-lg">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-16 2xl:gap-24 min-h-[400px] xl:min-h-[500px] 2xl:min-h-[600px]">
                 {/* Left: Add Song */}
                 <div className="text-center flex flex-col">
                   <div className="flex-1 flex items-end justify-center pb-4">
                     <div className="space-y-3">
-                      <h3 className="text-2xl font-semibold text-foreground">Add First Song</h3>
-                      <p className="text-sm text-muted-foreground">Start the party by adding your first song</p>
+                      <h3 className="text-2xl xl:text-3xl 2xl:text-4xl font-semibold text-foreground">Add First Song</h3>
+                      <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground">Start the party by adding your first song</p>
                     </div>
                   </div>
                   
@@ -492,8 +473,8 @@ function PartyPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <div className="h-full" ref={nowPlayingEl}>
+            <div className="grid grid-cols-1 xl:grid-cols-3 2xl:grid-cols-5 gap-4 sm:gap-6 xl:gap-8 2xl:gap-12">
+              <div className="h-full xl:col-span-2 2xl:col-span-3" ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlayingSong}
                   onEnded={handleSongEnd}
@@ -506,7 +487,7 @@ function PartyPage() {
                   skipVotesRequired={3}
                 />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 xl:col-span-1 2xl:col-span-2">
                 {/* QR Code Section - Only appears above queue */}
                 {showQRCode && (
                   <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-6">
