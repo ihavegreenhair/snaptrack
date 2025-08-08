@@ -36,6 +36,11 @@ function PartyPage() {
   const [, setUserProfile] = useState<UserProfile | null>(null);
   const [userProfiles, setUserProfiles] = useState<{[fingerprint: string]: string}>({});
 
+  // Skip vote state
+  const [skipVoteCount, setSkipVoteCount] = useState(0);
+  const [hasSkipVoted, setHasSkipVoted] = useState(false);
+  const [skipVoting, setSkipVoting] = useState(false);
+
   const nowPlayingEl = useRef<HTMLDivElement>(null);
   const [nowPlayingHeight, setNowPlayingHeight] = useState<number | undefined>(undefined);
 
@@ -236,6 +241,49 @@ function PartyPage() {
     }
   }, [isHost, queue.length, suggestions.length, history.length, autoAddInProgress]);
 
+  useEffect(() => {
+    if (!nowPlayingSong || !userFingerprint) {
+      setHasSkipVoted(false);
+      setSkipVoteCount(0);
+      return;
+    }
+
+    const loadSkipVotes = async () => {
+      const { data, count } = await supabase
+        .from('skip_votes')
+        .select('id', { count: 'exact' })
+        .eq('queue_id', nowPlayingSong.id);
+
+      setSkipVoteCount(count || 0);
+
+      const { data: userVote } = await supabase
+        .from('skip_votes')
+        .select('id')
+        .eq('queue_id', nowPlayingSong.id)
+        .eq('fingerprint', userFingerprint)
+        .single();
+
+      setHasSkipVoted(!!userVote);
+    };
+
+    loadSkipVotes();
+
+    const channel = supabase
+      .channel(`skip-votes-${nowPlayingSong.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'skip_votes', filter: `queue_id=eq.${nowPlayingSong.id}` },
+        (payload) => {
+          loadSkipVotes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [nowPlayingSong, userFingerprint]);
+
   const loadQueue = async () => {
     if (!partyId) return;
     const { data, error } = await supabase
@@ -431,6 +479,30 @@ function PartyPage() {
     loadSuggestions();
   };
 
+  const handleSkipVote = async () => {
+    if (!nowPlayingSong || !userFingerprint || skipVoting) return;
+
+    setSkipVoting(true);
+
+    try {
+      if (hasSkipVoted) {
+        await supabase
+          .from('skip_votes')
+          .delete()
+          .eq('queue_id', nowPlayingSong.id)
+          .eq('fingerprint', userFingerprint);
+      } else {
+        await supabase
+          .from('skip_votes')
+          .insert({ queue_id: nowPlayingSong.id, fingerprint: userFingerprint });
+      }
+    } catch (error) {
+      console.error('Error handling skip vote:', error);
+    } finally {
+      setSkipVoting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card/50 backdrop-blur-sm">
@@ -584,6 +656,10 @@ function PartyPage() {
                   partyCode={partyCode || undefined}
                   onAddSong={() => addSongModalRef.current?.openModal()}
                   skipVotesRequired={3}
+                  skipVoteCount={skipVoteCount}
+                  hasSkipVoted={hasSkipVoted}
+                  onSkipVote={handleSkipVote}
+                  skipVoting={skipVoting}
                 />
               </div>
               <div className={`space-y-4 ${

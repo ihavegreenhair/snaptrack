@@ -18,6 +18,10 @@ interface NowPlayingProps {
   partyCode?: string;
   onAddSong?: () => void;
   skipVotesRequired?: number;
+  skipVoteCount?: number;
+  hasSkipVoted?: boolean;
+  onSkipVote?: () => void;
+  skipVoting?: boolean;
 }
 
 declare global {
@@ -27,99 +31,19 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3 }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3, skipVoteCount = 0, hasSkipVoted = false, onSkipVote, skipVoting = false }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  
-  // Vote skip functionality
-  const [fingerprint, setFingerprint] = useState<string>('');
-  const [hasSkipVoted, setHasSkipVoted] = useState(false);
-  const [skipVoteCount, setSkipVoteCount] = useState(0);
-  const [skipVoting, setSkipVoting] = useState(false);
 
-  // Initialize fingerprint
   useEffect(() => {
-    getUserFingerprint().then(setFingerprint);
-  }, []);
-
-  // Load skip votes when song changes
-  useEffect(() => {
-    if (!song || !fingerprint) {
-      setHasSkipVoted(false);
-      setSkipVoteCount(0);
-      return;
+    if (isHost && skipVoteCount >= (skipVotesRequired || 3)) {
+      onSkip();
     }
-
-    const loadSkipVotes = async () => {
-      // Get user's skip vote for this song
-      const { data: userVote } = await supabase
-        .from('skip_votes')
-        .select('id')
-        .eq('queue_id', song.id)
-        .eq('fingerprint', fingerprint)
-        .single();
-
-      setHasSkipVoted(!!userVote);
-
-      // Get total skip vote count for this song
-      const { data: skipVotes } = await supabase
-        .from('skip_votes')
-        .select('id')
-        .eq('queue_id', song.id);
-
-      setSkipVoteCount(skipVotes?.length || 0);
-    };
-
-    loadSkipVotes();
-  }, [song?.id, fingerprint]);
-
-  // Handle skip vote functionality
-  const handleSkipVote = async () => {
-    if (!song || !fingerprint || skipVoting) return;
-
-    setSkipVoting(true);
-    
-    try {
-      if (hasSkipVoted) {
-        // Remove skip vote
-        await supabase
-          .from('skip_votes')
-          .delete()
-          .eq('queue_id', song.id)
-          .eq('fingerprint', fingerprint);
-
-        setHasSkipVoted(false);
-        setSkipVoteCount(prev => Math.max(0, prev - 1));
-      } else {
-        // Add skip vote
-        const { error } = await supabase
-          .from('skip_votes')
-          .insert({
-            queue_id: song.id,
-            fingerprint: fingerprint
-          });
-
-        if (!error) {
-          setHasSkipVoted(true);
-          const newCount = skipVoteCount + 1;
-          setSkipVoteCount(newCount);
-
-          // Check if we've reached the threshold or if user is host
-          if (newCount >= skipVotesRequired || isHost) {
-            onSkip();
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error handling skip vote:', error);
-    } finally {
-      setSkipVoting(false);
-    }
-  };
+  }, [skipVoteCount, isHost, onSkip, skipVotesRequired]);
 
   // Initialize YouTube API and create player when DOM is ready - ONLY FOR HOSTS
   useEffect(() => {
@@ -360,8 +284,8 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           {/* Vote to skip button for guests */}
           <div className="flex justify-center">
             <Button
-              onClick={handleSkipVote}
-              disabled={skipVoting}
+              onClick={onSkipVote}
+              disabled={skipVoting || hasSkipVoted}
               size="sm"
               variant={hasSkipVoted ? "destructive" : "outline"}
               className={`rounded-full px-4 py-2 text-sm transition-all duration-300 hover:scale-105 ${
@@ -370,7 +294,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               title={isHost ? 'Skip song (Host - immediate)' : `Vote to skip (${skipVoteCount}/${skipVotesRequired} votes needed)`}
             >
               <SkipForward className="w-4 h-4 mr-2" />
-              {isHost ? 'Skip Song' : `Vote Skip (${skipVoteCount}/${skipVotesRequired})`}
+              {isHost ? 'Skip Song' : hasSkipVoted ? `Voted to Skip (${skipVoteCount}/${skipVotesRequired})` : `Vote Skip (${skipVoteCount}/${skipVotesRequired})`}
             </Button>
           </div>
           

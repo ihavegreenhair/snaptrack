@@ -181,7 +181,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-base xl:text-lg text-amber-800 dark:text-amber-200 truncate mb-1">
+                          <h4 className="font-bold text-base xl:text-lg text-amber-800 dark:text-amber-200 line-clamp-2 mb-1">
                             {nextSong.title}
                           </h4>
                           <p className="text-sm text-muted-foreground">
@@ -261,7 +261,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-xl sm:text-2xl xl:text-3xl 2xl:text-4xl text-amber-800 dark:text-amber-200 break-words leading-tight mb-2">
+                          <h4 className="font-bold text-xl sm:text-2xl xl:text-3xl 2xl:text-4xl text-amber-800 dark:text-amber-200 line-clamp-2 leading-tight mb-2">
                             {nextSong.title}
                           </h4>
                           <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground mb-4">
