@@ -100,8 +100,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           .from('skip_votes')
           .insert({
             queue_id: song.id,
-            fingerprint: fingerprint,
-            party_id: song.party_id
+            fingerprint: fingerprint
           });
 
         if (!error) {

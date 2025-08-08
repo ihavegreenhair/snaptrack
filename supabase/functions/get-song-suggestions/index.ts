@@ -13,6 +13,8 @@ interface SongContext {
     timestamp: string;
   };
   fullQueue: string[];
+  musicStyle?: string;
+  stylePreference?: string;
 }
 
 interface SuggestedSong {
@@ -36,10 +38,17 @@ serve(async (req) => {
       });
     }
 
-    const { currentSong, recentSongs, timeContext, fullQueue }: SongContext = await req.json();
+    const { currentSong, recentSongs, timeContext, fullQueue, musicStyle, stylePreference }: SongContext = await req.json();
 
-    // Prepare the enhanced song context with timing
+    // Prepare the enhanced song context with timing and user preferences
     const songContext = [];
+    
+    // PRIORITY 1: User Style Preference (if provided)
+    if (musicStyle && musicStyle.trim()) {
+      songContext.push(`🎯 USER MUSIC STYLE PREFERENCE (HIGHEST PRIORITY): "${musicStyle}"`);
+      songContext.push(`CRITICAL: ALL suggestions must align with this user preference. This overrides everything else.`);
+      songContext.push('');
+    }
     
     // Add subtle time context (but prioritize musical flow)
     const timePhaseDescriptions = {
@@ -64,14 +73,52 @@ serve(async (req) => {
         songContext.push(`${index + 1}. "${song.title}" (played ${song.playedAt})`);
       });
       
-      songContext.push(`\nIMPORTANT: Analyze the musical style, energy, genre, and mood of these recent songs. Your suggestions should flow naturally from this musical context.`);
+      if (musicStyle && musicStyle.trim()) {
+        songContext.push(`\nIMPORTANT: Blend the user's style preference "${musicStyle}" with the flow from these recent songs.`);
+      } else {
+        songContext.push(`\nIMPORTANT: Analyze the musical style, energy, genre, and mood of these recent songs. Your suggestions should flow naturally from this musical context.`);
+      }
     }
 
     if (fullQueue && fullQueue.length > 0) {
       songContext.push(`\nCRITICAL: DO NOT suggest any of the songs in the following list (they are already in the queue or were recently played):\n- ${fullQueue.join('\n- ')}`);
     }
     
-    const prompt = `\nYou are a music curator for SnapTrack. Your job is to suggest songs that create a perfect musical flow based on what has been played recently.\n\nContext:\n${songContext.join('\n')}\n\nPlease respond with EXACTLY 5-8 song suggestions in this JSON format:\n{\n  "suggestions": [\n    {\n      "title": "Song Title",\n      "artist": "Artist Name", \n      "reason": "Brief reason why this fits the vibe"\n    }\n  ]\n}\n\nRequirements:\n- PRIORITY 1: Match the musical vibe, genre, energy level, and mood of recent songs.\n- PRIORITY 2: DO NOT suggest any songs from the critical list of already-queued/played tracks. This is a strict rule.\n- PRIORITY 3: Create smooth musical transitions.\n- Each reason MUST reference specific recent songs: "Follows the [genre/energy] vibe from [recent song]"\n- Return ONLY the JSON response, no other text.\n`;
+    const styleInstructions = musicStyle && musicStyle.trim() 
+      ? `\n🎯 CRITICAL STYLE REQUIREMENT: The user has specified they want "${musicStyle}". ALL suggestions MUST align with this preference. This is the #1 priority.`
+      : '';
+
+    const prompt = `You are a music curator for SnapTrack. Your job is to suggest songs that create a perfect musical flow.
+
+Context:
+${songContext.join('\n')}${styleInstructions}
+
+Please respond with EXACTLY 6-8 song suggestions in this JSON format:
+{
+  "suggestions": [
+    {
+      "title": "Song Title",
+      "artist": "Artist Name", 
+      "reason": "Brief reason why this fits"
+    }
+  ]
+}
+
+REQUIREMENTS (in order of priority):
+${musicStyle && musicStyle.trim() 
+  ? `1. 🎯 HIGHEST PRIORITY: ALL songs must match the user's style preference "${musicStyle}". This overrides everything else.
+2. DO NOT suggest any songs from the critical exclusion list above.
+3. Create flow with recent songs when possible.
+4. ORDER suggestions by quality - put the BEST suggestion first.`
+  : `1. Match the musical vibe, genre, energy level, and mood of recent songs.
+2. DO NOT suggest any songs from the critical exclusion list above.
+3. Create smooth musical transitions.
+4. ORDER suggestions by quality - put the BEST suggestion first.`}
+
+FORMATTING:
+- Each reason should be 1-2 sentences maximum
+- Order from BEST to good (best suggestion first)
+- Return ONLY the JSON response, no other text.`;
 
     // Call Gemini API
     const geminiResponse = await fetch(
