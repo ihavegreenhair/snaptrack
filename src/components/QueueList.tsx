@@ -132,7 +132,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
       <CardHeader className="pb-4 xl:pb-6">
         <CardTitle className="xl:text-xl 2xl:text-2xl">{title}</CardTitle>
       </CardHeader>
-      <CardContent className={`${height ? 'flex-grow overflow-y-auto min-h-0' : 'min-h-[600px] xl:min-h-[500px] 2xl:min-h-[600px]'} xl:px-6 2xl:px-8`}>
+      <CardContent className={`${height ? 'flex-grow overflow-y-auto min-h-0' : 'min-h-[980px] xl:min-h-[500px] 2xl:min-h-[600px]'} xl:px-6 2xl:px-8`}>
         {queue.length === 0 ? (
           <div className="text-center py-8 bg-muted rounded-lg p-4 flex flex-col justify-center min-h-[200px]">
             <p className="text-lg font-medium">No songs in {isHistory ? 'history' : 'queue'}</p>
