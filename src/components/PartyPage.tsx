@@ -165,18 +165,18 @@ function PartyPage() {
       const fingerprint = await getUserFingerprint();
       setUserFingerprint(fingerprint);
 
-      const { data, error } = await supabase
+      const { data: partyData, error } = await supabase
         .from('parties')
         .select('id, host_fingerprint')
         .eq('party_code', partyCode)
         .single();
 
-      if (error || !data) {
+      if (error || !partyData) {
         console.error('Error fetching party info:', error);
         return;
       }
       
-      setPartyId(data.id);
+      setPartyId(partyData.id);
       
       await verifyHostStatus(fingerprint, partyCode);
       
@@ -203,8 +203,8 @@ function PartyPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'queue_items', filter: `party_id=eq.${partyId}` },
-        (payload) => {
-          console.log('Queue item changed:', payload);
+        (payload: any) => {
+          // console.log('Queue item changed:', payload);
           loadQueue();
         }
       )
@@ -273,7 +273,7 @@ function PartyPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'skip_votes', filter: `queue_id=eq.${nowPlayingSong.id}` },
-        (payload) => {
+        (_payload) => {
           loadSkipVotes();
         }
       )

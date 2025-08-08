@@ -1,8 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipForward, Trash2, Plus, QrCode, Copy } from 'lucide-react';
-import { type QueueItem, supabase } from '../lib/supabase';
-import { getUserFingerprint } from '../lib/fingerprint';
+import { type QueueItem } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
