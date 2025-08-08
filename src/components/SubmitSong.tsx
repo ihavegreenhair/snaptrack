@@ -100,32 +100,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       return;
     }
 
-    // 0. Check for duplicates
-    console.log('Checking for duplicates:', { videoId: songData.id, partyId });
-    const { data: existingSongs, error: existingError } = await supabase
-      .from('queue_items')
-      .select('id, title')
-      .eq('video_id', songData.id)
-      .eq('played', false)
-      .eq('party_id', partyId);
-
-    if (existingError) {
-      console.error('Error checking for existing songs:', existingError);
-      submissionInProgress.current = false;
-      setSubmitting(false);
-      setHasSubmitted(false);
-      return;
-    }
-
-    console.log('Duplicate check result:', { existingSongs, count: existingSongs?.length || 0 });
-
-    if (existingSongs && existingSongs.length > 0) {
-      console.log('Song already in queue, skipping:', existingSongs);
-      submissionInProgress.current = false;
-      setSubmitting(false);
-      setHasSubmitted(false); // Reset submission state so user can try again
-      return;
-    }
+    // Duplicate detection is now handled by database constraint
 
     const fingerprint = await getUserFingerprint();
 
@@ -162,6 +137,23 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
 
     if (queueError) {
       console.error('Error adding song to queue:', queueError);
+      
+      // Check if this is a duplicate song error (unique constraint violation)
+      if (queueError.code === '23505' && queueError.message?.includes('unique_unplayed_songs_per_party')) {
+        console.log('Song already in queue (detected by database constraint)');
+        // Show user-friendly message for duplicate
+        alert('This song is already in the queue!');
+      } else {
+        // Handle other database errors
+        console.error('Database error details:', queueError);
+        alert('Failed to add song to queue. Please try again.');
+      }
+      
+      // Reset submission state so user can try again
+      submissionInProgress.current = false;
+      setSubmitting(false);
+      setHasSubmitted(false);
+      return;
     } else {
       console.log('Song added successfully - clearing cache and refreshing suggestions');
       // SUCCESS FLOW: Clear cache → Trigger fresh suggestions throughout system

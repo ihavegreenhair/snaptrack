@@ -309,6 +309,13 @@ function PartyPage() {
       
       if (queueError) {
         console.error('Auto-add failed:', queueError);
+        
+        // Check if this is a duplicate song error (unique constraint violation)
+        if (queueError.code === '23505' && queueError.message?.includes('unique_unplayed_songs_per_party')) {
+          console.log('Auto-add skipped: Song already in queue (detected by database constraint)');
+        } else {
+          console.error('Auto-add database error details:', queueError);
+        }
         return;
       }
       
