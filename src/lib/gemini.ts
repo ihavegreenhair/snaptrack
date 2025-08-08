@@ -40,7 +40,7 @@ function getSessionId(): string {
   return sessionId;
 }
 
-function getCacheKey(currentSong: QueueItem | null, recentSongs: QueueItem[], fullQueue: QueueItem[]): string {
+function getCacheKey(currentSong: QueueItem | null, recentSongs: QueueItem[], fullQueue: QueueItem[], mood: string = ''): string {
   const current = currentSong?.title || 'none';
   const recent = recentSongs.slice(0, 5).map(s => s.title).join(',');
   const queueCount = fullQueue.length;
@@ -49,8 +49,9 @@ function getCacheKey(currentSong: QueueItem | null, recentSongs: QueueItem[], fu
   const now = new Date();
   const hour = now.getHours();
   const timePhase = getTimePhase(hour);
+  const moodKey = mood ? mood.substring(0, 50) : 'none'; // Limit mood length for cache key
   
-  return `${current}|${recent}|${queueCount}|${timePhase}`;
+  return `${current}|${recent}|${queueCount}|${timePhase}|${moodKey}`;
 }
 
 // Determine party phase based on time of day
@@ -250,9 +251,10 @@ export async function getAISuggestionsBackground(
   currentSong: QueueItem | null,
   recentSongs: QueueItem[],
   fullQueue: QueueItem[], // Pass full queue
+  mood: string = '', // Add mood parameter
   onUpdate: (suggestions: SuggestedSong[]) => void
 ): Promise<void> {
-  const context = getCacheKey(currentSong, recentSongs, fullQueue);
+  const context = getCacheKey(currentSong, recentSongs, fullQueue, mood);
   
   // Check cache first - only use if we have cached data
   const cachedResult = getCachedSuggestions(context);
@@ -272,7 +274,7 @@ export async function getAISuggestionsBackground(
     const hour = now.getHours();
     const timePhase = getTimePhase(hour);
     
-    // Build context with timing information
+    // Build context with timing information and mood/style preferences
     const contextData = {
       currentSong: currentSong?.title,
       recentSongs: recentSongs.map(song => ({
@@ -284,7 +286,9 @@ export async function getAISuggestionsBackground(
         phase: timePhase,
         timestamp: now.toISOString()
       },
-      fullQueue: fullQueue.map(s => s.title) // Pass full queue titles
+      fullQueue: fullQueue.map(s => s.title), // Pass full queue titles
+      musicStyle: mood || '', // Add music style/mood preference
+      stylePreference: mood ? `User wants music that is: ${mood}` : ''
     };
     
     const { data, error } = await supabase.functions.invoke('get-song-suggestions', {

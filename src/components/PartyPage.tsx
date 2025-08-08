@@ -10,6 +10,7 @@ import AddSongModal from './AddSongModal';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
+import MoodSelector from './MoodSelector';
 import { Music, QrCode, X, Copy } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
@@ -29,6 +30,7 @@ function PartyPage() {
   const [showQRCode, setShowQRCode] = useState(false);
   const addSongModalRef = useRef<{ openModal: () => void }>(null);
   const [userFingerprint, setUserFingerprint] = useState<string>('');
+  const [partyMood, setPartyMood] = useState<string>('');
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);
   const [nowPlayingHeight, setNowPlayingHeight] = useState<number | undefined>(undefined);
@@ -210,7 +212,7 @@ function PartyPage() {
         .slice(0, 10);
 
       try {
-        await getAISuggestionsBackground(currentSongForSuggestions, recentSongs, fullQueue, (personalizedSuggestions) => {
+        await getAISuggestionsBackground(currentSongForSuggestions, recentSongs, fullQueue, partyMood, (personalizedSuggestions) => {
           setSuggestions(personalizedSuggestions);
           setSuggestionsType('personalized');
         });
@@ -345,6 +347,14 @@ function PartyPage() {
     }
   };
 
+  const handleMoodChange = (mood: string) => {
+    setPartyMood(mood);
+    // Clear suggestions cache when mood changes
+    clearSuggestionsCache();
+    // Reload suggestions with new mood
+    loadSuggestions();
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card/50 backdrop-blur-sm">
@@ -362,6 +372,10 @@ function PartyPage() {
             )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <MoodSelector 
+              onMoodChange={handleMoodChange}
+              currentMood={partyMood}
+            />
             <button 
               onClick={() => setShowQRCode(!showQRCode)}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
