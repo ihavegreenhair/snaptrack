@@ -141,21 +141,213 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
             {!isHistory && <p className="text-muted-foreground text-sm mt-2">Be the first to add a song!</p>}
           </div>
         ) : (
-          <div className={`${isHostView ? 'space-y-2 xl:space-y-2' : 'space-y-3 xl:space-y-4 2xl:space-y-6'}`}>
-            {sortedQueue.map((song, index) => {
-              const userVote = userVotes[song.id] || 0;
-              const isNextUp = index === 0 && !isHistory;
+          <div className="space-y-4">
+            {/* Featured Next Up Section */}
+            {sortedQueue.length > 0 && !isHistory && (
+              <Card className="relative overflow-hidden border-amber-500/50 ring-2 ring-amber-500/20 shadow-lg bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-900/10 dark:to-orange-900/10">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
+                <CardContent className={`${isHostView ? 'p-4' : 'p-4 sm:p-6 xl:p-6 2xl:p-8'}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Star className="w-5 h-5 xl:w-6 xl:h-6 text-amber-500" />
+                    <h3 className="text-lg xl:text-xl 2xl:text-2xl font-bold text-amber-700 dark:text-amber-300">Next Up</h3>
+                  </div>
+                  
+                  {(() => {
+                    const nextSong = sortedQueue[0];
+                    const userVote = userVotes[nextSong.id] || 0;
+                    
+                    return isHostView ? (
+                      // Compact host version with larger image
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm xl:text-base">
+                            1
+                          </div>
+                          <PhotoZoom 
+                            src={nextSong.photo_url} 
+                            alt="Submitter photo"
+                            song={nextSong}
+                            isCurrentSong={false}
+                            queue={queue}
+                            currentIndex={0}
+                            currentSongId={currentSongId}
+                            className="transition-all duration-200 hover:scale-105 flex-shrink-0"
+                            submitterName={userProfiles[nextSong.submitted_by] || 'Anonymous'}
+                          >
+                            <img
+                              src={nextSong.photo_url}
+                              alt="Submitter photo"
+                              className="w-16 h-16 xl:w-20 xl:h-20 object-cover border-2 border-amber-500/50 rounded-full shadow-lg"
+                            />
+                          </PhotoZoom>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-base xl:text-lg text-amber-800 dark:text-amber-200 truncate mb-1">
+                            {nextSong.title}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            By {userProfiles[nextSong.submitted_by] || 'Anonymous'}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-1">
+                            <ThumbsUp className="w-4 h-4 text-amber-600" />
+                            <span className="text-sm xl:text-base font-bold text-amber-700 dark:text-amber-300">
+                              {nextSong.votes}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <Button
+                              onClick={() => handleVote(nextSong.id, 1)}
+                              disabled={voting === nextSong.id}
+                              size="icon"
+                              variant={userVote === 1 ? "default" : "outline"}
+                              className={`rounded-full w-7 h-7 xl:w-8 xl:h-8 ${
+                                userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
+                            </Button>
+                            <Button
+                              onClick={() => handleVote(nextSong.id, -1)}
+                              disabled={voting === nextSong.id}
+                              size="icon"
+                              variant={userVote === -1 ? "destructive" : "outline"}
+                              className={`rounded-full w-7 h-7 xl:w-8 xl:h-8 ${
+                                userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
+                            </Button>
+                            {isHost && (
+                              <Button
+                                onClick={() => handleRemoveSong(nextSong.id)}
+                                size="icon"
+                                variant="destructive"
+                                className="rounded-full w-7 h-7 xl:w-8 xl:h-8 ml-1"
+                                title="Remove song"
+                              >
+                                <Trash2 className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Full guest version with large showcase image
+                      <div className="flex flex-col sm:flex-row gap-6 items-start">
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg xl:text-xl">
+                            1
+                          </div>
+                          <PhotoZoom 
+                            src={nextSong.photo_url} 
+                            alt="Submitter photo"
+                            song={nextSong}
+                            isCurrentSong={false}
+                            queue={queue}
+                            currentIndex={0}
+                            currentSongId={currentSongId}
+                            className="transition-all duration-200 hover:scale-105 shadow-xl"
+                            submitterName={userProfiles[nextSong.submitted_by] || 'Anonymous'}
+                          >
+                            <img
+                              src={nextSong.photo_url}
+                              alt="Submitter photo"
+                              className="w-24 h-24 sm:w-28 sm:h-28 xl:w-32 xl:h-32 2xl:w-36 2xl:h-36 object-cover border-4 border-amber-400/60 rounded-xl shadow-xl"
+                            />
+                          </PhotoZoom>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-xl sm:text-2xl xl:text-3xl 2xl:text-4xl text-amber-800 dark:text-amber-200 break-words leading-tight mb-2">
+                            {nextSong.title}
+                          </h4>
+                          <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground mb-4">
+                            Submitted by <span className="font-medium text-amber-700 dark:text-amber-300">{userProfiles[nextSong.submitted_by] || 'Anonymous'}</span>
+                          </p>
+                          
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className="flex items-center gap-6">
+                              <div className="flex items-center gap-2">
+                                <ThumbsUp className="w-5 h-5 xl:w-6 xl:h-6 text-amber-600" />
+                                <span className="text-lg xl:text-xl font-bold text-amber-700 dark:text-amber-300">
+                                  {nextSong.votes} votes
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Clock className="w-4 h-4" />
+                                {formatTimeAgo(nextSong.submitted_at)}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Button
+                                onClick={() => handleVote(nextSong.id, 1)}
+                                disabled={voting === nextSong.id}
+                                size="icon"
+                                variant={userVote === 1 ? "default" : "outline"}
+                                className={`rounded-full w-10 h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 transition-all duration-300 hover:scale-110 active:scale-95 ${
+                                  userVote === 1 ? 'bg-green-600 hover:bg-green-700 shadow-lg' : 'hover:bg-green-50'
+                                }`}
+                              >
+                                <ThumbsUp className="w-5 h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
+                              </Button>
+                              <Button
+                                onClick={() => handleVote(nextSong.id, -1)}
+                                disabled={voting === nextSong.id}
+                                size="icon"
+                                variant={userVote === -1 ? "destructive" : "outline"}
+                                className={`rounded-full w-10 h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 transition-all duration-300 hover:scale-110 active:scale-95 ${
+                                  userVote === -1 ? 'shadow-lg' : 'hover:bg-red-50'
+                                }`}
+                              >
+                                <ThumbsDown className="w-5 h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
+                              </Button>
+                              {isHost && (
+                                <Button
+                                  onClick={() => handleRemoveSong(nextSong.id)}
+                                  size="icon"
+                                  variant="destructive"
+                                  className="rounded-full w-10 h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 ml-2"
+                                  title="Remove song (Host only)"
+                                >
+                                  <Trash2 className="w-5 h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Rest of Queue */}
+            {sortedQueue.length > 1 && (
+              <div>
+                {!isHistory && (
+                  <h4 className="text-sm xl:text-base font-semibold text-muted-foreground mb-3 px-1">
+                    Coming Up ({sortedQueue.length - 1} songs)
+                  </h4>
+                )}
+                <div className={`${isHostView ? 'space-y-2 xl:space-y-2' : 'space-y-3 xl:space-y-4 2xl:space-y-6'}`}>
+                  {sortedQueue.slice(isHistory ? 0 : 1).map((song, index) => {
+                    const actualIndex = isHistory ? index : index + 1;
+                    const userVote = userVotes[song.id] || 0;
+                    const isNextUp = false; // Never true for remaining items
 
-              return (
-                <Card
-                  key={song.id}
-                  ref={(el) => { itemRefs.current[song.id] = el; }}
-                  className={`relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] ${
-                    isNextUp
-                      ? 'border-amber-500/50 ring-2 ring-amber-500/20 shadow-md bg-amber-50/50 dark:bg-amber-900/10'
-                      : 'hover:shadow-md hover:bg-accent/50'
-                  }`}
-                >
+                    return (
+                      <Card
+                        key={song.id}
+                        ref={(el) => { itemRefs.current[song.id] = el; }}
+                        className="relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50"
+                      >
                   {isNextUp && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
                   )}
@@ -167,10 +359,8 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                       <div className="flex items-center gap-2">
                         {/* Position number - ultra small */}
                         {!isHistory && (
-                          <div className={`w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                            isNextUp ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {index + 1}
+                          <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
+                            {actualIndex + 1}
                           </div>
                         )}
                         
@@ -181,7 +371,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                           song={song}
                           isCurrentSong={false}
                           queue={queue}
-                          currentIndex={index}
+                          currentIndex={actualIndex}
                           currentSongId={currentSongId}
                           className="transition-all duration-200 hover:scale-105 flex-shrink-0"
                           submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
@@ -268,7 +458,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                                 ? 'bg-amber-500 text-white'
                                 : 'bg-muted text-muted-foreground'
                             }`}>
-                              {`#${index + 1}`}
+                              {`#${actualIndex + 1}`}
                             </div>
                           )}
                           <PhotoZoom 
@@ -277,7 +467,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             song={song}
                             isCurrentSong={false}
                             queue={queue}
-                            currentIndex={index}
+                            currentIndex={actualIndex}
                             currentSongId={currentSongId}
                             className={`transition-all duration-200 hover:scale-105 ${
                               isHistory ? 'w-16 h-16 sm:w-18 sm:h-18 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full shadow-md'
@@ -373,7 +563,11 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                   </CardContent>
                 </Card>
               );
-            })}
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </CardContent>
