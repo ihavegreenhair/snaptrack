@@ -280,7 +280,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Now Playing (Host)</CardTitle>
+        <CardTitle>Now Playing</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">

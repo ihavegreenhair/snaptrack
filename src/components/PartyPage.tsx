@@ -129,7 +129,7 @@ function PartyPage() {
   
   // Auto-add suggestion when queue is empty (host only)
   useEffect(() => {
-    if (isHost && !nowPlayingSong && queue.length === 0 && suggestions.length > 0 && history.length > 0 && !autoAddInProgress) {
+    if (isHost && queue.length === 0 && suggestions.length > 0 && history.length > 0 && !autoAddInProgress) {
       // Delay to avoid rapid-fire auto-adds
       const timer = setTimeout(() => {
         autoAddSuggestion();
@@ -137,7 +137,7 @@ function PartyPage() {
       
       return () => clearTimeout(timer);
     }
-  }, [isHost, nowPlayingSong, queue.length, suggestions.length, history.length, autoAddInProgress]);
+  }, [isHost, queue.length, suggestions.length, history.length, autoAddInProgress]);
 
   const loadQueue = async () => {
     if (!partyId) return;
@@ -268,8 +268,9 @@ function PartyPage() {
 
   const autoAddSuggestion = async () => {
     if (!isHost || !partyId || autoAddInProgress) return;
-    if (suggestions.length === 0 || queue.length > 0) return;
+    if (suggestions.length === 0) return;
     if (history.length === 0) return; // Only auto-add if there's history to base suggestions on
+    if (queue.length > 0) return; // Only auto-add when queue is empty
     
     setAutoAddInProgress(true);
     
@@ -287,21 +288,23 @@ function PartyPage() {
         return;
       }
       
-      const firstResult = searchResults[0];
+      // Find first valid result (under 6 minutes)
+      const validResults = searchResults.filter(result => !getSongLengthError(result.duration));
       
-      // Check song length
-      const lengthError = getSongLengthError(firstResult.duration);
-      if (lengthError) {
-        console.log(`Auto-add skipped: ${lengthError}`);
+      if (validResults.length === 0) {
+        console.log('No valid length songs found for auto-add (all over 6 minutes)');
         return;
       }
+      
+      const selectedResult = validResults[0];
+      console.log(`Auto-adding: ${selectedResult.title} (${selectedResult.duration}s)`);
       
       // Auto-add the song (no photo required for host auto-add)
       const { error: queueError } = await supabase.from('queue_items').insert({
         party_id: partyId,
-        video_id: firstResult.id,
-        title: firstResult.title,
-        thumbnail_url: firstResult.thumbnail,
+        video_id: selectedResult.id,
+        title: selectedResult.title,
+        thumbnail_url: selectedResult.thumbnail,
         submitted_by: userFingerprint,
         photo_url: 'https://via.placeholder.com/150/6366f1/white?text=AUTO', // Special auto-add placeholder
         played: false,
@@ -319,7 +322,7 @@ function PartyPage() {
         return;
       }
       
-      console.log(`Auto-added: ${firstResult.title}`);
+      console.log(`Auto-added: ${selectedResult.title}`);
       
     } catch (error) {
       console.error('Auto-add error:', error);
