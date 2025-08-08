@@ -181,10 +181,10 @@ function PartyPage() {
       await verifyHostStatus(fingerprint, partyCode);
       
       // Load all user profiles for the party
-      await loadUserProfiles(data.id);
+      await loadUserProfiles(partyData.id);
       
       // Check if current user has a profile
-      const existingProfile = await checkUserProfile(fingerprint, data.id);
+      const existingProfile = await checkUserProfile(fingerprint, partyData.id);
       if (existingProfile) {
         setUserProfile(existingProfile);
       } else {
@@ -203,7 +203,7 @@ function PartyPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'queue_items', filter: `party_id=eq.${partyId}` },
-        (payload: any) => {
+        () => {
           // console.log('Queue item changed:', payload);
           loadQueue();
         }
@@ -211,8 +211,7 @@ function PartyPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'votes' },
-        (payload) => {
-          console.log('Vote changed:', payload);
+        (_payload) => {
           setTimeout(() => loadQueue(), 100);
         }
       )
@@ -249,7 +248,7 @@ function PartyPage() {
     }
 
     const loadSkipVotes = async () => {
-      const { data, count } = await supabase
+      const { data: _data, count } = await supabase
         .from('skip_votes')
         .select('id', { count: 'exact' })
         .eq('queue_id', nowPlayingSong.id);
