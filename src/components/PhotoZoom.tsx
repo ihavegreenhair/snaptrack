@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ZoomIn, Play, Clock, ChevronUp, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { X, ZoomIn, Play, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatTimeAgo } from '../lib/time';
@@ -146,33 +146,6 @@ export default function PhotoZoom({
                         <div>
                           <h2 className="text-3xl font-bold mb-2 text-white">{currentSong?.title}</h2>
                           <p className="text-white/70 text-lg">Submitted by a party-goer</p>
-                        </div>
-                        
-                        {/* Quick stats */}
-                        <div className="flex gap-6">
-                          <div className="flex items-center gap-2">
-                            <div className="bg-green-600 rounded-full p-2">
-                              <ChevronUp className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <div className="text-2xl font-bold text-white">{currentSong?.votes}</div>
-                              <div className="text-sm text-white/70">Votes</div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <div className="bg-blue-600 rounded-full p-2">
-                              <Clock className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <div className="text-sm text-white/70">
-                                {isHistory 
-                                  ? `Played ${formatTimeAgo(currentSong?.played_at ?? '')}`
-                                  : `Added ${formatTimeAgo(currentSong?.submitted_at ?? '')}`
-                                }
-                              </div>
-                            </div>
-                          </div>
                         </div>
 
                         {/* Navigation hints */}

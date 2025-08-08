@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ThumbsUp, ThumbsDown, Clock, Star, Trash2, SkipForward } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Clock, Star, Trash2 } from 'lucide-react';
 import { supabase, type QueueItem } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { formatTimeAgo } from '../lib/time';
@@ -14,8 +14,6 @@ interface QueueListProps {
   isHistory?: boolean;
   isHost: boolean;
   height?: number;
-  onSkipSong?: (songId: string) => void;
-  skipVotesRequired?: number;
 }
 
 interface UserVotes {
@@ -23,7 +21,7 @@ interface UserVotes {
 }
 
 
-export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height, onSkipSong, skipVotesRequired = 3 }: QueueListProps) {
+export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height }: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
   const [voting, setVoting] = useState<string | null>(null);

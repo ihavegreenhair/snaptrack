@@ -301,14 +301,14 @@ function PartyPage() {
       const selectedResult = validResults[0];
       console.log(`Auto-adding: ${selectedResult.title} (${selectedResult.duration}s)`);
       
-      // Auto-add the song (no photo required for host auto-add)
+      // Auto-add the song (use YouTube thumbnail as photo for auto-added songs)
       const { error: queueError } = await supabase.from('queue_items').insert({
         party_id: partyId,
         video_id: selectedResult.id,
         title: selectedResult.title,
         thumbnail_url: selectedResult.thumbnail,
         submitted_by: userFingerprint,
-        photo_url: 'https://via.placeholder.com/150/6366f1/white?text=Auto', // Special auto-add placeholder
+        photo_url: selectedResult.thumbnail, // Use YouTube thumbnail as the "photo"
         played: false,
       });
       
@@ -567,8 +567,6 @@ function PartyPage() {
                   currentSongId={nowPlayingSong?.id} 
                   isHost={isHost} 
                   height={showQRCode ? undefined : nowPlayingHeight}
-                  onSkipSong={skipSongById}
-                  skipVotesRequired={3}
                 />
               </div>
             </div>

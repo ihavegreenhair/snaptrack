@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { Music2, X } from 'lucide-react';
+import { Music2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -80,9 +78,9 @@ export default function MoodSelector({ onMoodChange, currentMood = '' }: MoodSel
 
             {/* Preset Options */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Quick Options
-              </Label>
+              </label>
               <div className="grid grid-cols-1 gap-2">
                 {PRESET_OPTIONS.map((option) => (
                   <Button
@@ -100,20 +98,22 @@ export default function MoodSelector({ onMoodChange, currentMood = '' }: MoodSel
 
             {/* Custom Input */}
             <div className="space-y-2">
-              <Label htmlFor="custom-mood" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label htmlFor="custom-mood" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Custom Style
-              </Label>
+              </label>
               <div className="space-y-2">
-                <Input
+                <input
                   id="custom-mood"
+                  type="text"
                   placeholder="e.g., like Drake, 90s rock, romantic dinner, workout energy, jazz fusion..."
                   value={customMood}
-                  onChange={(e) => setCustomMood(e.target.value)}
-                  onKeyDown={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomMood(e.target.value)}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                     if (e.key === 'Enter') {
                       handleCustomSubmit();
                     }
                   }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="flex gap-2">
                   <Button
@@ -139,9 +139,9 @@ export default function MoodSelector({ onMoodChange, currentMood = '' }: MoodSel
 
             {currentMood && (
               <div className="p-3 bg-muted rounded-lg">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
                   Current Style
-                </Label>
+                </label>
                 <p className="text-sm">{currentMood}</p>
               </div>
             )}

@@ -97,39 +97,6 @@ export default function PhotoGallery({ queue, title }: PhotoGalleryProps) {
             </PhotoZoom>
           ))}
         </div>
-        
-        {/* Summary stats */}
-        {queue.length > 0 && (
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-muted/50 rounded-lg">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
-              <div>
-                <div className="text-xl sm:text-2xl font-bold text-primary">{queue.length}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Songs Played</div>
-              </div>
-              
-              <div>
-                <div className="text-xl sm:text-2xl font-bold text-green-600">
-                  {queue.reduce((sum, song) => sum + song.votes, 0)}
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Total Votes</div>
-              </div>
-              
-              <div>
-                <div className="text-xl sm:text-2xl font-bold text-amber-600">
-                  {Math.max(...queue.map(song => song.votes))}
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Top Votes</div>
-              </div>
-              
-              <div>
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                  {queue.length > 0 ? Math.round(queue.reduce((sum, song) => sum + song.votes, 0) / queue.length * 10) / 10 : 0}
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Avg Votes</div>
-              </div>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

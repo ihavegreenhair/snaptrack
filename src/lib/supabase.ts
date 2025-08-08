@@ -30,6 +30,7 @@ export type QueueItem = {
   played_at?: string | null;
   photo_url: string;
   submitted_at: string;
+  party_id: string;
 };
 
 /**
