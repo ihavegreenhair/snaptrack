@@ -186,7 +186,7 @@ export function getInstantSuggestions(): SuggestedSong[] {
     ]
   };
   
-  const baseSuggestions = suggestionsByPhase[timePhase] || suggestionsByPhase['prime-time'];
+  const baseSuggestions = suggestionsByPhase[timePhase as keyof typeof suggestionsByPhase] || suggestionsByPhase['prime-time'];
   
   // Add a few universal favorites regardless of time
   const universalFavorites = [
@@ -277,7 +277,7 @@ export async function getAISuggestionsBackground(
       currentSong: currentSong?.title,
       recentSongs: recentSongs.map(song => ({
         title: song.title,
-        playedAt: formatPlayTime(song.played_at)
+        playedAt: formatPlayTime(song.played_at || null)
       })),
       timeContext: {
         hour: hour,
@@ -289,7 +289,7 @@ export async function getAISuggestionsBackground(
     
     const { data, error } = await supabase.functions.invoke('get-song-suggestions', {
       body: contextData,
-      signal: controller.signal
+      // signal: controller.signal // Remove signal option as it may not be supported
     });
     
     clearTimeout(timeout);
@@ -311,7 +311,7 @@ export async function getAISuggestionsBackground(
     }
     
   } catch (error) {
-    if (error.name !== 'AbortError') {
+    if ((error as Error).name !== 'AbortError') {
       console.warn('AI suggestions failed:', error);
     }
     throw error;

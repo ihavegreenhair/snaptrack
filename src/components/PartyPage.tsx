@@ -8,7 +8,7 @@ import QueueList from './QueueList';
 import AddSongModal from './AddSongModal';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
-import QRCodeModal from './QRCodeModal';
+import QRCode from './QRCode';
 import { Music, QrCode } from 'lucide-react';
 import { useParty } from '../lib/PartyContext';
 
@@ -24,7 +24,25 @@ function PartyPage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsType, setSuggestionsType] = useState<'instant' | 'personalized'>('instant');
   const [showHostModal, setShowHostModal] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const qrCodeRef = useRef<HTMLDivElement>(null);
+  
+  // Close QR code when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (qrCodeRef.current && !qrCodeRef.current.contains(event.target as Node)) {
+        setShowQRCode(false);
+      }
+    };
+    
+    if (showQRCode) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showQRCode]);
   const [userFingerprint, setUserFingerprint] = useState<string>('');
 
   const nowPlayingEl = useRef<HTMLDivElement>(null);
@@ -153,7 +171,7 @@ function PartyPage() {
         const firstSong = allSortedUnplayed[0];
         nowPlayingRef.current = firstSong;
         setNowPlayingSong(firstSong);
-      } else if (nowPlayingRef.current && !unplayed.some(item => item.id === nowPlayingRef.current.id)) {
+      } else if (nowPlayingRef.current && !unplayed.some(item => item.id === nowPlayingRef.current!.id)) {
         const nextSong = allSortedUnplayed[0] || null;
         nowPlayingRef.current = nextSong;
         setNowPlayingSong(nextSong);
@@ -230,6 +248,26 @@ function PartyPage() {
   const skipSong = () => {
     handleSongEnd();
   };
+  
+  const skipSongById = async (songId: string) => {
+    if (!partyId) return;
+    
+    try {
+      // Mark the specific song as played (skipped)
+      await supabase
+        .from('queue_items')
+        .update({ played: true, played_at: new Date().toISOString() })
+        .eq('id', songId)
+        .eq('party_id', partyId);
+        
+      // If it's the currently playing song, move to next
+      if (nowPlayingSong?.id === songId) {
+        handleSongEnd();
+      }
+    } catch (error) {
+      console.error('Error skipping song:', error);
+    }
+  };
 
   const clearQueue = async () => {
     if (!partyId) return;
@@ -262,14 +300,49 @@ function PartyPage() {
             )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-            <button 
-              onClick={() => setShowQRModal(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
-              title="Show QR code for joining"
-            >
-              <QrCode className="w-4 h-4" />
-              <span className="hidden sm:inline">Join QR</span>
-            </button>
+            <div className="relative" ref={qrCodeRef}>
+              <button 
+                onClick={() => setShowQRCode(!showQRCode)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
+                title="Toggle QR code for joining"
+              >
+                <QrCode className="w-4 h-4" />
+                <span className="hidden sm:inline">Join QR</span>
+              </button>
+              
+              {/* Inline QR Code Dropdown */}
+              {showQRCode && (
+                <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-border rounded-lg shadow-lg z-50 min-w-64">
+                  <div className="text-center space-y-3">
+                    <h3 className="font-semibold text-sm">Join This Party</h3>
+                    <div className="bg-white p-3 rounded border">
+                      <QRCode 
+                        value={process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`} 
+                        size={150} 
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Party Code</p>
+                      <p className="text-lg font-bold tracking-wider">{partyCode}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const partyUrl = process.env.VITE_LOCAL_URL ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}` : `${window.location.origin}/party/${partyCode}`;
+                        try {
+                          await navigator.clipboard.writeText(partyUrl);
+                          alert('Party URL copied to clipboard!');
+                        } catch {
+                          alert(`Share this link: ${partyUrl}`);
+                        }
+                      }}
+                      className="text-xs bg-muted hover:bg-muted/80 px-3 py-1 rounded transition-colors"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             {!isHost && (
               <button 
                 onClick={() => setShowHostModal(true)}
@@ -303,7 +376,15 @@ function PartyPage() {
             />
           </div>
           <div className="h-full">
-            <QueueList title="Up Next" queue={queue} currentSongId={null} isHost={isHost} height={nowPlayingHeight} />
+            <QueueList 
+              title="Up Next" 
+              queue={queue} 
+              currentSongId={nowPlayingSong?.id} 
+              isHost={isHost} 
+              height={nowPlayingHeight}
+              onSkipSong={skipSongById}
+              skipVotesRequired={3}
+            />
           </div>
         </div>
         
@@ -325,12 +406,6 @@ function PartyPage() {
         />
       )}
 
-      {showQRModal && (
-        <QRCodeModal
-          partyCode={partyCode!}
-          onClose={() => setShowQRModal(false)}
-        />
-      )}
     </div>
   );
 }

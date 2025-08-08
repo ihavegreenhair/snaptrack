@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import YouTubeSearch from './YouTubeSearch';
 import PhotoUploader from './PhotoUploader';
@@ -81,9 +81,9 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
 
     // Determine which song data to use
     const songData = selectedVideo || {
-      id: selectedSuggestion!.videoId,
+      id: 'suggested-song-' + Date.now(),
       title: `${selectedSuggestion!.title} - ${selectedSuggestion!.artist}`,
-      thumbnail: `https://img.youtube.com/vi/${selectedSuggestion!.videoId}/hqdefault.jpg`,
+      thumbnail: 'https://via.placeholder.com/320x180/cccccc/666666?text=Suggested+Song',
       duration: 0 // We don't have duration for suggestions
     };
 
@@ -274,7 +274,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
           {currentSelection && (
             <div className="flex items-center gap-3 sm:gap-4 p-3 bg-muted rounded-lg">
               <img 
-                src={selectedVideo ? selectedVideo.thumbnail : `https://img.youtube.com/vi/${selectedSuggestion!.videoId}/hqdefault.jpg`} 
+                src={selectedVideo ? selectedVideo.thumbnail : 'https://via.placeholder.com/320x180/cccccc/666666?text=Suggested+Song'} 
                 alt={selectedVideo ? selectedVideo.title : selectedSuggestion!.title} 
                 className="w-16 sm:w-20 h-auto rounded-md flex-shrink-0" 
               />

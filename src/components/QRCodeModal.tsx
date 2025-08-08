@@ -10,7 +10,9 @@ interface QRCodeModalProps {
 }
 
 const QRCodeModal: React.FC<QRCodeModalProps> = ({ partyCode, onClose }) => {
-  const partyUrl = `${window.location.origin}/party/${partyCode}`;
+  const partyUrl = process.env.VITE_LOCAL_URL
+    ? `${process.env.VITE_LOCAL_URL}/party/${partyCode}`
+    : `${window.location.origin}/party/${partyCode}`;
 
   const copyToClipboard = async () => {
     try {

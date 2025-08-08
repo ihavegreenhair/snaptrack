@@ -45,10 +45,7 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
     // Detailed device detection (outside try block for error handling access)
     const userAgent = navigator.userAgent;
     const isAndroid = /Android/i.test(userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-    const isAndroidChrome = isAndroid && /Chrome/i.test(userAgent) && !/Edge|OPR/i.test(userAgent);
-    const isAndroidWebView = isAndroid && /wv|WebView/i.test(userAgent);
     
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

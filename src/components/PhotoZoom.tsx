@@ -24,7 +24,6 @@ export default function PhotoZoom({
   className, 
   children, 
   song, 
-  isCurrentSong, 
   isHistory, 
   queue = [], 
   currentIndex = 0,

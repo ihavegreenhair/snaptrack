@@ -29,7 +29,8 @@ export async function getUserFingerprint(): Promise<string> {
 
     // Get the fingerprint
     const result = await fpAgent.get();
-    cachedFingerprint = result.visitorId ?? '';
+    const visitorId = result.visitorId;
+    cachedFingerprint = typeof visitorId === 'string' ? visitorId : 'fallback_' + Math.random().toString(36).substr(2, 9);
     
     return cachedFingerprint;
   } catch (error) {
