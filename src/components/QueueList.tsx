@@ -334,7 +334,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                     Coming Up ({sortedQueue.length - 1} songs)
                   </h4>
                 )}
-                <div className={`${isHostView ? 'space-y-2 xl:space-y-2' : 'space-y-3 xl:space-y-4 2xl:space-y-6'}`}>
+                <div className={`${isHostView ? 'space-y-2 xl:space-y-2' : 'space-y-2 xl:space-y-4 2xl:space-y-6'}`}>
                   {sortedQueue.slice(isHistory ? 0 : 1).map((song, index) => {
                     const actualIndex = isHistory ? index : index + 1;
                     const userVote = userVotes[song.id] || 0;
@@ -350,7 +350,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                     <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
                   )}
                   <CardContent className={`${
-                    isHostView ? 'p-2 xl:p-2' : 'p-3 sm:p-4 xl:p-4 2xl:p-6'
+                    isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
                   }`}>
                     {isHostView ? (
                       // Ultra-compact host layout - minimal horizontal design
@@ -446,17 +446,17 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         )}
                       </div>
                     ) : (
-                      // Full guest layout - existing responsive design
-                      <div className="flex flex-col xl:flex-row xl:items-center gap-4">
+                      // Compact mobile layout - horizontal design on mobile
+                      <div className="flex items-center gap-2 sm:gap-3 xl:gap-4">
                         {/* Left section - Position number and photo */}
-                        <div className="flex items-center gap-3 xl:gap-4 flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3 xl:gap-4 flex-shrink-0">
                           {!isHistory && (
-                            <div className={`w-8 h-8 sm:w-10 sm:h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm xl:text-base 2xl:text-lg ${
+                            <div className={`w-6 h-6 sm:w-8 sm:h-8 xl:w-10 xl:h-10 rounded-full flex items-center justify-center font-bold text-xs xl:text-sm ${
                               isNextUp
                                 ? 'bg-amber-500 text-white'
                                 : 'bg-muted text-muted-foreground'
                             }`}>
-                              {`#${actualIndex + 1}`}
+                              {actualIndex + 1}
                             </div>
                           )}
                           <PhotoZoom 
@@ -468,92 +468,76 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             currentIndex={actualIndex}
                             currentSongId={currentSongId}
                             className={`transition-all duration-200 hover:scale-105 ${
-                              isHistory ? 'w-16 h-16 sm:w-18 sm:h-18 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-xl shadow-lg' : 'w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full shadow-md'
+                              isHistory ? 'w-10 h-10 sm:w-12 sm:h-12 xl:w-16 xl:h-16 rounded-lg' : 'w-10 h-10 sm:w-12 sm:h-12 xl:w-14 xl:h-14 rounded-full'
                             }`}
                             submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
                           >
                             <img
                               src={song.photo_url}
                               alt="Submitter photo"
-                              className={`w-full h-full object-cover border-2 ${
+                              className={`w-full h-full object-cover border ${
                                 isNextUp 
                                   ? 'border-amber-500/50' 
                                   : 'border-border'
-                              } ${isHistory ? 'rounded-xl' : 'rounded-full'}`}
+                              } ${isHistory ? 'rounded-lg' : 'rounded-full'}`}
                             />
                           </PhotoZoom>
                         </div>
                         
                         {/* Middle section - Song info */}
-                        <div className="flex-1 min-w-0 xl:px-2">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2">
-                              <h3 className="font-semibold text-base sm:text-lg xl:text-xl 2xl:text-2xl break-words leading-tight">{song.title}</h3>
-                              {isNextUp && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs xl:text-sm font-medium bg-amber-500 text-white flex-shrink-0 self-start">
-                                  <Star className="w-3 h-3 xl:w-4 xl:h-4" />
-                                  <span className="hidden sm:inline">Next Up</span>
-                                  <span className="sm:hidden">Next</span>
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm xl:text-base 2xl:text-lg text-muted-foreground">
+                        <div className="flex-1 min-w-0 px-1">
+                          <div className="flex flex-col">
+                            <h3 className="font-medium text-sm sm:text-base xl:text-lg line-clamp-2 leading-tight mb-0.5">{song.title}</h3>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
+                                <ThumbsUp className="w-3 h-3" />
                                 <span className={`transition-all duration-300 ${animatingVotes[song.id] ? 'scale-110 text-green-600' : ''}`}>
-                                  {song.votes} votes
+                                  {song.votes}
                                 </span>
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
-                                {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : `Added ${formatTimeAgo(song.submitted_at)}`}
+                              <span className="truncate">
+                                {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : formatTimeAgo(song.submitted_at)}
                               </span>
                             </div>
-                            <p className="text-xs xl:text-sm text-muted-foreground/70 hidden sm:block">Click photo for details</p>
                           </div>
                         </div>
                         
-                        {/* Right section - Voting controls */}
+                        {/* Right section - Compact voting controls */}
                         {!isHistory && (
-                          <div className="flex flex-row xl:flex-col items-center gap-2 xl:gap-3 flex-shrink-0 justify-center xl:justify-start">
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              onClick={() => handleVote(song.id, 1)}
+                              disabled={voting === song.id}
+                              size="icon"
+                              variant={userVote === 1 ? "default" : "outline"}
+                              className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
+                                userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
+                            </Button>
+                            <Button
+                              onClick={() => handleVote(song.id, -1)}
+                              disabled={voting === song.id}
+                              size="icon"
+                              variant={userVote === -1 ? "destructive" : "outline"}
+                              className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
+                                userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
+                            </Button>
                             {isHost && (
                               <Button
                                 onClick={() => handleRemoveSong(song.id)}
                                 size="icon"
                                 variant="destructive"
-                                className="rounded-full w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12"
-                                title="Remove song (Host only)"
+                                className="rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ml-1"
+                                title="Remove song"
                               >
-                                <Trash2 className="w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
                               </Button>
                             )}
-                            <div className="flex flex-col items-center gap-1">
-                              <Button
-                                onClick={() => handleVote(song.id, 1)}
-                                disabled={voting === song.id}
-                                size="icon"
-                                variant={userVote === 1 ? "default" : "outline"}
-                                className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 transition-all duration-300 hover:scale-110 active:scale-95 ${
-                                  userVote === 1 ? 'bg-green-600 hover:bg-green-700 shadow-lg' : 'hover:bg-green-50'
-                                }`}
-                              >
-                                <ThumbsUp className="w-4 h-4 sm:w-5 sm:h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
-                              </Button>
-                              <span className="text-sm sm:text-base xl:text-lg 2xl:text-xl font-bold text-center min-w-[2rem]">
-                                {song.votes}
-                              </span>
-                              <Button
-                                onClick={() => handleVote(song.id, -1)}
-                                disabled={voting === song.id}
-                                size="icon"
-                                variant={userVote === -1 ? "destructive" : "outline"}
-                                className={`rounded-full w-8 h-8 sm:w-10 sm:h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 transition-all duration-300 hover:scale-110 active:scale-95 ${
-                                  userVote === -1 ? 'shadow-lg' : 'hover:bg-red-50'
-                                }`}
-                              >
-                                <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
-                              </Button>
-                            </div>
                           </div>
                         )}
                       </div>
