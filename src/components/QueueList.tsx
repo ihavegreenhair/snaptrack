@@ -6,6 +6,7 @@ import { formatTimeAgo } from '../lib/time';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
+import { useToast } from './ui/toast';
 
 interface QueueListProps {
   queue: QueueItem[];
@@ -29,6 +30,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
   const [voting, setVoting] = useState<string | null>(null);
   const [animatingVotes, setAnimatingVotes] = useState<{[key: string]: number}>({});
   const itemRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  const toast = useToast();
 
   const sortedQueue = useMemo(() => {
     return queue.map((song, index) => ({ ...song, position: index }));
@@ -109,7 +111,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
       }, 600);
     } catch (error) {
       console.error('Error handling vote:', error);
-      alert('Failed to cast vote. Please try again.');
+      toast.error('Failed to cast vote. Please try again.');
     } finally {
       setVoting(null);
     }
@@ -120,9 +122,10 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
 
     try {
       await supabase.from('queue_items').delete().eq('id', songId);
+      toast.success('Song removed from queue');
     } catch (error) {
       console.error('Error removing song:', error);
-      alert('Failed to remove song. Please try again.');
+      toast.error('Failed to remove song. Please try again.');
     }
   };
 

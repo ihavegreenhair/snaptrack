@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import YouTubeSearch from './YouTubeSearch';
@@ -8,6 +7,7 @@ import { getUserFingerprint } from '../lib/fingerprint';
 import { type YouTubeVideo, getSongLengthError } from '../lib/youtube';
 import { clearSuggestionsCache, type SuggestedSong } from '../lib/gemini';
 import { Button } from '@/components/ui/button';
+import { useToast } from './ui/toast';
 
 interface SubmitSongProps {
   onSongAdded?: () => void;
@@ -28,6 +28,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
   const [showPhotoUploader, setShowPhotoUploader] = useState(false);
   const [hasSearched, setHasSearched] = useState(false); // Track if user has made a search
   const [searchQuery, setSearchQuery] = useState<string>(''); // Query to pass to search
+  const toast = useToast();
 
   // Suggestions are now managed by the parent App component
 
@@ -115,6 +116,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       submissionInProgress.current = false;
       setSubmitting(false);
       setHasSubmitted(false);
+      toast.error('Failed to upload photo. Please try again.');
       return;
     }
 
@@ -142,11 +144,11 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       if (queueError.code === '23505' && queueError.message?.includes('unique_unplayed_songs_per_party')) {
         console.log('Song already in queue (detected by database constraint)');
         // Show user-friendly message for duplicate
-        alert('This song is already in the queue!');
+        toast.error('This song is already in the queue!');
       } else {
         // Handle other database errors
         console.error('Database error details:', queueError);
-        alert('Failed to add song to queue. Please try again.');
+        toast.error('Failed to add song to queue. Please try again.');
       }
       
       // Reset submission state so user can try again
@@ -166,6 +168,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
         console.error('Failed to refresh suggestions after song submission:', error);
       });
       
+      toast.success('Song added to queue!');
       // Close modal
       onSongAdded?.();
     }

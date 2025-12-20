@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipForward, Trash2, Plus, QrCode, Copy } from 'lucide-react';
 import { type QueueItem } from '../lib/supabase';
@@ -6,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
 import QRCode from './QRCode';
+import { useToast } from './ui/toast';
 
 interface NowPlayingProps {
   song: QueueItem | null;
@@ -37,6 +37,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (isHost && skipVoteCount >= (skipVotesRequired || 3)) {
@@ -236,7 +237,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
                           e.stopPropagation();
                           try {
                             await navigator.clipboard.writeText(partyUrl);
-                            // Could add toast notification here
+                            toast.success('Party link copied to clipboard!');
                           } catch {
                             // Fallback handled
                           }

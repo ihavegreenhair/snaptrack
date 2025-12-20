@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { useParty } from '../lib/PartyContext';
+import { useToast } from './ui/toast';
+import { Loader2 } from 'lucide-react';
 
 const HomePage: React.FC = () => {
   const [partyCode, setPartyCode] = useState('');
@@ -10,16 +12,16 @@ const HomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { setIsHost } = useParty();
+  const toast = useToast();
 
   const handleCreateParty = async () => {
     if (!hostPassword) {
-      alert('Please enter a host password.');
+      toast.error('Please enter a host password.');
       return;
     }
 
     setIsLoading(true);
     try {
-      // Get the creator's fingerprint to automatically set them as host
       const creatorFingerprint = await getUserFingerprint();
       
       const { data, error } = await supabase.functions.invoke('create-party', {
@@ -31,12 +33,12 @@ const HomePage: React.FC = () => {
 
       if (error) throw error;
 
-      // Set the creator as host immediately
       setIsHost(true);
+      toast.success('Party created successfully!');
       navigate(`/party/${data.party.party_code}`);
     } catch (error) {
       console.error('Error creating party:', error);
-      alert('Failed to create party. Please try again.');
+      toast.error('Failed to create party. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +46,7 @@ const HomePage: React.FC = () => {
 
   const handleJoinParty = () => {
     if (!partyCode) {
-      alert('Please enter a party code.');
+      toast.error('Please enter a party code.');
       return;
     }
     navigate(`/party/${partyCode}`);
@@ -52,41 +54,66 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
-      <div className="max-w-md w-full p-4 sm:p-8 space-y-6 sm:space-y-8 bg-card rounded-lg shadow-lg">
-        <div>
-          <h1 className="text-center text-3xl sm:text-4xl font-bold tracking-tight">SnapTrack</h1>
-          <p className="text-center text-muted-foreground mt-2 text-sm sm:text-base">Create or join a party to start sharing music.</p>
+      <div className="max-w-md w-full p-4 sm:p-8 space-y-6 sm:space-y-8 bg-card rounded-lg shadow-lg border border-border">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">SnapTrack</h1>
+          <p className="text-muted-foreground mt-2">The social jukebox for your party.</p>
         </div>
-        <div className="space-y-4 sm:space-y-6">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-semibold">Join a Party</h2>
-            <div className="flex flex-col sm:flex-row mt-2 gap-2 sm:gap-0">
+        
+        <div className="space-y-8">
+          {/* Join Party Section */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              Join a Party
+            </h2>
+            <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Enter Party Code"
+                placeholder="Enter Party Code (e.g., A1B2)"
                 value={partyCode}
-                onChange={(e) => setPartyCode(e.target.value.trim())}
-                className="flex-grow p-3 sm:p-2 border rounded-md sm:rounded-l-md sm:rounded-r-none bg-input text-base sm:text-sm"
+                onChange={(e) => setPartyCode(e.target.value.trim().toUpperCase())}
+                className="flex-grow p-3 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all uppercase placeholder:normal-case font-mono"
               />
-              <button onClick={handleJoinParty} className="px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-md sm:rounded-l-none sm:rounded-r-md font-semibold text-base sm:text-sm">
+              <button 
+                onClick={handleJoinParty} 
+                className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-semibold transition-colors"
+              >
                 Join
               </button>
             </div>
           </div>
-          <div className="border-t border-border pt-4">
-            <h2 className="text-xl sm:text-2xl font-semibold">Create a Party</h2>
-            <div className="flex flex-col sm:flex-row mt-2 gap-2 sm:gap-0">
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-muted" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or create new</span>
+            </div>
+          </div>
+
+          {/* Create Party Section */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Create a Party</h2>
+            <div className="flex gap-2">
               <input
                 type="password"
                 placeholder="Set Host Password"
                 value={hostPassword}
                 onChange={(e) => setHostPassword(e.target.value)}
-                className="flex-grow p-3 sm:p-2 border rounded-md sm:rounded-l-md sm:rounded-r-none bg-input text-base sm:text-sm"
+                className="flex-grow p-3 bg-background border border-input rounded-md focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all"
               />
-              <button onClick={handleCreateParty} disabled={isLoading} className="px-4 py-3 sm:py-2 bg-secondary text-secondary-foreground rounded-md sm:rounded-l-none sm:rounded-r-md font-semibold text-base sm:text-sm">
-                {isLoading ? 'Creating...' : 'Create'}
+              <button 
+                onClick={handleCreateParty} 
+                disabled={isLoading} 
+                className="px-6 py-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground rounded-md font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px] flex items-center justify-center"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create'}
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              As host, you'll control playback and manage the queue.
+            </p>
           </div>
         </div>
       </div>
