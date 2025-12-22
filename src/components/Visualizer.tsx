@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 
-export type VisualizerMode = 'bars' | 'waves' | 'particles' | 'tunnel' | 'spheres' | 'vortex' | 'vj' | 'none';
+export type VisualizerMode = 'bars' | 'waves' | 'particles' | 'tunnel' | 'spheres' | 'vortex' | 'grid' | 'neural' | 'vj' | 'none';
 
 interface VisualizerProps {
   mode: VisualizerMode;
@@ -15,16 +15,25 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const containerRef = useRef<HTMLDivElement>(null);
   const canvas2DRef = useRef<HTMLCanvasElement>(null);
   
-  // State for Auto VJ
-  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('bars');
-  const vjTimerRef = useRef<number | null>(null);
+  // VJ State
+  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('grid');
+  const vibeIntensity = useRef(0); // 0 to 1 based on energy
 
-  // Audio Context Refs
+  // Audio Brain
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
+
+  // Frequency Bands
+  const audioData = useRef({
+    bass: 0,
+    mid: 0,
+    high: 0,
+    avg: 0,
+    isKick: false
+  });
 
   // Three.js Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -33,10 +42,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const meshGroupRef = useRef<THREE.Group | null>(null);
   const requestRef = useRef<number | null>(null);
 
-  // Determine actual active mode (respecting VJ mode)
   const activeMode = mode === 'vj' ? currentVibe : mode;
 
-  // 1. Audio Initialization
+  // 1. Professional Audio Analysis
   useEffect(() => {
     if (mode === 'none' || !isPlaying) return;
 
@@ -45,16 +53,14 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
           analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 256;
+          analyserRef.current.fftSize = 512;
           dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
         }
 
         if (!sourceRef.current) {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-          if (analyserRef.current) {
-            sourceRef.current.connect(analyserRef.current);
-          }
+          sourceRef.current.connect(analyserRef.current);
           setHasAudioAccess(true);
         }
       } catch (err) {
@@ -65,30 +71,30 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     initAudio();
   }, [mode, isPlaying]);
 
-  // 2. Auto VJ Logic
+  // 2. Auto-VJ State Machine
   useEffect(() => {
-    if (mode !== 'vj') {
-      if (vjTimerRef.current) clearInterval(vjTimerRef.current);
-      return;
-    }
+    if (mode !== 'vj') return;
 
-    const vibes: VisualizerMode[] = ['bars', 'waves', 'particles', 'tunnel', 'spheres', 'vortex'];
+    const vibes: VisualizerMode[] = ['grid', 'neural', 'tunnel', 'vortex', 'particles', 'waves'];
     let index = 0;
 
-    vjTimerRef.current = window.setInterval(() => {
-      index = (index + 1) % vibes.length;
-      setCurrentVibe(vibes[index]);
-    }, 10000); // Cycle every 10 seconds
+    const interval = window.setInterval(() => {
+      // Intelligent transition: only switch if intensity isn't peaking
+      if (vibeIntensity.current < 0.8) {
+        index = (index + 1) % vibes.length;
+        setCurrentVibe(vibes[index]);
+      }
+    }, 15000); 
 
-    return () => {
-      if (vjTimerRef.current) clearInterval(vjTimerRef.current);
-    };
+    return () => clearInterval(interval);
   }, [mode]);
 
-  // 3. Three.js Engine Setup
+  // 3. Three.js Pro Setup
   useEffect(() => {
     if (activeMode === 'none') return;
-    if (!['tunnel', 'spheres', 'vortex'].includes(activeMode)) {
+    const is3D = ['tunnel', 'spheres', 'vortex', 'grid', 'neural'].includes(activeMode);
+    
+    if (!is3D) {
       if (rendererRef.current) {
         rendererRef.current.dispose();
         if (containerRef.current?.contains(rendererRef.current.domElement)) {
@@ -103,9 +109,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-      
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       containerRef.current.appendChild(renderer.domElement);
       
       sceneRef.current = scene;
@@ -113,48 +118,44 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       rendererRef.current = renderer;
       meshGroupRef.current = new THREE.Group();
       scene.add(meshGroupRef.current);
-      
-      camera.position.z = 5;
+      camera.position.z = 10;
     }
 
-    // Rebuild Scene based on mode
+    // Module Rebuild Logic
     if (meshGroupRef.current) {
-      meshGroupRef.current.clear();
+      const group = meshGroupRef.current;
+      group.clear();
       const style = getComputedStyle(document.documentElement);
-      const primaryColor = new THREE.Color(style.getPropertyValue('--primary').trim() || '#ff00ff');
-      const accentColor = new THREE.Color(style.getPropertyValue('--accent').trim() || '#00ffff');
+      const pColor = new THREE.Color(style.getPropertyValue('--primary').trim() || '#ff00ff');
+      const aColor = new THREE.Color(style.getPropertyValue('--accent').trim() || '#00ffff');
 
-      if (activeMode === 'spheres') {
-        for (let i = 0; i < 50; i++) {
-          const geometry = new THREE.SphereGeometry(Math.random() * 0.2 + 0.1, 16, 16);
-          const material = new THREE.MeshBasicMaterial({ 
-            color: i % 2 === 0 ? primaryColor : accentColor,
-            transparent: true,
-            opacity: 0.6
-          });
-          const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
-          meshGroupRef.current.add(mesh);
+      if (activeMode === 'grid') {
+        const size = 100;
+        const divisions = 40;
+        const grid = new THREE.GridHelper(size, divisions, pColor, aColor);
+        grid.rotation.x = Math.PI / 2;
+        group.add(grid);
+      } else if (activeMode === 'neural') {
+        const points = [];
+        for (let i = 0; i < 150; i++) {
+          const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+          const material = new THREE.MeshBasicMaterial({ color: aColor });
+          const sphere = new THREE.Mesh(geometry, material);
+          sphere.position.set(THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(20));
+          group.add(sphere);
         }
       } else if (activeMode === 'tunnel') {
-        const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
-        const material = new THREE.MeshBasicMaterial({ color: primaryColor, wireframe: true, transparent: true, opacity: 0.3 });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.rotation.x = Math.PI / 2;
-        meshGroupRef.current.add(mesh);
-      } else if (activeMode === 'vortex') {
-        const points = [];
-        for (let i = 0; i < 1000; i++) {
-          const vertex = new THREE.Vector3();
-          vertex.x = THREE.MathUtils.randFloatSpread(20);
-          vertex.y = THREE.MathUtils.randFloatSpread(20);
-          vertex.z = THREE.MathUtils.randFloatSpread(20);
-          points.push(vertex);
+        for (let i = 0; i < 20; i++) {
+          const geometry = new THREE.TorusGeometry(i * 0.8, 0.05, 16, 50);
+          const material = new THREE.MeshBasicMaterial({ color: pColor, transparent: true, opacity: 0.5 });
+          const ring = new THREE.Mesh(geometry, material);
+          ring.position.z = -i * 2;
+          group.add(ring);
         }
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.PointsMaterial({ color: accentColor, size: 0.05, transparent: true, opacity: 0.8 });
-        const particles = new THREE.Points(geometry, material);
-        meshGroupRef.current.add(particles);
+      } else if (activeMode === 'vortex') {
+        const geo = new THREE.IcosahedronGeometry(5, 2);
+        const mat = new THREE.MeshBasicMaterial({ color: aColor, wireframe: true });
+        group.add(new THREE.Mesh(geo, mat));
       }
     }
 
@@ -169,132 +170,132 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     return () => window.removeEventListener('resize', handleResize);
   }, [activeMode]);
 
-  // 4. Main Animation Loop
+  // 4. Pro Animation Loop
   useEffect(() => {
     const canvas2D = canvas2DRef.current;
-    let ctx: CanvasRenderingContext2D | null = null;
-    if (canvas2D) ctx = canvas2D.getContext('2d');
+    const ctx = canvas2D?.getContext('2d');
+    let lastKickTime = 0;
 
-    const particles2D: { x: number; y: number; size: number; speedX: number; speedY: number; color: string }[] = [];
-    for (let i = 0; i < 80; i++) {
-      particles2D.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        size: Math.random() * 2 + 1,
-        speedX: (Math.random() - 0.5) * 1,
-        speedY: (Math.random() - 0.5) * 1,
-        color: `hsla(${Math.random() * 360}, 70%, 60%, 0.5)`
-      });
-    }
-
-    let frame = 0;
     const animate = () => {
-      frame++;
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // Reactivity
-      let avgFreq = 0;
+      // --- 1. Audio Processing ---
       if (hasAudioAccess && analyserRef.current && dataArrayRef.current) {
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-        avgFreq = dataArrayRef.current.reduce((a, b) => a + b) / dataArrayRef.current.length;
+        const data = dataArrayRef.current;
+        
+        // Logical Band Binning
+        let bass = 0, mid = 0, high = 0;
+        for (let i = 0; i < 10; i++) bass += data[i]; // 0-100Hz approx
+        for (let i = 10; i < 60; i++) mid += data[i]; // 100-1000Hz
+        for (let i = 60; i < 128; i++) high += data[i]; // 1000Hz+
+        
+        audioData.current.bass = (bass / 10 / 255) * sensitivity;
+        audioData.current.mid = (mid / 50 / 255) * sensitivity;
+        audioData.current.high = (high / 68 / 255) * sensitivity;
+        audioData.current.avg = (audioData.current.bass + audioData.current.mid + audioData.current.high) / 3;
+
+        // Kick Detection
+        const now = Date.now();
+        if (audioData.current.bass > 0.8 && now - lastKickTime > 200) {
+          audioData.current.isKick = true;
+          lastKickTime = now;
+        } else {
+          audioData.current.isKick = false;
+        }
       } else {
-        avgFreq = isPlaying ? 40 + Math.sin(frame * 0.1) * 20 : 0;
+        // Simulation mode
+        const time = Date.now() * 0.002;
+        audioData.current.avg = isPlaying ? 0.3 + Math.sin(time) * 0.2 : 0;
+        audioData.current.bass = audioData.current.avg * 1.2;
+        audioData.current.isKick = Math.sin(time * 2) > 0.9;
       }
-      const boost = (avgFreq / 128) * sensitivity;
 
-      // Theme colors
-      const style = getComputedStyle(document.documentElement);
-      const primary = style.getPropertyValue('--primary').trim() || 'oklch(0.6 0.2 320)';
-      const accent = style.getPropertyValue('--accent').trim() || 'oklch(0.7 0.2 190)';
+      const { avg, bass, mid, high, isKick } = audioData.current;
+      vibeIntensity.current = avg;
 
-      // 2D Rendering
+      // --- 2. 2D Rendering ---
       if (ctx && canvas2D) {
+        canvas2D.width = w * window.devicePixelRatio;
+        canvas2D.height = h * window.devicePixelRatio;
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+        
         if (['bars', 'waves', 'particles'].includes(activeMode)) {
-          canvas2D.width = w * window.devicePixelRatio;
-          canvas2D.height = h * window.devicePixelRatio;
-          ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
           ctx.clearRect(0, 0, w, h);
+          const style = getComputedStyle(document.documentElement);
+          const primary = style.getPropertyValue('--primary').trim();
+          const accent = style.getPropertyValue('--accent').trim();
 
           if (activeMode === 'bars') {
-            const barCount = 64;
-            const barWidth = w / barCount;
-            for (let i = 0; i < barCount; i++) {
-              const val = dataArrayRef.current ? dataArrayRef.current[i] || 0 : (Math.sin(frame * 0.05 + i * 0.3) * 128 + 128);
-              const barH = (val / 255) * h * 0.6 * boost;
+            const count = 40;
+            const step = w / count;
+            for (let i = 0; i < count; i++) {
+              const h_val = (i < 10 ? bass : i < 30 ? mid : high) * h * 0.5 * Math.random();
               ctx.fillStyle = i % 2 === 0 ? primary : accent;
-              ctx.globalAlpha = 0.3 + (val / 255) * 0.5;
-              ctx.fillRect(i * barWidth, h - barH, barWidth - 4, barH);
+              ctx.globalAlpha = 0.5 + avg * 0.5;
+              ctx.fillRect(i * step, h - h_val - 20, step - 4, h_val + 10);
             }
           } else if (activeMode === 'waves') {
             ctx.beginPath();
-            ctx.lineWidth = 3 + boost * 5;
             ctx.strokeStyle = primary;
+            ctx.lineWidth = 2 + bass * 10;
             ctx.moveTo(0, h / 2);
-            for (let i = 0; i < w; i += 5) {
-              const y = h / 2 + Math.sin(i * 0.01 + frame * 0.05) * 100 * boost;
-              ctx.lineTo(i, y);
+            for (let x = 0; x < w; x += 10) {
+              ctx.lineTo(x, h/2 + Math.sin(x*0.01 + lastKickTime)*100*avg);
             }
             ctx.stroke();
-          } else if (activeMode === 'particles') {
-            particles2D.forEach(p => {
-              p.x = (p.x + p.speedX * (1 + boost * 2)) % w;
-              p.y = (p.y + p.speedY * (1 + boost * 2)) % h;
-              if (p.x < 0) p.x = w; if (p.y < 0) p.y = h;
-              ctx!.beginPath();
-              ctx!.arc(p.x, p.y, p.size * (1 + boost), 0, Math.PI * 2);
-              ctx!.fillStyle = p.color;
-              ctx!.globalAlpha = 0.4 + boost * 0.4;
-              ctx!.fill();
-            });
           }
-        } else {
-          ctx.clearRect(0, 0, w, h);
         }
       }
 
-      // 3D Rendering
+      // --- 3. 3D Rendering ---
       if (rendererRef.current && sceneRef.current && cameraRef.current && meshGroupRef.current) {
-        meshGroupRef.current.rotation.y += 0.005 + boost * 0.02;
-        meshGroupRef.current.rotation.x += 0.002;
+        const group = meshGroupRef.current;
+        const camera = cameraRef.current;
 
-        if (activeMode === 'spheres') {
-          meshGroupRef.current.children.forEach((mesh, i) => {
-            const m = mesh as THREE.Mesh;
-            const s = 1 + boost * 0.5 * (i % 3);
-            m.scale.set(s, s, s);
-          });
-        } else if (activeMode === 'tunnel') {
-          cameraRef.current.position.z = 5 + Math.sin(frame * 0.02) * 2;
-          meshGroupRef.current.scale.set(1 + boost, 1 + boost, 1 + boost);
-        } else if (activeMode === 'vortex') {
-          meshGroupRef.current.rotation.z += 0.01 * boost;
+        // Global motion
+        group.rotation.y += 0.002 + mid * 0.01;
+        if (isKick) {
+          camera.position.z = 10 + bass * 2; // Beat jump
+        } else {
+          camera.position.z += (10 - camera.position.z) * 0.1; // Smooth return
         }
 
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        if (activeMode === 'grid') {
+          group.rotation.x = Math.PI / 2.5 + Math.sin(Date.now() * 0.001) * 0.1;
+          group.position.y = -2 + bass;
+        } else if (activeMode === 'neural') {
+          group.children.forEach((child, i) => {
+            child.position.y += Math.sin(Date.now() * 0.001 + i) * 0.01 * sensitivity;
+            if (isKick) (child as THREE.Mesh).scale.setScalar(1.5);
+            else child.scale.setScalar(1 + (child.scale.x - 1) * 0.9);
+          });
+        } else if (activeMode === 'tunnel') {
+          group.children.forEach((child, i) => {
+            child.position.z += 0.1 + high * 0.5;
+            if (child.position.z > 5) child.position.z = -40;
+          });
+        }
+
+        rendererRef.current.render(sceneRef.current, camera);
       }
 
       requestRef.current = requestAnimationFrame(animate);
     };
 
     animate();
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
+    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
   }, [activeMode, isPlaying, hasAudioAccess, sensitivity]);
 
   if (mode === 'none') return null;
 
   return (
     <div ref={containerRef} className={cn(
-      "fixed inset-0 w-full h-full pointer-events-none transition-opacity duration-1000",
-      isDashboard ? "opacity-90 z-0 bg-black" : "opacity-30 z-0"
+      "fixed inset-0 w-full h-full pointer-events-none transition-all duration-1000",
+      isDashboard ? "opacity-100 z-0 bg-black" : "opacity-30 z-0"
     )}>
-      <canvas 
-        ref={canvas2DRef} 
-        className="absolute inset-0 w-full h-full"
-        style={{ mixBlendMode: 'screen' }}
-      />
+      <canvas ref={canvas2DRef} className="absolute inset-0 w-full h-full" style={{ mixBlendMode: 'screen' }} />
     </div>
   );
 };

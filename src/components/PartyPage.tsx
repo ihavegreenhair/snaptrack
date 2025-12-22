@@ -35,7 +35,19 @@ function PartyPage() {
   const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDashboardMode, setIsDashboardMode] = useState(false);
+  const [showJoinInvite, setShowJoinInvite] = useState(true);
   const toast = useToast();
+
+  // Cyclical Join Invite for Dashboard
+  useEffect(() => {
+    if (!isDashboardMode) return;
+    
+    const interval = setInterval(() => {
+      setShowJoinInvite(prev => !prev);
+    }, showJoinInvite ? 15000 : 45000); // Show for 15s, Hide for 45s
+
+    return () => clearInterval(interval);
+  }, [isDashboardMode, showJoinInvite]);
 
   const handleCopyLink = async () => {
     try {
@@ -388,7 +400,7 @@ function PartyPage() {
             <div className={cn(
               "grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8",
               isDashboardMode 
-                ? "fixed right-0 top-0 bottom-0 w-[30vw] min-w-[350px] p-6 bg-black/40 backdrop-blur-2xl border-l border-white/10 z-50 flex flex-col gap-6 overflow-y-auto custom-scrollbar" 
+                ? "fixed right-0 top-0 bottom-0 w-[28vw] min-w-[320px] p-6 bg-black/40 backdrop-blur-3xl border-l border-white/5 z-50 flex flex-col gap-4 overflow-y-auto custom-scrollbar shadow-[-20px_0_50px_rgba(0,0,0,0.5)]" 
                 : (isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6')
             )}>
               {/* Now Playing Section */}
@@ -399,8 +411,8 @@ function PartyPage() {
                   : (isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2')
               )} ref={nowPlayingEl}>
                 <div className={cn(
-                  "transition-all duration-500",
-                  isDashboardMode ? "scale-95 origin-top" : ""
+                  "transition-all duration-700",
+                  isDashboardMode ? "scale-75 -mt-8 origin-top" : ""
                 )}>
                   <NowPlaying
                     song={nowPlaying}
@@ -428,14 +440,14 @@ function PartyPage() {
               </div>
 
               {/* QR Code (Dashboard Mode Only) */}
-              {isDashboardMode && (
-                <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl border border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-right-4 duration-700">
+              {isDashboardMode && showJoinInvite && (
+                <div className="bg-white/5 backdrop-blur-md p-4 rounded-3xl border border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-right-8 duration-1000">
                   <div className="p-1.5 bg-white rounded-xl shadow-inner flex-shrink-0">
-                    <QRCode value={`${window.location.origin}/party/${partyCode}`} size={100} />
+                    <QRCode value={`${window.location.origin}/party/${partyCode}`} size={80} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-black italic tracking-tighter uppercase text-primary">Join Party</h3>
-                    <p className="text-xl font-mono font-bold tracking-widest truncate">{partyCode}</p>
+                    <h3 className="text-[10px] font-black italic tracking-tighter uppercase text-primary/80">Join Party</h3>
+                    <p className="text-lg font-mono font-bold tracking-widest truncate">{partyCode}</p>
                   </div>
                 </div>
               )}
