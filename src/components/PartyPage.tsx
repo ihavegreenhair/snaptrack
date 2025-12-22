@@ -10,7 +10,7 @@ import { useSuggestions } from '../hooks/useSuggestions';
 // Components
 import NowPlaying from './NowPlaying';
 import QueueList from './QueueList';
-import AddSongModal from './AddSongModal';
+import SongSubmissionFlow from './SongSubmissionFlow';
 import PhotoGallery from './PhotoGallery';
 import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
@@ -18,7 +18,8 @@ import MoodSelector from './MoodSelector';
 import NameInputModal from './NameInputModal';
 import PartyInsights from './PartyInsights';
 import UserMenu from './UserMenu';
-import { Music, QrCode, X, Share2, Check } from 'lucide-react';
+import { Button } from './ui/button';
+import { Music, QrCode, X, Share2, Check, Plus } from 'lucide-react';
 import { useToast } from './ui/toast';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -245,7 +246,7 @@ function PartyPage() {
                 Become Host
               </button>
             )}
-            <AddSongModal
+            <SongSubmissionFlow
               ref={addSongModalRef}
               onSongAdded={refreshQueue}
               suggestions={suggestions}
@@ -308,15 +309,10 @@ function PartyPage() {
                             Auto-adding song...
                           </div>
                         ) : (
-                          <AddSongModal
-                            ref={addSongModalRef}
-                            onSongAdded={refreshQueue}
-                            suggestions={suggestions}
-                            suggestionsLoading={suggestionsLoading}
-                            suggestionsType={suggestionsType}
-                            onRefreshSuggestions={async () => refreshSuggestions()}
-                            partyId={partyId!}
-                          />
+                          <Button size="lg" className="h-14 font-bold rounded-xl px-8 shadow-xl hover:scale-105 transition-transform" onClick={() => addSongModalRef.current?.openModal()}>
+                            <Plus className="w-6 h-6 mr-2" />
+                            Add First Song
+                          </Button>
                         )}
                       </div>
                   </div>
