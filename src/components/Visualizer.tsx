@@ -4,18 +4,29 @@ import { cn } from '@/lib/utils';
 
 export type VisualizerMode = 'bars3d' | 'terrain' | 'cloud' | 'tunnel' | 'spheres' | 'vortex' | 'grid' | 'neural' | 'vj' | 'none';
 
+interface Palette {
+  name: string;
+  primary: string;
+  secondary: string;
+  bg: string;
+}
+
+const PALETTES: Palette[] = [
+  { name: 'Cyberpunk', primary: '#ff00ff', secondary: '#00ffff', bg: '#050005' },
+  { name: 'Vaporwave', primary: '#ff71ce', secondary: '#01cdfe', bg: '#050005' },
+  { name: 'Toxic', primary: '#39ff14', secondary: '#bcff00', bg: '#000500' },
+  { name: 'DeepSea', primary: '#0077be', secondary: '#00f2ff', bg: '#000205' },
+  { name: 'Inferno', primary: '#ff4500', secondary: '#ff8c00', bg: '#050000' }
+];
+
 interface VJState {
   mode: VisualizerMode;
-  primaryHue: number;
-  secondaryHue: number;
-  bgHue: number;
+  palette: Palette;
   complexity: number;
   rotationSpeed: number;
-  zoomScale: number;
-  fov: number;
+  motionIntensity: number;
   wireframe: boolean;
   shapeType: 'box' | 'sphere' | 'pyramid' | 'torus';
-  camBehavior: 'orbital' | 'fly' | 'static';
 }
 
 interface VisualizerProps {
@@ -29,19 +40,15 @@ interface VisualizerProps {
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // VJ Engine State
+  // v4.0 Infinite VJ Engine State
   const [vj, setVj] = useState<VJState>({
     mode: 'grid',
-    primaryHue: 280,
-    secondaryHue: 200,
-    bgHue: 280,
+    palette: PALETTES[0],
     complexity: 1,
     rotationSpeed: 1,
-    zoomScale: 1,
-    fov: 75,
+    motionIntensity: 1,
     wireframe: true,
-    shapeType: 'box',
-    camBehavior: 'orbital'
+    shapeType: 'box'
   });
   
   const [vibeFlash, setVibeFlash] = useState(false);
@@ -57,10 +64,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const beatCount = useRef(0);
   const lastBeatTime = useRef(0);
   const detectedBPM = useRef(120);
-  const energyBuffer = useRef<number[]>([]);
   const dropCooldown = useRef(0);
 
-  // Three.js Core
+  // Three.js Core (Stable Layout)
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -69,7 +75,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   const activeMode = mode === 'vj' ? vj.mode : mode;
 
-  // 1. Audio Initialization
+  // 1. Audio Brain (Transient Analysis)
   useEffect(() => {
     if (mode === 'none' || !isPlaying) return;
     const init = async () => {
@@ -91,38 +97,32 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     init();
   }, [mode, isPlaying]);
 
-  // 2. Modular Randomizer Logic
+  // 2. The v4.0 Randomizer (Infinite Loop)
   const rollVJ = useCallback(() => {
     const modes: VisualizerMode[] = ['bars3d', 'terrain', 'cloud', 'tunnel', 'vortex', 'grid', 'neural', 'spheres'];
     const shapes: ('box' | 'sphere' | 'pyramid' | 'torus')[] = ['box', 'sphere', 'pyramid', 'torus'];
-    const behaviors: ('orbital' | 'fly' | 'static')[] = ['orbital', 'fly', 'static'];
     
-    const h = Math.random() * 360;
     setVj({
       mode: modes[Math.floor(Math.random() * modes.length)],
-      primaryHue: h,
-      secondaryHue: (h + 120 + Math.random() * 60) % 360,
-      bgHue: (h + 180) % 360,
+      palette: PALETTES[Math.floor(Math.random() * PALETTES.length)],
       complexity: 0.5 + Math.random() * 2,
-      rotationSpeed: 0.5 + Math.random() * 2,
-      zoomScale: 0.8 + Math.random() * 1.5,
-      fov: 60 + Math.random() * 40,
+      rotationSpeed: 0.5 + Math.random() * 2.5,
+      motionIntensity: 0.8 + Math.random() * 2,
       wireframe: Math.random() > 0.4,
-      shapeType: shapes[Math.floor(Math.random() * shapes.length)],
-      camBehavior: behaviors[Math.floor(Math.random() * behaviors.length)]
+      shapeType: shapes[Math.floor(Math.random() * shapes.length)]
     });
 
     setVibeFlash(true);
     setTimeout(() => setVibeFlash(false), 300);
   }, []);
 
-  // 3. Three.js Life Cycle
+  // 3. Three.js Life Cycle (Pro Engine)
   useEffect(() => {
     if (activeMode === 'none' || !containerRef.current) return;
 
     if (!rendererRef.current) {
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(vj.fov, window.innerWidth / window.innerHeight, 0.1, 2000);
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -133,23 +133,30 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       rendererRef.current = renderer;
       meshGroupRef.current = new THREE.Group();
       scene.add(meshGroupRef.current);
+      
+      // STABLE CAMERA: Set once and keep it fixed to avoid jitter
+      camera.position.set(0, 0, 20);
+      camera.lookAt(0, 0, 0);
     }
 
     const scene = sceneRef.current!;
     const group = meshGroupRef.current!;
     const camera = cameraRef.current!;
+    
+    // Cross-fade check: Instead of clearing instantly, we could implement a transition
+    // For now, we clear but ensure objects are re-added in the same tick
     group.clear();
 
-    // Scene Environment
-    scene.fog = new THREE.FogExp2(new THREE.Color(`hsl(${vj.bgHue}, 20%, 5%)`), 0.02);
+    // v4.0 Environment
+    scene.background = new THREE.Color(vj.palette.bg);
+    scene.fog = new THREE.FogExp2(new THREE.Color(vj.palette.bg), 0.015);
 
-    // Build Geometry based on Mode
-    const pMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(`hsl(${vj.primaryHue}, 100%, 50%)`), wireframe: vj.wireframe, transparent: true, opacity: 0.8 });
-    const aMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(`hsl(${vj.secondaryHue}, 100%, 50%)`), wireframe: true, transparent: true, opacity: 0.4 });
+    const pMat = new THREE.MeshBasicMaterial({ color: vj.palette.primary, wireframe: vj.wireframe, transparent: true, opacity: 0.8 });
+    const aMat = new THREE.MeshBasicMaterial({ color: vj.palette.secondary, wireframe: true, transparent: true, opacity: 0.4 });
 
     const getGeo = (size = 1) => {
       if (vj.shapeType === 'box') return new THREE.BoxGeometry(size, size, size);
-      if (vj.shapeType === 'sphere') return new THREE.SphereGeometry(size * 0.6, 12, 12);
+      if (vj.shapeType === 'sphere') return new THREE.SphereGeometry(size * 0.6, 16, 16);
       if (vj.shapeType === 'pyramid') return new THREE.ConeGeometry(size * 0.6, size, 4);
       return new THREE.TorusGeometry(size * 0.5, size * 0.2, 8, 24);
     };
@@ -158,41 +165,40 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       for (let i = 0; i < 64; i++) {
         const mesh = new THREE.Mesh(getGeo(0.5), pMat.clone());
         const angle = (i / 64) * Math.PI * 2;
-        mesh.position.set(Math.cos(angle) * 10, 0, Math.sin(angle) * 10);
+        mesh.position.set(Math.cos(angle) * 12, 0, Math.sin(angle) * 12);
         group.add(mesh);
       }
     } else if (activeMode === 'terrain') {
-      const grid = new THREE.GridHelper(100, 40, pMat.color, aMat.color);
-      grid.rotation.x = Math.PI / 2;
+      const grid = new THREE.GridHelper(150, 50, vj.palette.primary, vj.palette.secondary);
+      grid.rotation.x = Math.PI / 2.2;
       group.add(grid);
     } else if (activeMode === 'cloud') {
-      for (let i = 0; i < 200; i++) {
-        const mesh = new THREE.Mesh(getGeo(0.3), i % 2 === 0 ? pMat : aMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+      for (let i = 0; i < 300; i++) {
+        const mesh = new THREE.Mesh(getGeo(0.2), i % 2 === 0 ? pMat : aMat);
+        mesh.position.set(THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50));
         group.add(mesh);
       }
     } else if (activeMode === 'grid') {
-      const helper = new THREE.GridHelper(200, 50, pMat.color, aMat.color);
-      helper.position.y = -5;
+      const helper = new THREE.GridHelper(200, 60, vj.palette.primary, vj.palette.secondary);
+      helper.position.y = -8;
       group.add(helper);
     } else if (activeMode === 'neural') {
-      for (let i = 0; i < 100; i++) {
-        const node = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pMat);
-        node.position.set(THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30));
+      for (let i = 0; i < 120; i++) {
+        const node = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), pMat);
+        node.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
         group.add(node);
       }
     } else if (activeMode === 'tunnel') {
-      for (let i = 0; i < 30; i++) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(i * 0.7, 0.05, 12, 40), aMat);
-        ring.position.z = -i * 3;
+      for (let i = 0; i < 40; i++) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(i * 0.8, 0.08, 16, 64), aMat);
+        ring.position.z = -i * 4;
         group.add(ring);
       }
     } else if (activeMode === 'vortex') {
-      const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(10, 3, 100, 16), pMat);
+      const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(8, 2.5, 150, 20), pMat);
       group.add(knot);
     }
 
-    camera.fov = vj.fov;
     camera.updateProjectionMatrix();
 
     const handleResize = () => {
@@ -204,52 +210,31 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     return () => window.removeEventListener('resize', handleResize);
   }, [activeMode, vj]);
 
-  // 4. Main Animation Loop
+  // 4. v4.0 Stable Animation Loop
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
-      // --- Audio Brain ---
       let bass = 0, mid = 0, high = 0, avg = 0, isBeat = false;
       
       if (hasAudioAccess && analyserRef.current && dataArrayRef.current) {
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
         const d = dataArrayRef.current;
         let bSum = 0, mSum = 0, hSum = 0;
-        for (let i = 0; i < 10; i++) bSum += d[i];
-        for (let i = 10; i < 80; i++) mSum += d[i];
-        for (let i = 80; i < 150; i++) hSum += d[i];
+        for (let i = 0; i < 12; i++) bSum += d[i];
+        for (let i = 12; i < 90; i++) mSum += d[i];
+        for (let i = 90; i < 180; i++) hSum += d[i];
         
-        bass = (bSum / 10 / 255) * sensitivity;
-        mid = (mSum / 70 / 255) * sensitivity;
-        high = (hSum / 70 / 255) * sensitivity;
+        bass = (bSum / 12 / 255) * sensitivity;
+        mid = (mSum / 78 / 255) * sensitivity;
+        high = (hSum / 90 / 255) * sensitivity;
         avg = (bass + mid + high) / 3;
 
-        // --- Velocity Analysis (Drop Detection) ---
-        energyBuffer.current.push(avg);
-        if (energyBuffer.current.length > 50) energyBuffer.current.shift();
-        
-        const shortTermAvg = energyBuffer.current.slice(-5).reduce((a,b)=>a+b,0)/5;
-        const longTermAvg = energyBuffer.current.reduce((a,b)=>a+b,0)/energyBuffer.current.length;
-        
-        const energyVelocity = avg - shortTermAvg;
-        
-        // 1. Drop Detection (Sudden spike > 60% above long term average)
-        if (energyVelocity > 0.3 && avg > longTermAvg * 1.6 && now > dropCooldown.current) {
-          console.log("DROP DETECTED! Triggering VJ roll.");
-          rollVJ(); 
-          dropCooldown.current = now + 5000; // 5s cooldown
-        }
-
-        // 2. Breakdown Detection (Sudden drop < 30% of average)
-        if (avg < longTermAvg * 0.3 && energyHistory.current.length > 30 && mode === 'vj' && activeMode !== 'terrain') {
-          setVj(prev => ({ ...prev, mode: 'terrain', wireframe: true }));
-        }
-
+        // Peak Analysis
         energyHistory.current.push(avg);
-        if (energyHistory.current.length > 40) energyHistory.current.shift();
+        if (energyHistory.current.length > 50) energyHistory.current.shift();
         const lAvg = energyHistory.current.reduce((a, b) => a + b, 0) / energyHistory.current.length;
         
-        if (avg > lAvg * 1.2 && avg > 0.2 && now - lastBeatTime.current > 300) {
+        if (avg > lAvg * 1.15 && avg > 0.15 && now - lastBeatTime.current > 280) {
           isBeat = true;
           const interval = now - lastBeatTime.current;
           lastBeatTime.current = now;
@@ -268,60 +253,52 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
           if (mode === 'vj' && beatCount.current % 16 === 0) rollVJ();
         }
+
+        // Drop Check
+        if (avg > lAvg * 1.8 && now > dropCooldown.current) {
+          rollVJ();
+          dropCooldown.current = now + 6000;
+        }
       } else {
-        avg = isPlaying ? 0.3 + Math.sin(now * 0.002) * 0.1 : 0;
+        avg = isPlaying ? 0.2 + Math.sin(now * 0.001) * 0.1 : 0;
         bass = avg * 1.2;
       }
 
-      // --- 3D Render ---
+      // --- v4.0 Stable Render Logic ---
       if (rendererRef.current && sceneRef.current && cameraRef.current && meshGroupRef.current) {
         const group = meshGroupRef.current;
         const cam = cameraRef.current;
 
-        // Global Camera Behavior
-        if (vj.camBehavior === 'orbital') {
-          cam.position.x = Math.sin(Date.now() * 0.0005) * (20 + avg * 10);
-          cam.position.z = Math.cos(Date.now() * 0.0005) * (20 + avg * 10);
-          cam.lookAt(0, 0, 0);
-        } else if (vj.camBehavior === 'fly') {
-          cam.position.z -= 0.1;
-          if (cam.position.z < -50) cam.position.z = 20;
-        }
+        // DAMPED OBJECT MOTION (Not Camera)
+        group.rotation.y += (0.004 + mid * 0.02) * vj.rotationSpeed;
+        group.rotation.z += 0.001;
 
+        // Smoothly return scale
+        const targetScale = 1 + (isBeat ? (0.1 * vj.motionIntensity) : 0);
+        group.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+
+        // Object-space beat jump (y-axis movement)
         if (isBeat) {
-          cam.position.y += (Math.random() - 0.5) * 2;
-          cam.fov = vj.fov + bass * 20;
-          cam.updateProjectionMatrix();
+          group.position.y = (Math.random() - 0.5) * 0.5 * vj.motionIntensity;
         } else {
-          cam.position.y *= 0.9;
-          cam.fov += (vj.fov - cam.fov) * 0.1;
-          cam.updateProjectionMatrix();
+          group.position.y *= 0.9;
         }
 
-        // Module Specific Animation
-        group.rotation.y += 0.005 * vj.rotationSpeed;
-        
+        // Module Specifics
         if (activeMode === 'bars3d') {
           group.children.forEach((mesh, i) => {
             const m = mesh as THREE.Mesh;
-            const h = (dataArrayRef.current?.[i * 2] || 0) / 255 * 15 * vj.zoomScale;
-            m.scale.y = Math.max(h, 0.1);
+            const h = (dataArrayRef.current?.[i * 3] || 0) / 255 * 20 * vj.motionIntensity;
+            m.scale.y = THREE.MathUtils.lerp(m.scale.y, Math.max(h, 0.1), 0.2);
             m.position.y = m.scale.y / 2;
-          });
-        } else if (activeMode === 'cloud') {
-          group.children.forEach((mesh, i) => {
-            mesh.position.y += Math.sin(Date.now() * 0.001 + i) * 0.02;
-            if (isBeat) mesh.scale.setScalar(1.5 * vj.complexity);
-            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           });
         } else if (activeMode === 'tunnel') {
           group.children.forEach((mesh) => {
-            mesh.position.z += 0.2 + high * 0.5;
-            if (mesh.position.z > 10) mesh.position.z = -80;
-            mesh.rotation.z += 0.01;
+            mesh.position.z += (0.3 + high * 0.8) * vj.rotationSpeed;
+            if (mesh.position.z > 25) mesh.position.z = -100;
           });
-        } else if (activeMode === 'grid') {
-          group.position.y = -5 + bass * 5;
+        } else if (activeMode === 'terrain') {
+          group.position.z = (group.position.z + 0.5 + bass) % 150;
         }
 
         rendererRef.current.render(sceneRef.current, cam);
@@ -341,7 +318,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       "fixed inset-0 w-full h-full pointer-events-none transition-all duration-1000",
       isDashboard ? "opacity-100 z-0 bg-black" : "opacity-30 z-0"
     )}>
-      {vibeFlash && <div className="absolute inset-0 bg-white/40 z-50 animate-out fade-out duration-500" />}
+      {vibeFlash && <div className="absolute inset-0 bg-white/20 z-50 animate-out fade-out duration-500" />}
     </div>
   );
 };
