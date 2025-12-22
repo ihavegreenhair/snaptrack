@@ -109,9 +109,16 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <DropdownMenuSubContent>
             <DropdownMenuRadioGroup value={visualizerMode} onValueChange={(val) => onVisualizerChange?.(val as VisualizerMode)}>
               <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="bars">Bars</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="waves">Waves</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="particles">Particles</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="vj" className="font-bold text-primary">
+                <Sparkles className="mr-2 h-4 w-4" /> Auto VJ Mode
+              </DropdownMenuRadioItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioItem value="bars">2D Bars</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="waves">2D Waves</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="particles">2D Particles</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="tunnel">3D Tunnel</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="spheres">3D Spheres</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="vortex">3D Vortex</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
