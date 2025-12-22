@@ -77,7 +77,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     };
   }, [photoUrl]);
 
-  const stopCamera = useCallback(() => {
+  const stopCamera = useCallback((keepStatus = false) => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -87,7 +87,9 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
       window.clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
-    setCameraStatus('idle');
+    if (!keepStatus) {
+      setCameraStatus('idle');
+    }
   }, []);
 
   const startCamera = async () => {
@@ -124,8 +126,14 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     }
   };
 
+  // Auto-start camera when reaching capture step
+  useEffect(() => {
+    if (step === 'capture' && !photoUrl && cameraStatus === 'idle') {
+      startCamera();
+    }
+  }, [step, photoUrl, cameraStatus]);
+
   const startCountdown = () => {
-    if (cameraStatus === 'countdown') return;
     setCameraStatus('countdown');
     setCountdown(3);
     
@@ -166,23 +174,9 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
           setPhotoBlob(blob);
           setPhotoUrl(url);
           setCameraStatus('captured');
-          stopCamera();
+          stopCamera(true); // PASS TRUE TO KEEP STATUS
         }
       }, 'image/jpeg', 0.85);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file');
-        return;
-      }
-      setPhotoBlob(file);
-      setPhotoUrl(URL.createObjectURL(file));
-      setCameraStatus('captured');
-      stopCamera();
     }
   };
 
@@ -398,37 +392,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
             {step === 'capture' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 text-center">
                 
-                {cameraStatus === 'idle' && !photoUrl && (
-                  <div className="py-12 space-y-6">
-                    <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Camera className="w-12 h-12 text-primary" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold">Ready for your close-up?</h3>
-                      <p className="text-muted-foreground">You must take or upload a photo to add a song.</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
-                      <Button size="lg" className="h-14 font-bold rounded-xl" onClick={startCamera}>
-                        <Camera className="w-5 h-5 mr-2" />
-                        Take Selfie Now
-                      </Button>
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={handleFileUpload}
-                        />
-                        <Button variant="outline" size="lg" className="w-full h-14 font-bold rounded-xl">
-                          <Upload className="w-5 h-5 mr-2" />
-                          Upload Photo
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(cameraStatus === 'initializing' || cameraStatus === 'active' || cameraStatus === 'countdown') && (
+                {(cameraStatus === 'idle' || cameraStatus === 'initializing' || cameraStatus === 'active' || cameraStatus === 'countdown') && (
                   <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-black shadow-2xl">
                     <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" autoPlay playsInline muted />
                     
@@ -472,7 +436,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
                         }}
                         className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground p-2 rounded-full shadow-lg hover:scale-110 transition-transform"
                       >
-                        <X className="w-5 h-5" />
+                        <RefreshCw className="w-5 h-5" />
                       </button>
                     </div>
                     
@@ -504,7 +468,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
                       <p className="text-muted-foreground">{cameraError}</p>
                     </div>
                     <Button variant="outline" onClick={() => setCameraStatus('idle')}>
-                      Go Back
+                      Try Again
                     </Button>
                   </div>
                 )}
