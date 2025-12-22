@@ -2,32 +2,133 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 
-export type VisualizerMode = 'bars3d' | 'terrain' | 'cloud' | 'tunnel' | 'spheres' | 'vortex' | 'grid' | 'neural' | 'vj' | 'none';
-
-interface Palette {
-  name: string;
-  primary: string;
-  secondary: string;
-  bg: string;
-}
-
-const PALETTES: Palette[] = [
-  { name: 'Cyberpunk', primary: '#ff00ff', secondary: '#00ffff', bg: '#050005' },
-  { name: 'Vaporwave', primary: '#ff71ce', secondary: '#01cdfe', bg: '#050005' },
-  { name: 'Toxic', primary: '#39ff14', secondary: '#bcff00', bg: '#000500' },
-  { name: 'DeepSea', primary: '#0077be', secondary: '#00f2ff', bg: '#000205' },
-  { name: 'Inferno', primary: '#ff4500', secondary: '#ff8c00', bg: '#050000' }
-];
+export type VisualizerMode = 'menger' | 'columns' | 'blob' | 'lattice' | 'vj' | 'none';
 
 interface VJState {
   mode: VisualizerMode;
-  palette: Palette;
+  pColor: THREE.Color;
+  sColor: THREE.Color;
   complexity: number;
   rotationSpeed: number;
-  motionIntensity: number;
-  wireframe: boolean;
-  shapeType: 'box' | 'sphere' | 'pyramid' | 'torus';
+  energy: number;
+  fov: number;
+  glitch: number;
 }
+
+const PALETTES = [
+  { p: '#ff00ff', s: '#00ffff' }, // Cyberpunk
+  { p: '#39ff14', s: '#bcff00' }, // Toxic
+  { p: '#ff4500', s: '#ff8c00' }, // Inferno
+  { p: '#710193', s: '#00ffcc' }, // Galactic
+  { p: '#ffffff', s: '#555555' }  // Mono
+];
+
+const VERTEX_SHADER = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const FRAGMENT_SHADER = `
+  uniform float uTime;
+  uniform float uBass;
+  uniform float uMid;
+  uniform float uHigh;
+  uniform float uEnergy;
+  uniform vec3 uColorP;
+  uniform vec3 uColorS;
+  uniform int uMode;
+  uniform float uComplexity;
+  varying vec2 vUv;
+
+  // SDF Functions
+  float sdBox(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+  }
+
+  float sdSphere(vec3 p, float s) {
+    return length(p) - s;
+  }
+
+  float sdCross(vec3 p) {
+    float da = sdBox(p.xyz, vec3(1.0, 1.0, 10.0));
+    float db = sdBox(p.yzx, vec3(10.0, 1.0, 1.0));
+    float dc = sdBox(p.zxy, vec3(1.0, 10.0, 1.0));
+    return min(da, min(db, dc));
+  }
+
+  // Menger Sponge Fractal
+  float de(vec3 p) {
+    float d = sdBox(p, vec3(1.0));
+    float s = 1.0;
+    for(int m=0; m<3; m++) {
+      vec3 a = mod(p * s, 2.0) - 1.0;
+      s *= 3.0;
+      vec3 r = abs(1.0 - 3.0 * abs(a));
+      float da = max(r.x, r.y);
+      float db = max(r.y, r.z);
+      float dc = max(r.z, r.x);
+      float c = (min(da, min(db, dc)) - 1.0) / s;
+      d = max(d, c);
+    }
+    return d;
+  }
+
+  float map(vec3 p) {
+    if (uMode == 0) { // Menger
+      p = mod(p + 2.0, 4.0) - 2.0;
+      float r = uComplexity + uBass * 0.2;
+      return de(p / r) * r;
+    } else if (uMode == 1) { // Columns
+      vec3 q = p;
+      q.xz = mod(q.xz + 2.0, 4.0) - 2.0;
+      return sdBox(q, vec3(0.5 + uBass, 10.0, 0.5 + uBass));
+    } else if (uMode == 2) { // Blob
+      float d = sdSphere(p, 2.0 + uBass);
+      d += sin(p.x * 3.0 + uTime) * 0.2 * uMid;
+      d += cos(p.y * 3.0 + uTime) * 0.2 * uHigh;
+      return d;
+    } else { // Lattice
+      p = mod(p + 1.0, 2.0) - 1.0;
+      return sdBox(p, vec3(0.1 + uEnergy * 0.5));
+    }
+  }
+
+  void main() {
+    vec2 uv = vUv * 2.0 - 1.0;
+    vec3 ro = vec3(0.0, 0.0, 5.0); // Ray Origin
+    vec3 rd = normalize(vec3(uv, -1.0)); // Ray Direction
+    
+    // Rotate Camera
+    float t = uTime * 0.2;
+    mat2 rot = mat2(cos(t), sin(t), -sin(t), cos(t));
+    rd.xz *= rot;
+    ro.xz *= rot;
+
+    float d = 0.0;
+    float t_dist = 0.0;
+    for(int i=0; i<64; i++) {
+      d = map(ro + rd * t_dist);
+      if (d < 0.001 || t_dist > 20.0) break;
+      t_dist += d;
+    }
+
+    vec3 col = vec3(0.0);
+    if (t_dist < 20.0) {
+      float light = 1.0 - (t_dist / 20.0);
+      col = mix(uColorP, uColorS, sin(t_dist + uTime) * 0.5 + 0.5);
+      col *= light;
+      col += vec3(uBass * 0.2); // Flash on bass
+    } else {
+      col = vec3(0.01, 0.0, 0.02) * uHigh; // Background glow
+    }
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
 
 interface VisualizerProps {
   mode: VisualizerMode;
@@ -40,42 +141,43 @@ interface VisualizerProps {
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // v4.0 Infinite VJ Engine State
+  // v5.0 Engine State
   const [vj, setVj] = useState<VJState>({
-    mode: 'grid',
-    palette: PALETTES[0],
+    mode: 'menger',
+    pColor: new THREE.Color(PALETTES[0].p),
+    sColor: new THREE.Color(PALETTES[0].s),
     complexity: 1,
     rotationSpeed: 1,
-    motionIntensity: 1,
-    wireframe: true,
-    shapeType: 'box'
+    energy: 0,
+    fov: 75,
+    glitch: 0
   });
-  
+
+  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('menger');
   const [vibeFlash, setVibeFlash] = useState(false);
+
+  // Audio Context Refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
-  // Pro VJ Brain State
+  // Structural Director Logic
   const energyHistory = useRef<number[]>([]);
-  const beatHistory = useRef<number[]>([]);
   const beatCount = useRef(0);
   const lastBeatTime = useRef(0);
-  const detectedBPM = useRef(120);
-  const dropCooldown = useRef(0);
+  const beatHistory = useRef<number[]>([]);
 
-  // Three.js Core (Stable Layout)
+  // Three.js Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const meshGroupRef = useRef<THREE.Group | null>(null);
+  const materialRef = useRef<THREE.ShaderMaterial | null>(null);
   const requestRef = useRef<number | null>(null);
 
-  const activeMode = mode === 'vj' ? vj.mode : mode;
+  const activeMode = mode === 'vj' ? currentVibe : mode;
 
-  // 1. Audio Brain (Transient Analysis)
+  // 1. Audio Cortex Initialization
   useEffect(() => {
     if (mode === 'none' || !isPlaying) return;
     const init = async () => {
@@ -97,219 +199,132 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     init();
   }, [mode, isPlaying]);
 
-  // 2. The v4.0 Randomizer (Infinite Loop)
+  // 2. Structural Director (The Roll)
   const rollVJ = useCallback(() => {
-    const modes: VisualizerMode[] = ['bars3d', 'terrain', 'cloud', 'tunnel', 'vortex', 'grid', 'neural', 'spheres'];
-    const shapes: ('box' | 'sphere' | 'pyramid' | 'torus')[] = ['box', 'sphere', 'pyramid', 'torus'];
+    const modes: VisualizerMode[] = ['menger', 'columns', 'blob', 'lattice'];
+    const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
     
-    setVj({
-      mode: modes[Math.floor(Math.random() * modes.length)],
-      palette: PALETTES[Math.floor(Math.random() * PALETTES.length)],
-      complexity: 0.5 + Math.random() * 2,
-      rotationSpeed: 0.5 + Math.random() * 2.5,
-      motionIntensity: 0.8 + Math.random() * 2,
-      wireframe: Math.random() > 0.4,
-      shapeType: shapes[Math.floor(Math.random() * shapes.length)]
-    });
+    setCurrentVibe(modes[Math.floor(Math.random() * modes.length)]);
+    setVj(prev => ({
+      ...prev,
+      pColor: new THREE.Color(p.p),
+      sColor: new THREE.Color(p.s),
+      complexity: 0.8 + Math.random() * 1.5,
+      rotationSpeed: 0.5 + Math.random() * 2
+    }));
 
     setVibeFlash(true);
-    setTimeout(() => setVibeFlash(false), 300);
+    setTimeout(() => setVibeFlash(false), 200);
   }, []);
 
-  // 3. Three.js Life Cycle (Pro Engine)
+  // 3. Three.js SDF Lifecycle
   useEffect(() => {
     if (activeMode === 'none' || !containerRef.current) return;
 
     if (!rendererRef.current) {
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const renderer = new THREE.WebGLRenderer({ antialias: false });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Performance cap
       containerRef.current.appendChild(renderer.domElement);
-      
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uBass: { value: 0 },
+          uMid: { value: 0 },
+          uHigh: { value: 0 },
+          uEnergy: { value: 0 },
+          uColorP: { value: vj.pColor },
+          uColorS: { value: vj.sColor },
+          uMode: { value: 0 },
+          uComplexity: { value: 1.0 }
+        },
+        vertexShader: VERTEX_SHADER,
+        fragmentShader: FRAGMENT_SHADER
+      });
+
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+      scene.add(mesh);
+
       sceneRef.current = scene;
-      cameraRef.current = camera;
       rendererRef.current = renderer;
-      meshGroupRef.current = new THREE.Group();
-      scene.add(meshGroupRef.current);
-      
-      // STABLE CAMERA: Set once and keep it fixed to avoid jitter
-      camera.position.set(0, 0, 20);
-      camera.lookAt(0, 0, 0);
+      materialRef.current = material;
     }
-
-    const scene = sceneRef.current!;
-    const group = meshGroupRef.current!;
-    const camera = cameraRef.current!;
-    
-    // Cross-fade check: Instead of clearing instantly, we could implement a transition
-    // For now, we clear but ensure objects are re-added in the same tick
-    group.clear();
-
-    // v4.0 Environment
-    scene.background = new THREE.Color(vj.palette.bg);
-    scene.fog = new THREE.FogExp2(new THREE.Color(vj.palette.bg), 0.015);
-
-    const pMat = new THREE.MeshBasicMaterial({ color: vj.palette.primary, wireframe: vj.wireframe, transparent: true, opacity: 0.8 });
-    const aMat = new THREE.MeshBasicMaterial({ color: vj.palette.secondary, wireframe: true, transparent: true, opacity: 0.4 });
-
-    const getGeo = (size = 1) => {
-      if (vj.shapeType === 'box') return new THREE.BoxGeometry(size, size, size);
-      if (vj.shapeType === 'sphere') return new THREE.SphereGeometry(size * 0.6, 16, 16);
-      if (vj.shapeType === 'pyramid') return new THREE.ConeGeometry(size * 0.6, size, 4);
-      return new THREE.TorusGeometry(size * 0.5, size * 0.2, 8, 24);
-    };
-
-    if (activeMode === 'bars3d') {
-      for (let i = 0; i < 64; i++) {
-        const mesh = new THREE.Mesh(getGeo(0.5), pMat.clone());
-        const angle = (i / 64) * Math.PI * 2;
-        mesh.position.set(Math.cos(angle) * 12, 0, Math.sin(angle) * 12);
-        group.add(mesh);
-      }
-    } else if (activeMode === 'terrain') {
-      const grid = new THREE.GridHelper(150, 50, vj.palette.primary, vj.palette.secondary);
-      grid.rotation.x = Math.PI / 2.2;
-      group.add(grid);
-    } else if (activeMode === 'cloud') {
-      for (let i = 0; i < 300; i++) {
-        const mesh = new THREE.Mesh(getGeo(0.2), i % 2 === 0 ? pMat : aMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50));
-        group.add(mesh);
-      }
-    } else if (activeMode === 'grid') {
-      const helper = new THREE.GridHelper(200, 60, vj.palette.primary, vj.palette.secondary);
-      helper.position.y = -8;
-      group.add(helper);
-    } else if (activeMode === 'neural') {
-      for (let i = 0; i < 120; i++) {
-        const node = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), pMat);
-        node.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
-        group.add(node);
-      }
-    } else if (activeMode === 'tunnel') {
-      for (let i = 0; i < 40; i++) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(i * 0.8, 0.08, 16, 64), aMat);
-        ring.position.z = -i * 4;
-        group.add(ring);
-      }
-    } else if (activeMode === 'vortex') {
-      const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(8, 2.5, 150, 20), pMat);
-      group.add(knot);
-    }
-
-    camera.updateProjectionMatrix();
 
     const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
       rendererRef.current?.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeMode, vj]);
+  }, [activeMode]);
 
-  // 4. v4.0 Stable Animation Loop
+  // 4. Pro Animation Loop
   useEffect(() => {
     const animate = () => {
-      const now = Date.now();
-      let bass = 0, mid = 0, high = 0, avg = 0, isBeat = false;
-      
+      if (!materialRef.current) {
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // --- Auditory Cortex ---
+      let b=0, m=0, h=0, avg=0;
       if (hasAudioAccess && analyserRef.current && dataArrayRef.current) {
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
         const d = dataArrayRef.current;
-        let bSum = 0, mSum = 0, hSum = 0;
-        for (let i = 0; i < 12; i++) bSum += d[i];
-        for (let i = 12; i < 90; i++) mSum += d[i];
-        for (let i = 90; i < 180; i++) hSum += d[i];
+        for(let i=0; i<10; i++) b += d[i];
+        for(let i=10; i<80; i++) m += d[i];
+        for(let i=80; i<150; i++) h += d[i];
         
-        bass = (bSum / 12 / 255) * sensitivity;
-        mid = (mSum / 78 / 255) * sensitivity;
-        high = (hSum / 90 / 255) * sensitivity;
-        avg = (bass + mid + high) / 3;
+        b = (b/10/255) * sensitivity;
+        m = (m/70/255) * sensitivity;
+        h = (h/70/255) * sensitivity;
+        avg = (b+m+h)/3;
 
-        // Peak Analysis
+        // Phrase Tracking
         energyHistory.current.push(avg);
         if (energyHistory.current.length > 50) energyHistory.current.shift();
-        const lAvg = energyHistory.current.reduce((a, b) => a + b, 0) / energyHistory.current.length;
+        const lAvg = energyHistory.current.reduce((a,b)=>a+b,0)/energyHistory.current.length;
         
-        if (avg > lAvg * 1.15 && avg > 0.15 && now - lastBeatTime.current > 280) {
-          isBeat = true;
+        const now = Date.now();
+        if (avg > lAvg * 1.2 && avg > 0.2 && now - lastBeatTime.current > 300) {
           const interval = now - lastBeatTime.current;
           lastBeatTime.current = now;
           beatCount.current++;
           
-          if (interval > 300 && interval < 1000) {
+          if (interval < 1000) {
             const bpm = 60000 / interval;
             beatHistory.current.push(bpm);
             if (beatHistory.current.length > 10) beatHistory.current.shift();
-            const aBPM = Math.round(beatHistory.current.reduce((a,b)=>a+b,0)/beatHistory.current.length);
-            if (aBPM !== detectedBPM.current) {
-              detectedBPM.current = aBPM;
-              onBPMChange?.(aBPM);
-            }
+            onBPMChange?.(Math.round(beatHistory.current.reduce((a,b)=>a+b,0)/beatHistory.current.length));
           }
 
           if (mode === 'vj' && beatCount.current % 16 === 0) rollVJ();
         }
-
-        // Drop Check
-        if (avg > lAvg * 1.8 && now > dropCooldown.current) {
-          rollVJ();
-          dropCooldown.current = now + 6000;
-        }
-      } else {
-        avg = isPlaying ? 0.2 + Math.sin(now * 0.001) * 0.1 : 0;
-        bass = avg * 1.2;
       }
 
-      // --- v4.0 Stable Render Logic ---
-      if (rendererRef.current && sceneRef.current && cameraRef.current && meshGroupRef.current) {
-        const group = meshGroupRef.current;
-        const cam = cameraRef.current;
+      // Update Shader Uniforms
+      const uniforms = materialRef.current.uniforms;
+      uniforms.uTime.value = performance.now() / 1000;
+      uniforms.uBass.value = b;
+      uniforms.uMid.value = m;
+      uniforms.uHigh.value = h;
+      uniforms.uEnergy.value = avg;
+      uniforms.uColorP.value = vj.pColor;
+      uniforms.uColorS.value = vj.sColor;
+      uniforms.uComplexity.value = vj.complexity;
+      
+      const modeMap = { menger: 0, columns: 1, blob: 2, lattice: 3, vj: 0, none: 0 };
+      uniforms.uMode.value = modeMap[activeMode];
 
-        // DAMPED OBJECT MOTION (Not Camera)
-        group.rotation.y += (0.004 + mid * 0.02) * vj.rotationSpeed;
-        group.rotation.z += 0.001;
-
-        // Smoothly return scale
-        const targetScale = 1 + (isBeat ? (0.1 * vj.motionIntensity) : 0);
-        group.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-
-        // Object-space beat jump (y-axis movement)
-        if (isBeat) {
-          group.position.y = (Math.random() - 0.5) * 0.5 * vj.motionIntensity;
-        } else {
-          group.position.y *= 0.9;
-        }
-
-        // Module Specifics
-        if (activeMode === 'bars3d') {
-          group.children.forEach((mesh, i) => {
-            const m = mesh as THREE.Mesh;
-            const h = (dataArrayRef.current?.[i * 3] || 0) / 255 * 20 * vj.motionIntensity;
-            m.scale.y = THREE.MathUtils.lerp(m.scale.y, Math.max(h, 0.1), 0.2);
-            m.position.y = m.scale.y / 2;
-          });
-        } else if (activeMode === 'tunnel') {
-          group.children.forEach((mesh) => {
-            mesh.position.z += (0.3 + high * 0.8) * vj.rotationSpeed;
-            if (mesh.position.z > 25) mesh.position.z = -100;
-          });
-        } else if (activeMode === 'terrain') {
-          group.position.z = (group.position.z + 0.5 + bass) % 150;
-        }
-
-        rendererRef.current.render(sceneRef.current, cam);
-      }
-
+      rendererRef.current?.render(sceneRef.current!, new THREE.Camera());
       requestRef.current = requestAnimationFrame(animate);
     };
 
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, isPlaying, hasAudioAccess, sensitivity, vj, rollVJ, onBPMChange, mode]);
+  }, [activeMode, hasAudioAccess, sensitivity, vj, rollVJ, onBPMChange, mode]);
 
   if (mode === 'none') return null;
 

@@ -113,14 +113,10 @@ const UserMenu: React.FC<UserMenuProps> = ({
                 <Sparkles className="mr-2 h-4 w-4" /> Auto VJ Mode
               </DropdownMenuRadioItem>
               <DropdownMenuSeparator />
-              <DropdownMenuRadioItem value="bars3d">3D Bars</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="terrain">3D Terrain</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="cloud">3D Cloud</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="tunnel">3D Tunnel</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="vortex">3D Vortex</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="grid">3D Grid</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="neural">3D Neural</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="spheres">3D Spheres</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="menger">Fractal City (Menger)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="columns">Infinite Pillars</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="blob">Sub-Bass Blob</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="lattice">Energy Lattice</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
