@@ -77,30 +77,30 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: () => void }> = ({ toast, o
   };
 
   const bgColors = {
-    success: 'bg-white dark:bg-zinc-900 border-green-500/20',
-    error: 'bg-white dark:bg-zinc-900 border-red-500/20',
-    info: 'bg-white dark:bg-zinc-900 border-blue-500/20',
+    success: 'bg-card text-foreground border-green-500/50',
+    error: 'bg-card text-foreground border-red-500/50',
+    info: 'bg-card text-foreground border-primary/50',
   };
 
   return (
     <div
       className={`
         pointer-events-auto
-        flex items-center gap-3 p-4 rounded-lg shadow-lg border
-        min-w-[300px] max-w-sm
-        transform transition-all duration-300 ease-out
+        flex items-center gap-3 p-4 rounded-xl shadow-2xl border-2
+        min-w-[320px] max-w-md
+        transform transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)
         ${bgColors[toast.type]}
-        ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
+        ${isVisible ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-full opacity-0 scale-90'}
       `}
       role="alert"
     >
-      <div className="flex-shrink-0">{icons[toast.type]}</div>
-      <p className="flex-grow text-sm font-medium text-foreground">{toast.message}</p>
+      <div className="flex-shrink-0 animate-in zoom-in duration-300">{icons[toast.type]}</div>
+      <p className="flex-grow text-sm font-bold tracking-tight">{toast.message}</p>
       <button
         onClick={handleDismiss}
-        className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex-shrink-0 text-muted-foreground hover:text-foreground hover:rotate-90 transition-all duration-200"
       >
-        <X className="w-4 h-4" />
+        <X className="w-5 h-5" />
       </button>
     </div>
   );

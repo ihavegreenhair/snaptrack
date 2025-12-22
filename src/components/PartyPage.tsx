@@ -18,6 +18,7 @@ import MoodSelector from './MoodSelector';
 import NameInputModal from './NameInputModal';
 import PartyInsights from './PartyInsights';
 import UserMenu from './UserMenu';
+import Visualizer, { type VisualizerMode } from './Visualizer';
 import { Button } from './ui/button';
 import { Music, QrCode, X, Share2, Check, Plus } from 'lucide-react';
 import { useToast } from './ui/toast';
@@ -29,6 +30,8 @@ function PartyPage() {
   const { theme } = useTheme();
   const [copied, setCopied] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
+  const [isPlaying, setIsPlaying] = useState(false);
   const toast = useToast();
 
   const handleCopyLink = async () => {
@@ -203,8 +206,10 @@ function PartyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-500 overflow-x-hidden relative">
+      <Visualizer mode={visualizerMode} isPlaying={isPlaying} />
+      
+      <header className="border-b bg-card/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between p-4 xl:p-6 2xl:p-8 gap-4 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="flex h-8 w-8 sm:h-10 sm:w-10 xl:h-12 xl:w-12 2xl:h-16 2xl:w-16 items-center justify-center rounded-lg bg-primary">
@@ -266,6 +271,8 @@ function PartyPage() {
                 onPrePopulate={isHost ? handlePrePopulate : undefined}
                 autoAddEnabled={autoAddEnabled}
                 onToggleAutoAdd={isHost ? () => setAutoAddEnabled(!autoAddEnabled) : undefined}
+                visualizerMode={visualizerMode}
+                onVisualizerChange={setVisualizerMode}
                 onEndParty={isHost ? () => {
                   if (confirm('Are you sure you want to end the party for everyone?')) {
                     // Logic to delete party or just logout
@@ -363,10 +370,16 @@ function PartyPage() {
               }`} ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlaying}
-                  onEnded={(progress) => nowPlaying && markAsPlayed(nowPlaying.id, progress)}
-                  onSkip={(progress) => nowPlaying && markAsPlayed(nowPlaying.id, progress)}
+                  onEnded={(progress) => {
+                    nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                    setIsPlaying(false);
+                  }}
+                  onSkip={(progress) => {
+                    nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                    setIsPlaying(false);
+                  }}
                   onClearQueue={clearQueue}
-                  onSongStartedPlaying={() => {}}
+                  onSongStartedPlaying={() => setIsPlaying(true)}
                   isHost={isHost}
                   partyCode={partyCode || undefined}
                   onAddSong={() => addSongModalRef.current?.openModal()}

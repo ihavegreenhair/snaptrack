@@ -51,6 +51,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
   const [hasSearched, setHasSearched] = useState(false);
   const [dedication, setDedication] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   
   // Camera & Photo State
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>('idle');
@@ -225,6 +226,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     }
 
     setIsSubmitting(true);
+    setSubmissionError(null);
     try {
       const fingerprint = await getUserFingerprint();
       const fileName = `${fingerprint}/${Date.now()}.jpg`;
@@ -255,7 +257,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
 
       if (dbError) {
         if (dbError.code === '23505') {
-          toast.error('This song is already in the queue!');
+          setSubmissionError('This song is already in the queue!');
           return;
         }
         throw dbError;
@@ -275,7 +277,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
 
     } catch (err: any) {
       console.error('Submission failed:', err);
-      toast.error('Failed to add song. Please try again.');
+      setSubmissionError('Failed to add song. Please try again.');
       // If it fails, let them try starting camera again
       setCameraStatus('idle');
     } finally {
@@ -338,6 +340,13 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
             
+            {submissionError && (
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive text-sm font-bold animate-in slide-in-from-top-2">
+                <AlertCircle className="w-4 h-4" />
+                {submissionError}
+              </div>
+            )}
+
             {/* Step 1: Discover */}
             {step === 'discover' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 pb-4">

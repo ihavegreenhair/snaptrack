@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Clock, Star, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase, type QueueItem } from '../lib/supabase';
 import { getUserFingerprint } from '../lib/fingerprint';
 import { formatTimeAgo } from '../lib/time';
@@ -363,225 +364,240 @@ export default function QueueList({
                   </h4>
                 )}
                 <div className={`${isHostView ? 'space-y-2 xl:space-y-2' : 'space-y-2 xl:space-y-4 2xl:space-y-6'}`}>
-                  {sortedQueue.slice(isHistory ? 0 : 1).map((song, index) => {
-                    const actualIndex = isHistory ? index : index + 1;
-                    const userVote = userVotes[song.id] || 0;
-                    const isNextUp = false; // Never true for remaining items
+                  <AnimatePresence mode="popLayout">
+                    {sortedQueue.slice(isHistory ? 0 : 1).map((song, index) => {
+                      const actualIndex = isHistory ? index : index + 1;
+                      const userVote = userVotes[song.id] || 0;
+                      const isNextUp = false; // Never true for remaining items
 
-                    return (
-                      <Card
-                        key={song.id}
-                        ref={(el) => { itemRefs.current[song.id] = el; }}
-                        className={`relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50 ${song.is_pinned ? 'border-primary/50' : ''}`}
-                      >
-                  {isNextUp && (
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
-                  )}
-                  <CardContent className={`${
-                    isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
-                  }`}>
-                    {isHostView ? (
-                      // Ultra-compact host layout - minimal horizontal design
-                      <div className="flex items-center gap-2">
-                        {/* Position number - ultra small */}
-                        {!isHistory && (
-                          <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
-                            {actualIndex + 1}
-                          </div>
-                        )}
-                        
-                        {/* Photo - ultra small */}
-                        <PhotoZoom 
-                          src={song.photo_url} 
-                          alt="Submitter photo"
-                          song={song}
-                          isCurrentSong={false}
-                          queue={queue}
-                          currentIndex={actualIndex}
-                          currentSongId={currentSongId}
-                          className="transition-all duration-200 hover:scale-105 flex-shrink-0"
-                          submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
+                      return (
+                        <motion.div
+                          key={song.id}
+                          layout
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ 
+                            type: "spring", 
+                            stiffness: 500, 
+                            damping: 30, 
+                            mass: 1 
+                          }}
                         >
-                          <img
-                            src={song.photo_url}
-                            alt="Submitter photo"
-                            className={`object-cover border ${
-                              isNextUp ? 'border-accent/50' : 'border-border'
-                            } ${
-                              isHistory 
-                                ? 'w-8 h-8 xl:w-10 xl:h-10 rounded-md' 
-                                : 'w-8 h-8 xl:w-10 xl:h-10 rounded-full'
-                            }`}
-                          />
-                        </PhotoZoom>
-                        
-                        {/* Song title - ultra condensed */}
-                        <div className="flex-1 min-w-0 px-1">
-                          <div className="flex items-center gap-1">
-                            <h3 className={`font-medium truncate leading-tight ${
-                              isNextUp ? 'text-accent' : 'text-foreground'
-                            } text-xs xl:text-sm`}>
-                              {song.title}
-                            </h3>
-                            {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
-                          </div>
-                        </div>
-                        
-                        {/* Votes display - minimal */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <ThumbsUp className="w-3 h-3 text-muted-foreground" />
-                          <span className={`text-xs xl:text-sm font-bold min-w-[1rem] text-center ${
-                            animatingVotes[song.id] ? 'text-green-600 scale-110' : 'text-foreground'
-                          } transition-all duration-300`}>
-                            {song.votes}
-                          </span>
-                        </div>
-                        
-                        {/* Ultra-compact voting controls */}
-                        {!isHistory && (
-                          <div className="flex items-center gap-0.5 flex-shrink-0">
-                            <Button
-                              onClick={() => handleVote(song.id, 1)}
-                              disabled={voting === song.id}
-                              size="icon"
-                              variant={userVote === 1 ? "default" : "outline"}
-                              className={`rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0 ${
-                                userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
-                              }`}
+                          <Card
+                            ref={(el) => { itemRefs.current[song.id] = el; }}
+                            className={`relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50 ${song.is_pinned ? 'border-primary/50' : ''}`}
+                          >
+                      {isNextUp && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
+                      )}
+                      <CardContent className={`${
+                        isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
+                      }`}>
+                        {isHostView ? (
+                          // Ultra-compact host layout - minimal horizontal design
+                          <div className="flex items-center gap-2">
+                            {/* Position number - ultra small */}
+                            {!isHistory && (
+                              <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
+                                {actualIndex + 1}
+                              </div>
+                            )}
+                            
+                            {/* Photo - ultra small */}
+                            <PhotoZoom 
+                              src={song.photo_url} 
+                              alt="Submitter photo"
+                              song={song}
+                              isCurrentSong={false}
+                              queue={queue}
+                              currentIndex={actualIndex}
+                              currentSongId={currentSongId}
+                              className="transition-all duration-200 hover:scale-105 flex-shrink-0"
+                              submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
                             >
-                              <ThumbsUp className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
-                            </Button>
-                            <Button
-                              onClick={() => handleVote(song.id, -1)}
-                              disabled={voting === song.id}
-                              size="icon"
-                              variant={userVote === -1 ? "destructive" : "outline"}
-                              className={`rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0 ${
-                                userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
-                              }`}
-                            >
-                              <ThumbsDown className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
-                            </Button>
-                            {isHost && (
-                              <div className="flex gap-0.5 ml-1">
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  className={`h-5 w-5 xl:h-6 xl:w-6 rounded-full ${song.is_pinned ? 'text-primary' : 'text-muted-foreground'}`}
-                                  onClick={() => onPin?.(song.id, !song.is_pinned)}
+                              <img
+                                src={song.photo_url}
+                                alt="Submitter photo"
+                                className={`object-cover border ${
+                                  isNextUp ? 'border-accent/50' : 'border-border'
+                                } ${
+                                  isHistory 
+                                    ? 'w-8 h-8 xl:w-10 xl:h-10 rounded-md' 
+                                    : 'w-8 h-8 xl:w-10 xl:h-10 rounded-full'
+                                }`}
+                              />
+                            </PhotoZoom>
+                            
+                            {/* Song title - ultra condensed */}
+                            <div className="flex-1 min-w-0 px-1">
+                              <div className="flex items-center gap-1">
+                                <h3 className={`font-medium truncate leading-tight ${
+                                  isNextUp ? 'text-accent' : 'text-foreground'
+                                } text-xs xl:text-sm`}>
+                                  {song.title}
+                                </h3>
+                                {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                              </div>
+                            </div>
+                            
+                            {/* Votes display - minimal */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <ThumbsUp className="w-3 h-3 text-muted-foreground" />
+                              <span className={`text-xs xl:text-sm font-bold min-w-[1rem] text-center ${
+                                animatingVotes[song.id] ? 'text-green-600 scale-110' : 'text-foreground'
+                              } transition-all duration-300`}>
+                                {song.votes}
+                              </span>
+                            </div>
+                            
+                            {/* Ultra-compact voting controls */}
+                            {!isHistory && (
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <Button
+                                  onClick={() => handleVote(song.id, 1)}
+                                  disabled={voting === song.id}
+                                  size="icon"
+                                  variant={userVote === 1 ? "default" : "outline"}
+                                  className={`rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0 ${
+                                    userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
+                                  }`}
                                 >
-                                  <Star className={`h-2.5 w-2.5 xl:h-3 xl:w-3 ${song.is_pinned ? 'fill-current' : ''}`} />
+                                  <ThumbsUp className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
                                 </Button>
                                 <Button
-                                  onClick={() => {
-                                    if (confirm('Veto this song?')) {
-                                      onBlacklist?.(song);
-                                    }
-                                  }}
+                                  onClick={() => handleVote(song.id, -1)}
+                                  disabled={voting === song.id}
                                   size="icon"
-                                  variant="destructive"
-                                  className="rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0"
+                                  variant={userVote === -1 ? "destructive" : "outline"}
+                                  className={`rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0 ${
+                                    userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
+                                  }`}
                                 >
-                                  <Trash2 className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
+                                  <ThumbsDown className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
+                                </Button>
+                                {isHost && (
+                                  <div className="flex gap-0.5 ml-1">
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      className={`h-5 w-5 xl:h-6 xl:w-6 rounded-full ${song.is_pinned ? 'text-primary' : 'text-muted-foreground'}`}
+                                      onClick={() => onPin?.(song.id, !song.is_pinned)}
+                                    >
+                                      <Star className={`h-2.5 w-2.5 xl:h-3 xl:w-3 ${song.is_pinned ? 'fill-current' : ''}`} />
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        if (confirm('Veto this song?')) {
+                                          onBlacklist?.(song);
+                                        }
+                                      }}
+                                      size="icon"
+                                      variant="destructive"
+                                      className="rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          // Compact mobile layout - horizontal design on mobile
+                          <div className="flex items-center gap-2 sm:gap-3 xl:gap-4">
+                            {/* Left section - Position number and photo */}
+                            <div className="flex items-center gap-2 sm:gap-3 xl:gap-4 flex-shrink-0">
+                              {!isHistory && (
+                                <div className={`w-6 h-6 sm:w-8 sm:h-8 xl:w-10 xl:h-10 rounded-full flex items-center justify-center font-bold text-xs xl:text-sm ${
+                                  isNextUp
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}>
+                                  {actualIndex + 1}
+                                </div>
+                              )}
+                              <PhotoZoom 
+                                src={song.photo_url} 
+                                alt="Submitter photo"
+                                song={song}
+                                isCurrentSong={false}
+                                queue={queue}
+                                currentIndex={actualIndex}
+                                currentSongId={currentSongId}
+                                className={`transition-all duration-200 hover:scale-105 ${
+                                  isHistory ? 'w-10 h-10 sm:w-12 sm:h-12 xl:w-16 xl:h-16 rounded-lg' : 'w-10 h-10 sm:w-12 sm:h-12 xl:w-14 xl:h-14 rounded-full'
+                                }`}
+                                submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
+                              >
+                                <img
+                                  src={song.photo_url}
+                                  alt="Submitter photo"
+                                  className={`w-full h-full object-cover border ${
+                                    isNextUp 
+                                      ? 'border-accent/50' 
+                                      : 'border-border'
+                                  } ${isHistory ? 'rounded-lg' : 'rounded-full'}`}
+                                />
+                              </PhotoZoom>
+                            </div>
+                            
+                            {/* Middle section - Song info */}
+                            <div className="flex-1 min-w-0 px-1">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1">
+                                  <h3 className="font-medium text-sm sm:text-base xl:text-lg line-clamp-2 leading-tight mb-0.5">{song.title}</h3>
+                                  {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <ThumbsUp className="w-3 h-3" />
+                                    <span className={`transition-all duration-300 ${animatingVotes[song.id] ? 'scale-110 text-green-600' : ''}`}>
+                                      {song.votes}
+                                    </span>
+                                  </span>
+                                  <span className="truncate">
+                                    {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : formatTimeAgo(song.submitted_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Right section - Compact voting controls */}
+                            {!isHistory && (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button
+                                  onClick={() => handleVote(song.id, 1)}
+                                  disabled={voting === song.id}
+                                  size="icon"
+                                  variant={userVote === 1 ? "default" : "outline"}
+                                  className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
+                                    userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
+                                  }`}
+                                >
+                                  <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleVote(song.id, -1)}
+                                  disabled={voting === song.id}
+                                  size="icon"
+                                  variant={userVote === -1 ? "destructive" : "outline"}
+                                  className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
+                                    userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
+                                  }`}
+                                >
+                                  <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
                                 </Button>
                               </div>
                             )}
                           </div>
                         )}
-                      </div>
-                    ) : (
-                      // Compact mobile layout - horizontal design on mobile
-                      <div className="flex items-center gap-2 sm:gap-3 xl:gap-4">
-                        {/* Left section - Position number and photo */}
-                        <div className="flex items-center gap-2 sm:gap-3 xl:gap-4 flex-shrink-0">
-                          {!isHistory && (
-                            <div className={`w-6 h-6 sm:w-8 sm:h-8 xl:w-10 xl:h-10 rounded-full flex items-center justify-center font-bold text-xs xl:text-sm ${
-                              isNextUp
-                                ? 'bg-accent text-accent-foreground'
-                                : 'bg-muted text-muted-foreground'
-                            }`}>
-                              {actualIndex + 1}
-                            </div>
-                          )}
-                          <PhotoZoom 
-                            src={song.photo_url} 
-                            alt="Submitter photo"
-                            song={song}
-                            isCurrentSong={false}
-                            queue={queue}
-                            currentIndex={actualIndex}
-                            currentSongId={currentSongId}
-                            className={`transition-all duration-200 hover:scale-105 ${
-                              isHistory ? 'w-10 h-10 sm:w-12 sm:h-12 xl:w-16 xl:h-16 rounded-lg' : 'w-10 h-10 sm:w-12 sm:h-12 xl:w-14 xl:h-14 rounded-full'
-                            }`}
-                            submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
-                          >
-                            <img
-                              src={song.photo_url}
-                              alt="Submitter photo"
-                              className={`w-full h-full object-cover border ${
-                                isNextUp 
-                                  ? 'border-accent/50' 
-                                  : 'border-border'
-                              } ${isHistory ? 'rounded-lg' : 'rounded-full'}`}
-                            />
-                          </PhotoZoom>
-                        </div>
-                        
-                        {/* Middle section - Song info */}
-                        <div className="flex-1 min-w-0 px-1">
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1">
-                              <h3 className="font-medium text-sm sm:text-base xl:text-lg line-clamp-2 leading-tight mb-0.5">{song.title}</h3>
-                              {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <ThumbsUp className="w-3 h-3" />
-                                <span className={`transition-all duration-300 ${animatingVotes[song.id] ? 'scale-110 text-green-600' : ''}`}>
-                                  {song.votes}
-                                </span>
-                              </span>
-                              <span className="truncate">
-                                {isHistory ? `Played ${formatTimeAgo(song.played_at ?? '')}` : formatTimeAgo(song.submitted_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Right section - Compact voting controls */}
-                        {!isHistory && (
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button
-                              onClick={() => handleVote(song.id, 1)}
-                              disabled={voting === song.id}
-                              size="icon"
-                              variant={userVote === 1 ? "default" : "outline"}
-                              className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
-                                userVote === 1 ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50'
-                              }`}
-                            >
-                              <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
-                            </Button>
-                            <Button
-                              onClick={() => handleVote(song.id, -1)}
-                              disabled={voting === song.id}
-                              size="icon"
-                              variant={userVote === -1 ? "destructive" : "outline"}
-                              className={`rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ${
-                                userVote === -1 ? 'shadow-sm' : 'hover:bg-red-50'
-                              }`}
-                            >
-                              <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-                  })}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+                    })}
+                  </AnimatePresence>
                 </div>
               </div>
             )}
