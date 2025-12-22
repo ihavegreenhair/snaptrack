@@ -14,6 +14,7 @@ interface NowPlayingProps {
   onSkip: (progress: number) => void;
   onClearQueue: () => void;
   onSongStartedPlaying: (songId: string) => void;
+  onTimeUpdate?: (time: number) => void;
   isHost: boolean;
   partyCode?: string;
   onAddSong?: () => void;
@@ -32,7 +33,7 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3, skipVoteCount = 0, hasSkipVoted = false, onSkipVote, skipVoting = false, hideVideo = false }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, onTimeUpdate, isHost, partyCode, onAddSong, skipVotesRequired = 3, skipVoteCount = 0, hasSkipVoted = false, onSkipVote, skipVoting = false, hideVideo = false }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,6 +52,19 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
     }
     return 0;
   };
+
+  // Report time update
+  useEffect(() => {
+    if (!isPlaying || !onTimeUpdate || !playerRef.current) return;
+
+    const interval = setInterval(() => {
+      if (typeof playerRef.current.getCurrentTime === 'function') {
+        onTimeUpdate(playerRef.current.getCurrentTime());
+      }
+    }, 500); // 500ms update frequency
+
+    return () => clearInterval(interval);
+  }, [isPlaying, onTimeUpdate]);
 
   useEffect(() => {
     if (isHost && skipVoteCount >= (skipVotesRequired || 3)) {
