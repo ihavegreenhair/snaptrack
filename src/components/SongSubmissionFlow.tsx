@@ -67,15 +67,24 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
   
   const toast = useToast();
 
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      stopCamera();
-      if (photoUrl) URL.revokeObjectURL(photoUrl);
-    };
+  const cleanupPhotoUrl = useCallback(() => {
+    if (photoUrl) {
+      URL.revokeObjectURL(photoUrl);
+      setPhotoUrl(null);
+    }
   }, [photoUrl]);
 
-  const stopCamera = useCallback((keepStatus = false) => {
+  // Cleanup on unmount only
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, []);
+
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -84,9 +93,6 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     if (countdownIntervalRef.current) {
       window.clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
-    }
-    if (!keepStatus) {
-      setCameraStatus('idle');
     }
   }, []);
 
@@ -151,10 +157,11 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
-    const canvas = canvasRef.current;
+    const canvas = canvas.current;
     const context = canvas.getContext('2d');
 
     if (context) {
+      console.log("Taking photo...");
       setIsFlashing(true);
       setTimeout(() => setIsFlashing(false), 150);
 
@@ -168,11 +175,13 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
 
       canvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
+          console.log("Photo captured, auto-submitting...");
           setPhotoBlob(blob);
+          const url = URL.createObjectURL(blob);
           setPhotoUrl(url);
-          setCameraStatus('captured');
-          stopCamera(true); // PASS TRUE TO KEEP STATUS
+          stopCamera();
+          // Auto-submit immediately with the blob
+          handleSubmit(blob);
         }
       }, 'image/jpeg', 0.85);
     }
@@ -208,18 +217,23 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     setHasSearched(true);
   };
 
-  const handleSubmit = async () => {
-    if (!selectedVideo || !photoBlob) return;
+  const handleSubmit = async (blobOverride?: Blob) => {
+    const activeBlob = blobOverride || photoBlob;
+    if (!selectedVideo || !activeBlob) {
+      console.error("Missing data for submission:", { selectedVideo: !!selectedVideo, blob: !!activeBlob });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const fingerprint = await getUserFingerprint();
       const fileName = `${fingerprint}/${Date.now()}.jpg`;
       
+      console.log("Uploading photo...");
       // 1. Upload Photo
       const { error: uploadError } = await supabase.storage
         .from('photos')
-        .upload(fileName, photoBlob);
+        .upload(fileName, activeBlob);
 
       if (uploadError) throw uploadError;
 
@@ -227,6 +241,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
         .from('photos')
         .getPublicUrl(fileName);
 
+      console.log("Inserting song to queue...");
       // 2. Insert Song
       const { error: dbError } = await supabase.from('queue_items').insert({
         video_id: selectedVideo.id,
@@ -246,10 +261,12 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
         throw dbError;
       }
 
+      console.log("Submission successful!");
       // Success
       clearSuggestionsCache();
       onRefreshSuggestions();
       setStep('success');
+      
       setTimeout(() => {
         setIsOpen(false);
         resetFlow();
@@ -259,6 +276,8 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     } catch (err: any) {
       console.error('Submission failed:', err);
       toast.error('Failed to add song. Please try again.');
+      // If it fails, let them try starting camera again
+      setCameraStatus('idle');
     } finally {
       setIsSubmitting(false);
     }
@@ -269,7 +288,7 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     setSelectedVideo(null);
     setDedication('');
     setPhotoBlob(null);
-    setPhotoUrl(null);
+    cleanupPhotoUrl();
     setCameraStatus('idle');
     setHasSearched(false);
     setSearchQuery('');
@@ -297,7 +316,12 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
               {step !== 'discover' && step !== 'success' && (
                 <Button variant="ghost" size="icon" className="rounded-full -ml-2" onClick={() => {
                   if (step === 'personalize') setStep('discover');
-                  if (step === 'capture') setStep('personalize');
+                  if (step === 'capture') {
+                    setStep('personalize');
+                    setCameraStatus('idle');
+                    stopCamera();
+                    cleanupPhotoUrl();
+                  }
                 }}>
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
@@ -390,9 +414,14 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
             {step === 'capture' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 text-center">
                 
-                {(cameraStatus === 'idle' || cameraStatus === 'initializing' || cameraStatus === 'active' || cameraStatus === 'countdown') && (
+                {(cameraStatus === 'idle' || cameraStatus === 'initializing' || cameraStatus === 'active' || cameraStatus === 'countdown' || isSubmitting) && (
                   <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-black shadow-2xl">
-                    <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" autoPlay playsInline muted />
+                    {/* Show photo preview if captured/submitting, otherwise show video */}
+                    {isSubmitting && photoUrl ? (
+                      <img src={photoUrl} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" autoPlay playsInline muted />
+                    )}
                     
                     {isFlashing && <div className="absolute inset-0 bg-white z-50 animate-out fade-out duration-300" />}
                     
@@ -406,7 +435,12 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
 
                     <div className="absolute bottom-6 left-0 right-0 flex justify-center z-30">
                       <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm font-bold flex items-center gap-2">
-                        {cameraStatus === 'initializing' ? (
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            Sending to queue...
+                          </>
+                        ) : cameraStatus === 'initializing' ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Warming up...
@@ -418,40 +452,6 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
                           </>
                         )}
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {cameraStatus === 'captured' && photoUrl && (
-                  <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                    <div className="relative group mx-auto w-48 h-48 sm:w-64 sm:h-64">
-                      <img src={photoUrl} className="w-full h-full object-cover rounded-full border-4 border-primary shadow-2xl" />
-                      <button 
-                        onClick={() => {
-                          setPhotoUrl(null);
-                          setPhotoBlob(null);
-                          setCameraStatus('idle');
-                        }}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground p-2 rounded-full shadow-lg hover:scale-110 transition-transform"
-                      >
-                        <RefreshCw className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="text-lg font-bold">Lookin' good! 🔥</div>
-                      <Button 
-                        size="lg" 
-                        className="w-full h-14 text-xl font-black rounded-xl shadow-xl shadow-primary/20" 
-                        onClick={handleSubmit}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                        ) : (
-                          'ADD TO QUEUE'
-                        )}
-                      </Button>
                     </div>
                   </div>
                 )}
