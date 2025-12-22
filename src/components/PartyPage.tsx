@@ -23,6 +23,7 @@ import { Button } from './ui/button';
 import { Music, QrCode, X, Share2, Check, Plus } from 'lucide-react';
 import { useToast } from './ui/toast';
 import { useTheme } from '../lib/ThemeContext';
+import { cn } from '../lib/utils';
 
 function PartyPage() {
   const { partyCode } = useParams<{ partyCode: string }>();
@@ -32,6 +33,7 @@ function PartyPage() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isDashboardMode, setIsDashboardMode] = useState(false);
   const toast = useToast();
 
   const handleCopyLink = async () => {
@@ -206,10 +208,16 @@ function PartyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-500 overflow-x-hidden relative">
-      <Visualizer mode={visualizerMode} isPlaying={isPlaying} />
+    <div className={cn(
+      "min-h-screen bg-background text-foreground transition-all duration-1000 overflow-x-hidden relative",
+      isDashboardMode && "bg-black"
+    )}>
+      <Visualizer mode={visualizerMode} isPlaying={isPlaying} isDashboard={isDashboardMode} />
       
-      <header className="border-b bg-card/50 backdrop-blur-md sticky top-0 z-50">
+      <header className={cn(
+        "border-b bg-card/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-500",
+        isDashboardMode && "opacity-0 hover:opacity-100 h-2 hover:h-auto overflow-hidden"
+      )}>
         <div className="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between p-4 xl:p-6 2xl:p-8 gap-4 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="flex h-8 w-8 sm:h-10 sm:w-10 xl:h-12 xl:w-12 2xl:h-16 2xl:w-16 items-center justify-center rounded-lg bg-primary">
@@ -273,6 +281,8 @@ function PartyPage() {
                 onToggleAutoAdd={isHost ? () => setAutoAddEnabled(!autoAddEnabled) : undefined}
                 visualizerMode={visualizerMode}
                 onVisualizerChange={setVisualizerMode}
+                isDashboardMode={isDashboardMode}
+                onDashboardChange={setIsDashboardMode}
                 onEndParty={isHost ? () => {
                   if (confirm('Are you sure you want to end the party for everyone?')) {
                     // Logic to delete party or just logout
@@ -355,19 +365,23 @@ function PartyPage() {
         ) : (
           /* Active Party Layout */
           <>
-            <PartyInsights 
-              queue={queue} 
-              history={history} 
-              userProfiles={userProfiles} 
-            />
+            <div className={cn("transition-all duration-500", isDashboardMode && "opacity-0 h-0 overflow-hidden mb-0")}>
+              <PartyInsights 
+                queue={queue} 
+                history={history} 
+                userProfiles={userProfiles} 
+              />
+            </div>
             
-            <div className={`grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8 ${
-              isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6'
-            }`}>
+            <div className={cn(
+              "grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8",
+              isDashboardMode ? "xl:grid-cols-4 2xl:grid-cols-5" : (isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6')
+            )}>
               {/* Left/Main Column: Player */}
-              <div className={`h-full sticky top-20 sm:relative sm:top-0 z-30 ${
-                isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2'
-              }`} ref={nowPlayingEl}>
+              <div className={cn(
+                "h-full sticky top-20 sm:relative sm:top-0 z-30 transition-all duration-500",
+                isDashboardMode ? "xl:col-span-3 2xl:col-span-4" : (isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2')
+              )} ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlaying}
                   onEnded={(progress) => {
@@ -392,9 +406,10 @@ function PartyPage() {
               </div>
 
               {/* Right/Secondary Column: Queue & Info */}
-              <div className={`space-y-4 ${
-                isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-3 2xl:col-span-4'
-              }`}>
+              <div className={cn(
+                "space-y-4 transition-all duration-500",
+                isDashboardMode ? "xl:col-span-1 2xl:col-span-1" : (isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-3 2xl:col-span-4')
+              )}>
                 {/* QR Code Overlay */}
                 {showQRCode && (
                   <div className="bg-card border border-border rounded-xl p-6 shadow-lg animate-in fade-in slide-in-from-top-2">
@@ -434,7 +449,7 @@ function PartyPage() {
               </div>
             </div>
             
-            <div className="mt-4 sm:mt-6">
+            <div className={cn("mt-4 sm:mt-6 transition-all duration-500", isDashboardMode && "opacity-0 h-0 overflow-hidden")}>
               <PhotoGallery title="Previously Played" queue={history} userProfiles={userProfiles} />
             </div>
           </>

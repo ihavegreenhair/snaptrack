@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, LogOut, Trash2, ShieldCheck, RefreshCw, Palette, Sun, Moon, Sparkles, Sunset, Waves, Check } from 'lucide-react';
+import { User, LogOut, Trash2, ShieldCheck, RefreshCw, Palette, Sun, Moon, Sparkles, Sunset, Waves, Check, Layout } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,8 @@ interface UserMenuProps {
   onToggleAutoAdd?: () => void;
   visualizerMode?: VisualizerMode;
   onVisualizerChange?: (mode: VisualizerMode) => void;
+  isDashboardMode?: boolean;
+  onDashboardChange?: (enabled: boolean) => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ 
@@ -42,7 +44,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
   autoAddEnabled,
   onToggleAutoAdd,
   visualizerMode = 'none',
-  onVisualizerChange
+  onVisualizerChange,
+  isDashboardMode,
+  onDashboardChange
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -121,6 +125,16 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <>
             <DropdownMenuLabel className="text-xs uppercase text-muted-foreground">Host Actions</DropdownMenuLabel>
             
+            {onDashboardChange && (
+              <DropdownMenuItem onClick={() => onDashboardChange(!isDashboardMode)}>
+                <div className="flex items-center w-full">
+                  <Layout className={`mr-2 h-4 w-4 ${isDashboardMode ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="flex-1 text-primary font-bold">Dashboard Mode</span>
+                  {isDashboardMode && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              </DropdownMenuItem>
+            )}
+
             {onToggleAutoAdd && (
               <DropdownMenuItem onClick={onToggleAutoAdd}>
                 <div className="flex items-center w-full">
