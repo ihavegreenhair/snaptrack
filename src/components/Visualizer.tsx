@@ -85,34 +85,34 @@ const FRAGMENT_SHADER = `
     float d = 1000.0;
     
     if (uMode == 0) { // Menger
-      p = mod(p + 4.0, 8.0) - 4.0;
-      float r = 1.0 + uBass * 0.5;
+      p = mod(p + 6.0, 12.0) - 6.0; // Increased spacing (4 -> 12)
+      float r = 1.0 + uBass * 0.3;
       d = deMenger(p / r) * r;
     } else if (uMode == 1) { // Columns
-      vec2 grid = mod(p.xz + 2.0, 4.0) - 2.0;
-      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.4 + uBass, 10.0, 0.4 + uBass));
+      vec2 grid = mod(p.xz + 4.0, 8.0) - 4.0; // Increased spacing (4 -> 8)
+      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.3 + uBass * 0.5, 10.0, 0.3 + uBass * 0.5));
     } else if (uMode == 2) { // Blob
-      d = sdSphere(p, 2.0 + uBass);
-      d += sin(p.x * 3.0 + uTime) * 0.2 * uMid;
+      d = sdSphere(p, 1.5 + uBass * 0.5);
+      d += sin(p.x * 2.0 + uTime) * 0.2 * uMid;
     } else if (uMode == 4) { // City
-      vec2 id = floor(p.xz / 2.0);
-      vec2 g = mod(p.xz, 2.0) - 1.0;
-      float h = (sin(id.x * 1.5) * cos(id.y * 2.1) * 0.5 + 0.5) * 8.0 * uComplexity;
-      h += uBass * 3.0;
-      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(0.7, h, 0.7));
-    } else if (uMode == 5) { // Landmass
-      float h = sin(p.x * 0.4 + uTime) * cos(p.z * 0.4 + uTime) * 3.0;
-      h += sin(p.x * 1.5) * 0.8 * uEnergy;
-      d = p.y + 2.0 - h;
-    } else if (uMode == 9) { // Gyroid
-      d = sdGyroid(p, 1.0 + uMid, 0.05 + uBass*0.1, 0.0);
-    } else if (uMode == 16) { // Lava
-      float h = sin(p.x * 0.5 + uTime) * cos(p.z * 0.5 + uTime) * 1.5;
+      vec2 id = floor(p.xz / 4.0);
+      vec2 g = mod(p.xz, 4.0) - 2.0; // Much more space between buildings
+      float h = (sin(id.x * 1.5) * cos(id.y * 2.1) * 0.5 + 0.5) * 6.0 * uComplexity;
       h += uBass * 2.0;
+      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(0.5, h, 0.5));
+    } else if (uMode == 5) { // Landmass
+      float h = sin(p.x * 0.3 + uTime) * cos(p.z * 0.3 + uTime) * 2.0;
+      h += sin(p.x * 1.2) * 0.4 * uEnergy;
       d = p.y + 3.0 - h;
+    } else if (uMode == 9) { // Gyroid
+      d = sdGyroid(p, 0.8 + uMid * 0.5, 0.03 + uBass * 0.05, 0.0);
+    } else if (uMode == 16) { // Lava
+      float h = sin(p.x * 0.4 + uTime) * cos(p.z * 0.4 + uTime) * 1.2;
+      h += uBass * 1.5;
+      d = p.y + 4.0 - h;
     } else if (uMode == 7) { // Torus Tunnel
-      p.z = mod(p.z + 4.0, 8.0) - 4.0;
-      d = sdTorus(p, vec2(4.0 + uBass, 0.5 + uHigh));
+      p.z = mod(p.z + 6.0, 12.0) - 6.0;
+      d = sdTorus(p, vec2(5.0 + uBass, 0.3 + uHigh * 0.5));
     } else {
       d = sdSphere(p, 1.0 + uEnergy);
     }
@@ -160,19 +160,19 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   
   // v5.5 Modular State
   const [vj, setVj] = useState<VJState>({
-    mode: 'city',
+    mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
     sColor: new THREE.Color(PALETTES[0].s),
     complexity: 1,
-    rotationSpeed: 1,
-    motionIntensity: 1,
+    rotationSpeed: 0.5,
+    motionIntensity: 0.5,
     wireframe: true,
     shapeType: 'box',
     zoomLevel: 0,
     fov: 75
   });
 
-  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('city');
+  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('shapes');
   const [vibeFlash, setVibeFlash] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -396,14 +396,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         // Update Mesh
         if (!isShaderMode && meshGroupRef.current) {
           const group = meshGroupRef.current;
-          group.rotation.y += (0.002 + mid * 0.02) * vj.rotationSpeed;
+          // Apply energy-based damping: very slow during silence, energetic during loud parts
+          const damping = 0.1 + avg; 
+          group.rotation.y += (0.001 + mid * 0.015) * vj.rotationSpeed * damping;
           group.children.forEach((obj, i) => {
-            obj.position.y += Math.sin(now * 0.001 + i) * 0.01;
-            if (isBeat) { obj.scale.setScalar(1.2 + bass * vj.motionIntensity); } 
-            else { obj.scale.lerp(new THREE.Vector3(1,1,1), 0.1); }
+            obj.position.y += Math.sin(now * 0.001 + i) * 0.005 * damping;
+            if (isBeat) { obj.scale.setScalar(1.1 + bass * 0.5 * vj.motionIntensity); } 
+            else { obj.scale.lerp(new THREE.Vector3(1,1,1), 0.05); }
           });
-          if (isBeat) group.position.y = bass * 0.5;
-          else group.position.y *= 0.9;
+          if (isBeat) group.position.y = bass * 0.3;
+          else group.position.y *= 0.95;
         }
       } else {
         avg = isPlaying ? 0.3 + Math.sin(now * 0.002) * 0.1 : 0;
