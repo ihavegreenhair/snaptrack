@@ -98,7 +98,7 @@ const YouTubeSearch: React.FC<YouTubeSearchProps> = ({ onSelectVideo, onSearchMa
         <p className="text-center text-muted-foreground text-sm">Start typing to search for songs...</p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {results.map((video) => {
           const isValidLength = isValidSongLength(video.duration);
           const duration = parseDuration(video.duration);

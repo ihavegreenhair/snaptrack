@@ -336,11 +336,11 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
           </DialogHeader>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
             
             {/* Step 1: Discover */}
             {step === 'discover' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 pb-4">
                 <YouTubeSearch 
                   onSelectVideo={handleVideoSelect}
                   searchQuery={searchQuery}
@@ -348,14 +348,14 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
                   onQueryChange={setSearchQuery}
                 />
 
-                {!hasSearched && (
+                {!hasSearched && suggestions.length > 0 && (
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                       <RefreshCw className={cn("w-4 h-4", suggestionsLoading && "animate-spin")} />
                       {suggestionsType === 'personalized' ? 'Recommended for the vibe' : 'Party Starters'}
                     </h4>
                     
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                       {suggestions.map((suggestion, i) => (
                         <button
                           key={i}
