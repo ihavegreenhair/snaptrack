@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
 import { useToast } from './ui/toast';
+import { Skeleton } from './ui/skeleton';
 
 interface QueueListProps {
   queue: QueueItem[];
@@ -17,6 +18,9 @@ interface QueueListProps {
   height?: number;
   isHostView?: boolean;
   userProfiles?: {[fingerprint: string]: string};
+  onPin?: (id: string, pinned: boolean) => void;
+  onBlacklist?: (song: QueueItem) => void;
+  loading?: boolean;
 }
 
 interface UserVotes {
@@ -24,7 +28,19 @@ interface UserVotes {
 }
 
 
-export default function QueueList({ queue, currentSongId, title, isHistory, isHost, height, isHostView, userProfiles = {} }: QueueListProps) {
+export default function QueueList({ 
+  queue, 
+  currentSongId, 
+  title, 
+  isHistory, 
+  isHost, 
+  height, 
+  isHostView, 
+  userProfiles = {},
+  onPin,
+  onBlacklist,
+  loading
+}: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
   const [voting, setVoting] = useState<string | null>(null);
@@ -117,26 +133,26 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
     }
   };
 
-  const handleRemoveSong = async (songId: string) => {
-    if (!isHost) return;
-
-    try {
-      await supabase.from('queue_items').delete().eq('id', songId);
-      toast.success('Song removed from queue');
-    } catch (error) {
-      console.error('Error removing song:', error);
-      toast.error('Failed to remove song. Please try again.');
-    }
-  };
-
 
   return (
     <Card className={`flex flex-col ${!height ? 'h-auto' : ''}`} style={height ? { height } : {}}>
-      <CardHeader className="pb-4 xl:pb-6">
+      <CardHeader className="pb-4 xl:pb-6 flex flex-row items-center justify-between">
         <CardTitle className="xl:text-xl 2xl:text-2xl">{title}</CardTitle>
       </CardHeader>
       <CardContent className={`${height ? 'flex-grow overflow-y-auto min-h-0' : 'max-h-[1200px] overflow-y-auto xl:min-h-[500px] 2xl:min-h-[600px]'} xl:px-6 2xl:px-8`}>
-        {queue.length === 0 ? (
+        {loading && queue.length === 0 ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : queue.length === 0 ? (
           <div className="text-center py-8 bg-muted rounded-lg p-4 flex flex-col justify-center min-h-[200px]">
             <p className="text-lg font-medium">No songs in {isHistory ? 'history' : 'queue'}</p>
             {!isHistory && <p className="text-muted-foreground text-sm mt-2">Be the first to add a song!</p>}
@@ -148,9 +164,40 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
               <Card className="relative overflow-hidden border-accent/50 ring-2 ring-accent/20 shadow-lg bg-gradient-to-br from-accent/10 to-transparent">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent to-primary" />
                 <CardContent className={`${isHostView ? 'p-4' : 'p-4 sm:p-6 xl:p-6 2xl:p-8'}`}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Star className="w-5 h-5 xl:w-6 xl:h-6 text-accent" />
-                    <h3 className="text-lg xl:text-xl 2xl:text-2xl font-bold text-foreground">Next Up</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-5 h-5 xl:w-6 xl:h-6 text-accent" />
+                      <h3 className="text-lg xl:text-xl 2xl:text-2xl font-bold text-foreground">Next Up</h3>
+                      {sortedQueue[0].is_pinned && (
+                        <span className="px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full uppercase tracking-wider">Pinned</span>
+                      )}
+                    </div>
+                    {isHost && (
+                      <div className="flex gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className={`h-8 w-8 rounded-full ${sortedQueue[0].is_pinned ? 'text-primary' : 'text-muted-foreground'}`}
+                          onClick={() => onPin?.(sortedQueue[0].id, !sortedQueue[0].is_pinned)}
+                          title={sortedQueue[0].is_pinned ? "Unpin from top" : "Pin to top"}
+                        >
+                          <Star className={`h-4 w-4 ${sortedQueue[0].is_pinned ? 'fill-current' : ''}`} />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm('Veto this song? It will be removed and banned from this party.')) {
+                              onBlacklist?.(sortedQueue[0]);
+                            }
+                          }}
+                          title="Veto & Blacklist"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   
                   {(() => {
@@ -223,17 +270,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             >
                               <ThumbsDown className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
                             </Button>
-                            {isHost && (
-                              <Button
-                                onClick={() => handleRemoveSong(nextSong.id)}
-                                size="icon"
-                                variant="destructive"
-                                className="rounded-full w-7 h-7 xl:w-8 xl:h-8 mt-1"
-                                title="Remove song"
-                              >
-                                <Trash2 className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
-                              </Button>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -308,17 +344,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                               >
                                 <ThumbsDown className="w-5 h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
                               </Button>
-                              {isHost && (
-                                <Button
-                                  onClick={() => handleRemoveSong(nextSong.id)}
-                                  size="icon"
-                                  variant="destructive"
-                                  className="rounded-full w-10 h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 ml-2"
-                                  title="Remove song (Host only)"
-                                >
-                                  <Trash2 className="w-5 h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -347,7 +372,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                       <Card
                         key={song.id}
                         ref={(el) => { itemRefs.current[song.id] = el; }}
-                        className="relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50"
+                        className={`relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50 ${song.is_pinned ? 'border-primary/50' : ''}`}
                       >
                   {isNextUp && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
@@ -392,11 +417,14 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         
                         {/* Song title - ultra condensed */}
                         <div className="flex-1 min-w-0 px-1">
-                          <h3 className={`font-medium truncate leading-tight ${
-                            isNextUp ? 'text-accent' : 'text-foreground'
-                          } text-xs xl:text-sm`}>
-                            {song.title}
-                          </h3>
+                          <div className="flex items-center gap-1">
+                            <h3 className={`font-medium truncate leading-tight ${
+                              isNextUp ? 'text-accent' : 'text-foreground'
+                            } text-xs xl:text-sm`}>
+                              {song.title}
+                            </h3>
+                            {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                          </div>
                         </div>
                         
                         {/* Votes display - minimal */}
@@ -435,15 +463,28 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                               <ThumbsDown className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
                             </Button>
                             {isHost && (
-                              <Button
-                                onClick={() => handleRemoveSong(song.id)}
-                                size="icon"
-                                variant="destructive"
-                                className="rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0 ml-1"
-                                title="Remove song"
-                              >
-                                <Trash2 className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
-                              </Button>
+                              <div className="flex gap-0.5 ml-1">
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className={`h-5 w-5 xl:h-6 xl:w-6 rounded-full ${song.is_pinned ? 'text-primary' : 'text-muted-foreground'}`}
+                                  onClick={() => onPin?.(song.id, !song.is_pinned)}
+                                >
+                                  <Star className={`h-2.5 w-2.5 xl:h-3 xl:w-3 ${song.is_pinned ? 'fill-current' : ''}`} />
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    if (confirm('Veto this song?')) {
+                                      onBlacklist?.(song);
+                                    }
+                                  }}
+                                  size="icon"
+                                  variant="destructive"
+                                  className="rounded-full w-5 h-5 xl:w-6 xl:h-6 p-0"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5 xl:w-3 xl:h-3" />
+                                </Button>
+                              </div>
                             )}
                           </div>
                         )}
@@ -490,7 +531,10 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         {/* Middle section - Song info */}
                         <div className="flex-1 min-w-0 px-1">
                           <div className="flex flex-col">
-                            <h3 className="font-medium text-sm sm:text-base xl:text-lg line-clamp-2 leading-tight mb-0.5">{song.title}</h3>
+                            <div className="flex items-center gap-1">
+                              <h3 className="font-medium text-sm sm:text-base xl:text-lg line-clamp-2 leading-tight mb-0.5">{song.title}</h3>
+                              {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                            </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <ThumbsUp className="w-3 h-3" />
@@ -530,17 +574,6 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             >
                               <ThumbsDown className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
                             </Button>
-                            {isHost && (
-                              <Button
-                                onClick={() => handleRemoveSong(song.id)}
-                                size="icon"
-                                variant="destructive"
-                                className="rounded-full w-7 h-7 sm:w-8 sm:h-8 xl:w-10 xl:h-10 ml-1"
-                                title="Remove song"
-                              >
-                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
-                              </Button>
-                            )}
                           </div>
                         )}
                       </div>

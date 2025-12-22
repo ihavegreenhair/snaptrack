@@ -97,7 +97,9 @@ function PartyPage() {
     nowPlaying,
     loading: queueLoading,
     refreshQueue,
-    markAsPlayed
+    markAsPlayed,
+    pinSong,
+    blacklistSong
   } = useQueue({ partyId, fingerprint });
 
   // 3. Suggestions (AI)
@@ -119,6 +121,8 @@ function PartyPage() {
   // 4. Playback Logic (Host Controls, Auto-Add)
   const {
     autoAddInProgress,
+    autoAddEnabled,
+    setAutoAddEnabled,
     skipVoteCount,
     hasSkipVoted,
     skipVoting,
@@ -236,6 +240,8 @@ function PartyPage() {
                 onBecomeHost={() => setShowHostModal(true)}
                 onClearQueue={isHost ? clearQueue : undefined}
                 onPrePopulate={isHost ? handlePrePopulate : undefined}
+                autoAddEnabled={autoAddEnabled}
+                onToggleAutoAdd={isHost ? () => setAutoAddEnabled(!autoAddEnabled) : undefined}
                 onEndParty={isHost ? () => {
                   if (confirm('Are you sure you want to end the party for everyone?')) {
                     // Logic to delete party or just logout
@@ -333,7 +339,7 @@ function PartyPage() {
               isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6'
             }`}>
               {/* Left/Main Column: Player */}
-              <div className={`h-full ${
+              <div className={`h-full sticky top-20 sm:relative sm:top-0 z-30 ${
                 isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2'
               }`} ref={nowPlayingEl}>
                 <NowPlaying
@@ -389,6 +395,9 @@ function PartyPage() {
                   height={screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined)}
                   isHostView={isHost}
                   userProfiles={userProfiles}
+                  onPin={pinSong}
+                  onBlacklist={blacklistSong}
+                  loading={queueLoading}
                 />
               </div>
             </div>

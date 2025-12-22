@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import YouTubeSearch from './YouTubeSearch';
 import PhotoUploader from './PhotoUploader';
 import { supabase } from '../lib/supabase';
@@ -23,17 +23,32 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestedSong | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const submissionInProgress = useRef(false);
   const [showPhotoUploader, setShowPhotoUploader] = useState(false);
   const [hasSearched, setHasSearched] = useState(false); // Track if user has made a search
   const [searchQuery, setSearchQuery] = useState<string>(''); // Query to pass to search
+  const [dedication, setDedication] = useState<string>('');
   const toast = useToast();
 
   // Suggestions are now managed by the parent App component
 
 
-  const handleVideoSelect = (video: YouTubeVideo) => {
+  const handleVideoSelect = async (video: YouTubeVideo) => {
+    // Check if song is blacklisted
+    const { data: blacklisted } = await supabase
+      .from('blacklisted_songs')
+      .select('id')
+      .eq('video_id', video.id)
+      .eq('party_id', partyId)
+      .single();
+
+    if (blacklisted) {
+      toast.error('This song has been banned from this party!');
+      return;
+    }
+
     setSelectedVideo(video);
     setSelectedSuggestion(null); // Clear suggestion selection
     setShowPhotoUploader(true); // Show photo uploader
@@ -134,6 +149,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       submitted_by: fingerprint,
       photo_url: publicUrl,
       party_id: partyId,
+      dedication: dedication.trim() || null
     });
     console.log('Database insert completed:', { error: queueError });
 
@@ -169,8 +185,12 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
       });
       
       toast.success('Song added to queue!');
-      // Close modal
-      onSongAdded?.();
+      setIsSuccess(true);
+      
+      // Delay closing modal to show success animation
+      setTimeout(() => {
+        onSongAdded?.();
+      }, 1500);
     }
 
     setSubmitting(false);
@@ -184,7 +204,22 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
     setHasSearched(false);
     setHasSubmitted(false);
     setSearchQuery('');
+    setDedication('');
   };
+
+  if (isSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4 success-pop">
+        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
+          <Check className="w-10 h-10 text-white" />
+        </div>
+        <div className="text-center">
+          <h3 className="text-2xl font-bold">Banger Added!</h3>
+          <p className="text-muted-foreground">Get ready, your song is in the mix.</p>
+        </div>
+      </div>
+    );
+  }
 
   const currentSelection = selectedVideo || selectedSuggestion;
 
@@ -274,7 +309,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
         </div>
       ) : (
         <div className="space-y-3 sm:space-y-4">
-          <h3 className="text-lg sm:text-xl font-semibold">Take Your Photo</h3>
+          <h3 className="text-lg sm:text-xl font-semibold">Final Steps</h3>
           {currentSelection && (
             <div className="flex items-center gap-3 sm:gap-4 p-3 bg-muted rounded-lg">
               <img 
@@ -287,6 +322,18 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
               </p>
             </div>
           )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Add a Dedication (optional)</label>
+            <input 
+              type="text"
+              placeholder="Who is this song for?"
+              value={dedication}
+              onChange={(e) => setDedication(e.target.value)}
+              className="w-full p-3 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+              maxLength={100}
+            />
+          </div>
           
           {submitting && (
             <div className="text-center py-4">
@@ -305,6 +352,7 @@ const SubmitSong: React.FC<SubmitSongProps> = ({ onSongAdded, suggestions, sugge
               setSelectedSuggestion(null);
               setHasSubmitted(false);
               setSearchQuery('');
+              setDedication('');
               submissionInProgress.current = false;
             }}
             variant="outline"

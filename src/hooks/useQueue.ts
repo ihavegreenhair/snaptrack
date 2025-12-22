@@ -34,8 +34,11 @@ export function useQueue({ partyId, fingerprint }: UseQueueProps) {
         const unplayed = data.filter(item => !item.played);
         const played = data.filter(item => item.played);
         
-        // Sort unplayed: Votes desc, then time asc
+        // Sort unplayed: Pinned first, then Votes desc, then time asc
         const allSortedUnplayed = unplayed.sort((a, b) => {
+          if (a.is_pinned !== b.is_pinned) {
+            return a.is_pinned ? -1 : 1;
+          }
           if (a.votes !== b.votes) {
             return b.votes - a.votes;
           }
@@ -200,6 +203,36 @@ export function useQueue({ partyId, fingerprint }: UseQueueProps) {
     }
   };
 
+  const pinSong = async (songId: string, isPinned: boolean) => {
+    if (!partyId) return;
+    try {
+      await supabase
+        .from('queue_items')
+        .update({ is_pinned: isPinned })
+        .eq('id', songId)
+        .eq('party_id', partyId);
+    } catch (error) {
+      console.error('Error pinning song:', error);
+    }
+  };
+
+  const blacklistSong = async (song: QueueItem) => {
+    if (!partyId) return;
+    try {
+      // 1. Add to blacklist
+      await supabase.from('blacklisted_songs').insert({
+        video_id: song.video_id,
+        title: song.title,
+        party_id: partyId
+      });
+
+      // 2. Remove from queue
+      await removeSong(song.id);
+    } catch (error) {
+      console.error('Error blacklisting song:', error);
+    }
+  };
+
   return {
     queue,
     history,
@@ -209,6 +242,8 @@ export function useQueue({ partyId, fingerprint }: UseQueueProps) {
     handleVote,
     markAsPlayed,
     removeSong,
+    pinSong,
+    blacklistSong,
     refreshQueue: loadQueue
   };
 }

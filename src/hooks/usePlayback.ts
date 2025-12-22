@@ -24,13 +24,14 @@ export function usePlayback({
 }: UsePlaybackProps) {
   
   const [autoAddInProgress, setAutoAddInProgress] = useState(false);
+  const [autoAddEnabled, setAutoAddEnabled] = useState(true);
   const [skipVoteCount, setSkipVoteCount] = useState(0);
   const [hasSkipVoted, setHasSkipVoted] = useState(false);
   const [skipVoting, setSkipVoting] = useState(false);
 
   // Auto-add suggestion when queue is empty (host only)
   useEffect(() => {
-    if (!isHost || !partyId || queue.length > 0 || suggestions.length === 0 || history.length === 0 || autoAddInProgress) {
+    if (!isHost || !partyId || !autoAddEnabled || queue.length > 0 || suggestions.length === 0 || history.length === 0 || autoAddInProgress) {
       return;
     }
 
@@ -39,7 +40,7 @@ export function usePlayback({
     }, 2000); 
     
     return () => clearTimeout(timer);
-  }, [isHost, queue.length, suggestions.length, history.length, autoAddInProgress, partyId]);
+  }, [isHost, queue.length, suggestions.length, history.length, autoAddInProgress, partyId, autoAddEnabled]);
 
   // Skip Votes Logic
   useEffect(() => {
@@ -155,6 +156,8 @@ export function usePlayback({
 
   return {
     autoAddInProgress,
+    autoAddEnabled,
+    setAutoAddEnabled,
     skipVoteCount,
     hasSkipVoted,
     skipVoting,

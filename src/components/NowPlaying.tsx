@@ -378,6 +378,13 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           </PhotoZoom>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg sm:text-xl xl:text-lg 2xl:text-xl font-semibold mb-1 break-words">{song.title}</h3>
+            {song.dedication && (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 mb-2 inline-block max-w-full">
+                <p className="text-xs sm:text-sm text-primary italic break-words">
+                  " {song.dedication} "
+                </p>
+              </div>
+            )}
             <p className="text-muted-foreground text-xs sm:text-sm xl:text-xs 2xl:text-sm mb-2">Submitted by a party-goer</p>
             <p className="text-xs xl:text-xs 2xl:text-sm text-muted-foreground/80 hidden sm:block">Click photo to view details</p>
           </div>

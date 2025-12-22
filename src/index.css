@@ -282,6 +282,27 @@
     }
   }
 
+  @keyframes successPop {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes successBeam {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .success-pop {
+    animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .success-beam {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background-size: 200% 100%;
+    animation: successBeam 1.5s infinite;
+  }
+
   .vote-glow {
     animation: voteGlow 0.6s ease-in-out;
   }

@@ -31,6 +31,8 @@ export type QueueItem = {
   photo_url: string;
   submitted_at: string;
   party_id: string;
+  dedication?: string | null;
+  is_pinned?: boolean;
 };
 
 /**

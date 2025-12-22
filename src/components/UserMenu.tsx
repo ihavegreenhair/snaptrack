@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, LogOut, Trash2, ShieldCheck, RefreshCw, Palette, Sun, Moon, Sparkles, Sunset, Waves } from 'lucide-react';
+import { User, LogOut, Trash2, ShieldCheck, RefreshCw, Palette, Sun, Moon, Sparkles, Sunset, Waves, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,8 @@ interface UserMenuProps {
   onClearQueue?: () => void;
   onEndParty?: () => void;
   onPrePopulate?: () => void;
+  autoAddEnabled?: boolean;
+  onToggleAutoAdd?: () => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ 
@@ -33,7 +35,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onBecomeHost, 
   onClearQueue,
   onEndParty,
-  onPrePopulate
+  onPrePopulate,
+  autoAddEnabled,
+  onToggleAutoAdd
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -96,6 +100,17 @@ const UserMenu: React.FC<UserMenuProps> = ({
         {isHost && (
           <>
             <DropdownMenuLabel className="text-xs uppercase text-muted-foreground">Host Actions</DropdownMenuLabel>
+            
+            {onToggleAutoAdd && (
+              <DropdownMenuItem onClick={onToggleAutoAdd}>
+                <div className="flex items-center w-full">
+                  <RefreshCw className={`mr-2 h-4 w-4 ${autoAddEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                  <span className="flex-1">Auto-play Radio</span>
+                  {autoAddEnabled && <Check className="h-4 w-4 text-green-500" />}
+                </div>
+              </DropdownMenuItem>
+            )}
+
             {onPrePopulate && (
               <DropdownMenuItem onClick={onPrePopulate} className="text-blue-500">
                 <Sparkles className="mr-2 h-4 w-4" />
