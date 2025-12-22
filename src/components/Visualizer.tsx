@@ -5,7 +5,7 @@ import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
   | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' | 'matrix' | 'rooms' | 'bulb' 
-  | 'shapes' | 'vortex' | 'neural' | 'rings' | 'core3d' | 'cloud' | 'trees' | 'platonic' | 'helix'
+  | 'shapes' | 'vortex' | 'neural' | 'rings' | 'core3d' | 'cloud' | 'trees' | 'platonic' | 'helix' | 'flower' | 'starfield'
   | 'vj' | 'none';
 
 interface VJState {
@@ -20,7 +20,7 @@ interface VJState {
   distortion: number;
   colorCycle: number;
   wireframe: boolean;
-  shapeType: 'box' | 'sphere' | 'pyramid' | 'torus';
+  shapeType: 'box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron';
   zoomLevel: number;
   fov: number;
 }
@@ -91,26 +91,26 @@ const FRAGMENT_SHADER = `
       float r = 1.0 + uBass * 0.3;
       d = deMenger(q / r) * r;
     } else if (uMode == 1) { // Columns
-      vec2 grid = mod(p.xz + 4.0, 8.0) - 4.0;
-      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.3 + uBass, 15.0, 0.3 + uBass));
+      vec2 grid = mod(p.xz + 6.0, 12.0) - 6.0;
+      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.5 + uBass, 15.0, 0.5 + uBass));
     } else if (uMode == 4) { // City
-      vec2 g = mod(p.xz, 8.0) - 4.0;
-      float h = (sin(floor(p.x/8.0)) * 6.0 + 6.0) + uBass * 5.0;
-      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(1.2, h, 1.2));
+      vec2 g = mod(p.xz, 10.0) - 5.0;
+      float h = (sin(floor(p.x/10.0)) * 8.0 + 8.0) + uBass * 6.0;
+      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(1.5, h, 1.5));
     } else if (uMode == 15) { // Bulb
-      vec3 z = p * 0.5;
+      vec3 z = p * 0.4;
       float dr = 1.0, r = 0.0, pwr = 8.0 + uBass * 2.0;
       for (int i=0; i<4; i++) {
         r = length(z); if (r>2.0) break;
         float theta = acos(z.z/r), phi = atan(z.y,z.x);
         dr = pow(r, pwr-1.0)*pwr*dr + 1.0;
         float zr = pow(r, pwr);
-        z = zr*vec3(sin(theta*pwr)*cos(phi*pwr), sin(phi*pwr)*sin(theta*pwr), cos(theta*pwr)) + p*0.5;
+        z = zr*vec3(sin(theta*pwr)*cos(phi*pwr), sin(phi*pwr)*sin(theta*pwr), cos(theta*pwr)) + p*0.4;
       }
       d = 0.5*log(r)*r/dr;
     } else { // Blob
       d = sdSphere(p, 2.0 + uBass);
-      d += sin(p.x * 2.0 + uTime) * 0.2 * uMid;
+      d += sin(p.x * 2.0 + uTime) * 0.3 * uMid;
     }
     return d;
   }
@@ -126,22 +126,23 @@ const FRAGMENT_SHADER = `
 
   void main() {
     vec2 uv = vUv * 2.0 - 1.0;
-    vec3 ro = vec3(0.0, 2.0, 15.0 - uZoom); 
-    vec3 rd = normalize(vec3(uv, -1.5));
+    // ro (Ray Origin) - Stay further back to prevent near-clipping
+    vec3 ro = vec3(0.0, 4.0, 20.0 - uZoom); 
+    vec3 rd = normalize(vec3(uv, -1.2));
     
     float t = uTime * 0.1;
     mat2 rot = mat2(cos(t), sin(t), -sin(t), cos(t));
     rd.xz *= rot; ro.xz *= rot;
 
     float t_dist = 0.0;
-    for(int i=0; i<80; i++) {
+    for(int i=0; i<100; i++) {
       float d = map(ro + rd * t_dist);
-      if (abs(d) < 0.001 || t_dist > 40.0) break;
-      t_dist += d * 0.8; // Safer step
+      if (abs(d) < 0.001 || t_dist > 60.0) break;
+      t_dist += d * 0.75; // Even safer step size
     }
 
-    vec3 col = vec3(0.01, 0.0, 0.03); // Deep space
-    if (t_dist < 40.0) {
+    vec3 col = vec3(0.01, 0.0, 0.02); // Deep space background
+    if (t_dist < 60.0) {
       vec3 p = ro + rd * t_dist;
       vec3 n = getNormal(p);
       vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
@@ -149,12 +150,13 @@ const FRAGMENT_SHADER = `
       
       col = mix(uColorP, uColorS, n.y * 0.5 + 0.5);
       col *= diff;
-      col += pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 16.0) * 0.3; // Specular
-      col *= (1.0 - t_dist/40.0);
+      col += pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 32.0) * 0.4; // Specular
+      col *= (1.0 - t_dist/60.0); // Smooth fog
     }
     
-    // Scanlines & Grain
-    float scanline = sin(vUv.y * 1000.0) * 0.02;
+    // Post-FX
+    col += uBass * 0.05 * uColorP;
+    float scanline = sin(vUv.y * 1200.0) * 0.02;
     gl_FragColor = vec4(col - scanline, 1.0);
   }
 `;
@@ -173,7 +175,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const containerRef = useRef<HTMLDivElement>(null);
   const { activeMap, recordCue, saveMap } = useSongMapper(_videoId);
   
-  // v6.0 Engine State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
@@ -200,12 +201,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
-  // Brain State
   const energyHistory = useRef<number[]>([]);
   const beatCount = useRef(0);
   const lastBeatTime = useRef(0);
   const energyBuffer = useRef<number[]>([]);
   const dropCooldown = useRef(0);
+  const detectedBPM = useRef(120);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -217,7 +218,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const activeMode = mode === 'vj' ? currentVibe : mode;
   const isShaderMode = ['menger', 'columns', 'blob', 'lattice', 'city', 'landmass', 'gyroid', 'tunnel', 'lava', 'matrix', 'rooms', 'bulb'].includes(activeMode);
 
-  // Sync with Song Map
+  // Sync with Map
   useEffect(() => {
     if (!activeMap || !_currentTime) return;
     const cue = activeMap.cues.find(c => Math.abs(c.time - _currentTime) < 0.5);
@@ -246,12 +247,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     init();
   }, [mode, isPlaying]);
 
-  // VJ Brain (Randomizer Tree)
+  // VJ Brain
   const rollVJ = useCallback(() => {
     const shaderModes: VisualizerMode[] = ['city', 'columns', 'menger', 'tunnel', 'bulb'];
-    const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix'];
+    const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield'];
     const modes = [...shaderModes, ...meshModes];
-    const shapes: ('box' | 'sphere' | 'pyramid' | 'torus')[] = ['box', 'sphere', 'pyramid', 'torus'];
+    const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
     const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
     
     setCurrentVibe(modes[Math.floor(Math.random() * modes.length)]);
@@ -318,33 +319,48 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       const pMat = new THREE.MeshBasicMaterial({ color: vj.pColor, wireframe: vj.wireframe, transparent: true, opacity: 0.6 });
       const aMat = new THREE.MeshBasicMaterial({ color: vj.sColor, wireframe: true, transparent: true, opacity: 0.3 });
 
-      if (activeMode === 'shapes') {
-        for (let i = 0; i < 60; i++) {
-          const geo = vj.shapeType === 'box' ? new THREE.BoxGeometry(1,1,1) : new THREE.IcosahedronGeometry(0.8, 0);
-          const mesh = new THREE.Mesh(geo, i % 2 === 0 ? pMat : aMat);
-          mesh.position.set(THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30));
+      const getGeo = (size = 1) => {
+        if (vj.shapeType === 'box') return new THREE.BoxGeometry(size, size, size);
+        if (vj.shapeType === 'sphere') return new THREE.SphereGeometry(size * 0.6, 12, 12);
+        if (vj.shapeType === 'pyramid') return new THREE.ConeGeometry(size * 0.6, size, 4);
+        if (vj.shapeType === 'icosahedron') return new THREE.IcosahedronGeometry(size, 0);
+        return new THREE.TorusGeometry(size * 0.5, size * 0.2, 8, 24);
+      };
+
+      if (activeMode === 'shapes' || activeMode === 'platonic') {
+        const count = activeMode === 'shapes' ? 60 : 25;
+        for (let i = 0; i < count; i++) {
+          const mesh = new THREE.Mesh(getGeo(1.0 + Math.random()), i % 2 === 0 ? pMat : aMat);
+          mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
           group.add(mesh);
         }
       } else if (activeMode === 'trees') {
         for (let i = 0; i < 15; i++) {
           const tree = new THREE.Group();
-          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 5), pMat);
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 8), pMat);
           tree.add(trunk);
-          tree.position.set(THREE.MathUtils.randFloatSpread(40), -5, THREE.MathUtils.randFloatSpread(40));
+          tree.position.set(THREE.MathUtils.randFloatSpread(50), -8, THREE.MathUtils.randFloatSpread(50));
           group.add(tree);
         }
-      } else if (activeMode === 'platonic') {
-        for (let i = 0; i < 20; i++) {
-          const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(2, 0), aMat);
-          mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
-          group.add(mesh);
-        }
       } else if (activeMode === 'helix') {
-        for (let i = 0; i < 100; i++) {
-          const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), pMat);
-          const t = i * 0.2;
-          sphere.position.set(Math.sin(t) * 5, t * 2 - 10, Math.cos(t) * 5);
+        for (let i = 0; i < 120; i++) {
+          const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), pMat);
+          const t = i * 0.15;
+          sphere.position.set(Math.sin(t) * 6, t * 2 - 12, Math.cos(t) * 6);
           group.add(sphere);
+        }
+      } else if (activeMode === 'starfield') {
+        const geo = new THREE.BufferGeometry();
+        const verts = [];
+        for (let i = 0; i < 3000; i++) verts.push(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100));
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 }));
+        group.add(pts);
+      } else if (activeMode === 'flower') {
+        for (let i = 0; i < 12; i++) {
+          const petal = new THREE.Mesh(new THREE.TorusKnotGeometry(2, 0.5, 100, 16), aMat);
+          petal.rotation.z = (i / 12) * Math.PI * 2;
+          group.add(petal);
         }
       }
     }
@@ -381,7 +397,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const sAvg = energyBuffer.current.slice(-5).reduce((a,b)=>a+b,0)/5;
         const lAvg = energyBuffer.current.reduce((a,b)=>a+b,0)/energyBuffer.current.length;
         
-        if ((avg - sAvg) > 0.3 && avg > lAvg * 1.6 && now > dropCooldown.current) {
+        if ((avg - sAvg) > 0.35 && avg > lAvg * 1.7 && now > dropCooldown.current) {
           rollVJ(); 
           if (_currentTime) recordCue(_currentTime, 'DROP');
           dropCooldown.current = now + 6000;
@@ -394,7 +410,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         if (avg > avgHist * 1.2 && avg > 0.2 && now - lastBeatTime.current > 300) {
           isBeat = true; lastBeatTime.current = now; beatCount.current++;
           const bpm = Math.round(60000 / (now - lastBeatTime.current));
-          if (bpm > 40 && bpm < 220) onBPMChange?.(bpm);
+          if (bpm > 40 && bpm < 220) {
+            detectedBPM.current = bpm;
+            onBPMChange?.(bpm);
+          }
           
           if (mode === 'vj' && beatCount.current % 16 === 0) {
             rollVJ();
@@ -403,7 +422,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
 
         if (beatCount.current > 0 && beatCount.current % 128 === 0) {
-          saveMap(120);
+          saveMap(detectedBPM.current);
         }
 
         if (isShaderMode && shaderPlaneRef.current) {
@@ -420,21 +439,20 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         if (!isShaderMode && meshGroupRef.current) {
           const group = meshGroupRef.current;
           const damping = (0.05 + avg * 0.2);
-          group.rotation.y += 0.001 * vj.rotationSpeed * (damping * 10.0);
+          group.rotation.y += 0.001 * vj.rotationSpeed * (damping * 8.0);
           const hueShift = (now * 0.01) % 360;
 
           group.children.forEach((obj, i) => {
             const mesh = obj as THREE.Mesh;
-            const distX = 1 + (high * 2.0);
-            const distY = 1 + (bass * 2.5);
-            const distZ = 1 + (mid * 1.5);
+            const distX = 1 + (high * 1.5);
+            const distY = 1 + (bass * 2.0);
+            const distZ = 1 + (mid * 1.2);
             
-            if (isBeat) { mesh.scale.set(distX * 1.2, distY * 1.2, distZ * 1.2); }
+            if (isBeat) { mesh.scale.set(distX * 1.15, distY * 1.15, distZ * 1.15); }
             else { mesh.scale.lerp(new THREE.Vector3(distX, distY, distZ), 0.05); }
             
-            if (i % 3 === 0) {
-              const mat = mesh.material as THREE.MeshBasicMaterial;
-              mat.color.setHSL((vj.primaryHue + hueShift) / 360, 0.8, 0.5 + avg * 0.2);
+            if (i % 3 === 0 && mesh.material instanceof THREE.MeshBasicMaterial) {
+              mesh.material.color.setHSL((vj.primaryHue + hueShift) / 360, 0.8, 0.5 + avg * 0.2);
             }
           });
           if (isBeat) group.position.y = bass * 0.1;
