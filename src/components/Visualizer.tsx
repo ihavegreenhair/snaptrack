@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
+  | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' | 'matrix' | 'rooms' | 'bulb' 
   | 'shapes' | 'vortex' | 'neural' | 'rings' | 'core3d' | 'cloud' | 'trees' | 'platonic' | 'helix' | 'flower' | 'starfield'
   | 'crystal' | 'voxels' | 'fibonacci' | 'galaxy' | 'ribbons' | 'swarm' | 'rubik' | 'islands' | 'circuit' | 'rain' | 'pulse'
   | 'vj' | 'none';
@@ -15,6 +16,7 @@ interface VJState {
   primaryHue: number;
   secondaryHue: number;
   complexity: number;
+  objectCount: number;
   rotationSpeed: number;
   motionIntensity: number;
   distortionScale: number;
@@ -47,7 +49,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const containerRef = useRef<HTMLDivElement>(null);
   const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
   
-  // v8.0 Autonomous Agent State
+  // v8.1 Weighted Agent State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
@@ -55,6 +57,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     primaryHue: PALETTES[0].ph,
     secondaryHue: PALETTES[0].sh,
     complexity: 1,
+    objectCount: 60,
     rotationSpeed: 1.0, 
     motionIntensity: 1.0,
     distortionScale: 1.0,
@@ -114,13 +117,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
-    const modes: VisualizerMode[] = [
-      'shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield',
-      'crystal', 'voxels', 'fibonacci', 'galaxy', 'ribbons', 'swarm', 'rubik', 'islands', 'circuit', 'rain', 'pulse'
-    ];
+    const shaderModes: VisualizerMode[] = ['city', 'columns', 'menger', 'tunnel', 'bulb'];
+    const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield'];
+    const modes = [...shaderModes, ...meshModes];
     const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
     const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
     
+    // Bias objectCount toward lower numbers (20 to 200)
+    // Math.pow(random, 2) makes smaller numbers much more likely
+    const weightedCount = Math.floor(20 + Math.pow(Math.random(), 2) * 180);
+
     setCurrentVibe(modes[Math.floor(Math.random() * modes.length)]);
     setVj(prev => ({
       ...prev,
@@ -129,6 +135,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       primaryHue: p.ph,
       secondaryHue: p.sh,
       complexity: 0.5 + Math.random() * 2.5,
+      objectCount: weightedCount,
       rotationSpeed: 0.2 + Math.random() * 2.0,
       motionIntensity: 0.5 + Math.random() * 2.0,
       distortionScale: 0.5 + Math.random() * 3.0,
@@ -201,7 +208,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
 
     // --- Autonomous Agent Factory ---
-    const count = Math.floor(80 * vj.complexity);
+    const count = vj.objectCount;
     for (let i = 0; i < count; i++) {
       const mesh = new THREE.Mesh(getGeo(0.5 + Math.random() * 1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
       
