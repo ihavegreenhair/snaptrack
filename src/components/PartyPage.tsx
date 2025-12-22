@@ -422,6 +422,7 @@ function PartyPage() {
                     hasSkipVoted={hasSkipVoted}
                     onSkipVote={handleSkipVote}
                     skipVoting={skipVoting}
+                    hideVideo={isDashboardMode}
                   />
                 </div>
               </div>
@@ -481,6 +482,7 @@ function PartyPage() {
                   onPin={pinSong}
                   onBlacklist={blacklistSong}
                   loading={queueLoading}
+                  compact={isDashboardMode}
                 />
               </div>
             </div>

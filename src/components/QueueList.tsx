@@ -22,6 +22,7 @@ interface QueueListProps {
   onPin?: (id: string, pinned: boolean) => void;
   onBlacklist?: (song: QueueItem) => void;
   loading?: boolean;
+  compact?: boolean;
 }
 
 interface UserVotes {
@@ -40,7 +41,8 @@ export default function QueueList({
   userProfiles = {},
   onPin,
   onBlacklist,
-  loading
+  loading,
+  compact
 }: QueueListProps) {
   const [userVotes, setUserVotes] = useState<UserVotes>({});
   const [fingerprint, setFingerprint] = useState<string>('');
@@ -395,17 +397,21 @@ export default function QueueList({
                         isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
                       }`}>
                         {isHostView ? (
-                          // Ultra-compact host layout - minimal horizontal design
-                          <div className="flex items-center gap-2">
-                            {/* Position number - ultra small */}
-                            {!isHistory && (
-                              <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
-                                {actualIndex + 1}
-                              </div>
-                            )}
-                            
-                            {/* Photo - ultra small */}
-                            <PhotoZoom 
+                                                // Ultra-compact host layout - minimal horizontal design
+                                                <div className="flex items-center gap-2">
+                                                  {/* Position number - ultra small */}
+                                                  {!isHistory && !compact && (
+                                                    <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
+                                                      {actualIndex + 1}
+                                                    </div>
+                                                  )}
+                                                  
+                                                  {/* Compact indicator for Dashboard */}
+                                                  {compact && actualIndex === 1 && (
+                                                    <div className="w-1.5 h-8 bg-primary rounded-full mr-1" />
+                                                  )}
+                                                  
+                                                  {/* Photo - ultra small */}                            <PhotoZoom 
                               src={song.photo_url} 
                               alt="Submitter photo"
                               song={song}
@@ -451,10 +457,9 @@ export default function QueueList({
                               </span>
                             </div>
                             
-                            {/* Ultra-compact voting controls */}
-                            {!isHistory && (
-                              <div className="flex items-center gap-0.5 flex-shrink-0">
-                                <Button
+                                                    {/* Ultra-compact voting controls */}
+                                                    {!isHistory && !compact && (
+                                                      <div className="flex items-center gap-0.5 flex-shrink-0">                                <Button
                                   onClick={() => handleVote(song.id, 1)}
                                   disabled={voting === song.id}
                                   size="icon"

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
 import QRCode from './QRCode';
 import { useToast } from './ui/toast';
+import { cn } from '@/lib/utils';
 
 interface NowPlayingProps {
   song: QueueItem | null;
@@ -21,6 +22,7 @@ interface NowPlayingProps {
   hasSkipVoted?: boolean;
   onSkipVote?: () => void;
   skipVoting?: boolean;
+  hideVideo?: boolean;
 }
 
 declare global {
@@ -30,7 +32,7 @@ declare global {
   }
 }
 
-export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3, skipVoteCount = 0, hasSkipVoted = false, onSkipVote, skipVoting = false }: NowPlayingProps) {
+export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSongStartedPlaying, isHost, partyCode, onAddSong, skipVotesRequired = 3, skipVoteCount = 0, hasSkipVoted = false, onSkipVote, skipVoting = false, hideVideo = false }: NowPlayingProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -319,12 +321,15 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
 
   // HOST VIEW: Full YouTube player controls
   return (
-    <Card className="h-full max-h-[90vh] xl:max-h-[95vh] flex flex-col">
+    <Card className="h-full max-h-[90vh] xl:max-h-[95vh] flex flex-col overflow-hidden">
       <CardHeader className="flex-shrink-0">
-        <CardTitle className="xl:text-xl 2xl:text-2xl">Now Playing</CardTitle>
+        <CardTitle className="xl:text-xl 2xl:text-2xl flex items-center justify-between">
+          <span>Now Playing</span>
+          {hideVideo && <span className="text-xs text-muted-foreground animate-pulse">VJ MODE ACTIVE</span>}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 flex-1 overflow-hidden flex flex-col">
-        <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
+        <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden group">
           {playerError ? (
             <div className="w-full h-full flex items-center justify-center bg-red-50 border-2 border-red-200">
               <div className="text-center p-6">
@@ -354,18 +359,28 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             </div>
           ) : (
             <>
+              {/* Video element - invisible but present if hideVideo is true */}
               <div
                 ref={containerRef}
-                className="w-full h-full"
+                className={cn("w-full h-full", hideVideo && "opacity-0 absolute pointer-events-none")}
               />
+              
+              {/* Overlay photo for Dashboard mode */}
+              {hideVideo && song && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                  <img src={song.photo_url} className="w-full h-full object-cover opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                </div>
+              )}
+
               {!hasUserInteracted && song && !isPlaying && (
                 <div 
-                  className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer"
+                  className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer z-40"
                   onClick={handlePlayButtonClick}
                 >
-                  <div className="text-center text-white p-4 bg-black/60 rounded-lg">
+                  <div className="text-center text-white p-4 bg-black/60 rounded-lg backdrop-blur-sm border border-white/10">
                     <div className="text-lg font-semibold mb-2">Click to Play</div>
-                    <div className="text-sm opacity-80">This will enable autoplay for subsequent songs.</div>
+                    <div className="text-sm opacity-80">This will enable audio reaction for the VJ.</div>
                   </div>
                 </div>
               )}
@@ -407,7 +422,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               onClick={handlePlayButtonClick}
               variant="ghost"
               size="icon"
-              className="w-16 h-16 sm:w-20 sm:h-20 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full bg-primary/20 hover:bg-primary/30"
+              className="w-16 h-16 sm:w-20 sm:h-20 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full bg-primary/20 hover:bg-primary/30 transition-all hover:scale-110 active:scale-95"
               disabled={!isPlayerReady || !!playerError}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
@@ -417,7 +432,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               onClick={() => onSkip(getPlaybackProgress())}
               variant="ghost"
               size="icon"
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-transform duration-200 ease-in-out hover:scale-105"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-all hover:scale-110 active:scale-95"
               disabled={!isPlayerReady || !!playerError}
               aria-label="Skip song"
             >
@@ -427,7 +442,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               onClick={onClearQueue}
               variant="ghost"
               size="icon"
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/20 hover:bg-destructive/30"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/20 hover:bg-destructive/30 transition-all hover:scale-110 active:scale-95"
               title="Clear entire queue"
               aria-label="Clear queue"
             >
