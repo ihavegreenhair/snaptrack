@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
+import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
   | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' | 'matrix' | 'rooms' | 'bulb' 
@@ -54,13 +55,22 @@ const FRAGMENT_SHADER = `
   uniform float uZoom;
   varying vec2 vUv;
 
-  // --- SDF Utils ---
+  // --- SDF Math Utils ---
   float sdBox(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
   }
   float sdSphere(vec3 p, float s) { return length(p) - s; }
-  
+  float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+  }
+  float sdGyroid(vec3 p, float scale, float thickness, float bias) {
+    p *= scale;
+    return abs(dot(sin(p), cos(p.zxy)) - bias) / scale - thickness;
+  }
+
+  // --- Recursive Fractals ---
   float deMenger(vec3 p) {
     float d = sdBox(p, vec3(1.0));
     float s = 1.0;
@@ -77,15 +87,16 @@ const FRAGMENT_SHADER = `
   float map(vec3 p) {
     float d = 1000.0;
     if (uMode == 0) { // Menger
-      vec3 q = mod(p + 4.0, 8.0) - 4.0;
-      d = deMenger(q);
+      vec3 q = mod(p + 6.0, 12.0) - 6.0;
+      float r = 1.0 + uBass * 0.3;
+      d = deMenger(q / r) * r;
     } else if (uMode == 1) { // Columns
       vec2 grid = mod(p.xz + 4.0, 8.0) - 4.0;
-      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.5 + uBass, 20.0, 0.5 + uBass));
+      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.3 + uBass, 15.0, 0.3 + uBass));
     } else if (uMode == 4) { // City
-      vec2 g = mod(p.xz, 6.0) - 3.0;
-      float h = (sin(floor(p.x/6.0)) * 5.0 + 5.0) + uBass * 4.0;
-      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(1.0, h, 1.0));
+      vec2 g = mod(p.xz, 8.0) - 4.0;
+      float h = (sin(floor(p.x/8.0)) * 6.0 + 6.0) + uBass * 5.0;
+      d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(1.2, h, 1.2));
     } else if (uMode == 15) { // Bulb
       vec3 z = p * 0.5;
       float dr = 1.0, r = 0.0, pwr = 8.0 + uBass * 2.0;
@@ -97,8 +108,9 @@ const FRAGMENT_SHADER = `
         z = zr*vec3(sin(theta*pwr)*cos(phi*pwr), sin(phi*pwr)*sin(theta*pwr), cos(theta*pwr)) + p*0.5;
       }
       d = 0.5*log(r)*r/dr;
-    } else {
+    } else { // Blob
       d = sdSphere(p, 2.0 + uBass);
+      d += sin(p.x * 2.0 + uTime) * 0.2 * uMid;
     }
     return d;
   }
@@ -114,20 +126,18 @@ const FRAGMENT_SHADER = `
 
   void main() {
     vec2 uv = vUv * 2.0 - 1.0;
-    vec3 ro = vec3(0.0, 3.0, 15.0 - uZoom);
-    vec3 rd = normalize(vec3(uv, -1.2));
+    vec3 ro = vec3(0.0, 2.0, 15.0 - uZoom); 
+    vec3 rd = normalize(vec3(uv, -1.5));
     
     float t = uTime * 0.1;
     mat2 rot = mat2(cos(t), sin(t), -sin(t), cos(t));
     rd.xz *= rot; ro.xz *= rot;
 
     float t_dist = 0.0;
-    int steps = 0;
-    for(int i=0; i<100; i++) {
+    for(int i=0; i<80; i++) {
       float d = map(ro + rd * t_dist);
       if (abs(d) < 0.001 || t_dist > 40.0) break;
-      t_dist += d * 0.8; // Safer step size to prevent stripes
-      steps = i;
+      t_dist += d * 0.8; // Safer step
     }
 
     vec3 col = vec3(0.01, 0.0, 0.03); // Deep space
@@ -139,13 +149,12 @@ const FRAGMENT_SHADER = `
       
       col = mix(uColorP, uColorS, n.y * 0.5 + 0.5);
       col *= diff;
-      col += pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 32.0) * 0.5; // Specular
-      col *= (1.0 - t_dist/40.0); // Distance fade
+      col += pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 16.0) * 0.3; // Specular
+      col *= (1.0 - t_dist/40.0);
     }
     
-    // Post-FX
-    col += uBass * 0.05 * uColorP;
-    float scanline = sin(vUv.y * 1000.0) * 0.03;
+    // Scanlines & Grain
+    float scanline = sin(vUv.y * 1000.0) * 0.02;
     gl_FragColor = vec4(col - scanline, 1.0);
   }
 `;
@@ -162,13 +171,9 @@ interface VisualizerProps {
 
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, _videoId, _currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { activeMap, recordCue, saveMap } = useSongMapper(_videoId);
   
-  useEffect(() => {
-    if (_videoId && _currentTime) {
-      // Logic for future song-mapping based on time
-    }
-  }, [_videoId, _currentTime]);
-  
+  // v6.0 Engine State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
@@ -176,8 +181,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     primaryHue: PALETTES[0].ph,
     secondaryHue: PALETTES[0].sh,
     complexity: 1,
-    rotationSpeed: 0.2,
-    motionIntensity: 0.3,
+    rotationSpeed: 0.2, 
+    motionIntensity: 0.3, 
     distortion: 1,
     colorCycle: 0,
     wireframe: true,
@@ -195,6 +200,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
+  // Brain State
   const energyHistory = useRef<number[]>([]);
   const beatCount = useRef(0);
   const lastBeatTime = useRef(0);
@@ -210,6 +216,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   const activeMode = mode === 'vj' ? currentVibe : mode;
   const isShaderMode = ['menger', 'columns', 'blob', 'lattice', 'city', 'landmass', 'gyroid', 'tunnel', 'lava', 'matrix', 'rooms', 'bulb'].includes(activeMode);
+
+  // Sync with Song Map
+  useEffect(() => {
+    if (!activeMap || !_currentTime) return;
+    const cue = activeMap.cues.find(c => Math.abs(c.time - _currentTime) < 0.5);
+    if (cue) rollVJ();
+  }, [activeMap, _currentTime]);
 
   // Audio cortex
   useEffect(() => {
@@ -233,7 +246,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     init();
   }, [mode, isPlaying]);
 
-  // VJ Brain
+  // VJ Brain (Randomizer Tree)
   const rollVJ = useCallback(() => {
     const shaderModes: VisualizerMode[] = ['city', 'columns', 'menger', 'tunnel', 'bulb'];
     const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix'];
@@ -313,7 +326,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           group.add(mesh);
         }
       } else if (activeMode === 'trees') {
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 15; i++) {
           const tree = new THREE.Group();
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 5), pMat);
           tree.add(trunk);
@@ -343,7 +356,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeMode, isShaderMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe]);
+  }, [activeMode, isShaderMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe, vj.fov]);
 
   // Animation Engine
   useEffect(() => {
@@ -369,7 +382,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const lAvg = energyBuffer.current.reduce((a,b)=>a+b,0)/energyBuffer.current.length;
         
         if ((avg - sAvg) > 0.3 && avg > lAvg * 1.6 && now > dropCooldown.current) {
-          rollVJ(); dropCooldown.current = now + 6000;
+          rollVJ(); 
+          if (_currentTime) recordCue(_currentTime, 'DROP');
+          dropCooldown.current = now + 6000;
         }
 
         energyHistory.current.push(avg);
@@ -378,8 +393,17 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         if (avg > avgHist * 1.2 && avg > 0.2 && now - lastBeatTime.current > 300) {
           isBeat = true; lastBeatTime.current = now; beatCount.current++;
-          if (interval < 1000) onBPMChange?.(Math.round(60000 / (now - lastBeatTime.current)));
-          if (mode === 'vj' && beatCount.current % 16 === 0) rollVJ();
+          const bpm = Math.round(60000 / (now - lastBeatTime.current));
+          if (bpm > 40 && bpm < 220) onBPMChange?.(bpm);
+          
+          if (mode === 'vj' && beatCount.current % 16 === 0) {
+            rollVJ();
+            if (_currentTime) recordCue(_currentTime, 'BUILD');
+          }
+        }
+
+        if (beatCount.current > 0 && beatCount.current % 128 === 0) {
+          saveMap(120);
         }
 
         if (isShaderMode && shaderPlaneRef.current) {
@@ -395,26 +419,39 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
         if (!isShaderMode && meshGroupRef.current) {
           const group = meshGroupRef.current;
-          group.rotation.y += 0.002 * vj.rotationSpeed;
-          group.children.forEach((obj) => {
-            if (isBeat) obj.scale.setScalar(1.2 + bass * 0.5);
-            else obj.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-            if (activeMode === 'helix') obj.rotation.y += 0.05;
+          const damping = (0.05 + avg * 0.2);
+          group.rotation.y += 0.001 * vj.rotationSpeed * (damping * 10.0);
+          const hueShift = (now * 0.01) % 360;
+
+          group.children.forEach((obj, i) => {
+            const mesh = obj as THREE.Mesh;
+            const distX = 1 + (high * 2.0);
+            const distY = 1 + (bass * 2.5);
+            const distZ = 1 + (mid * 1.5);
+            
+            if (isBeat) { mesh.scale.set(distX * 1.2, distY * 1.2, distZ * 1.2); }
+            else { mesh.scale.lerp(new THREE.Vector3(distX, distY, distZ), 0.05); }
+            
+            if (i % 3 === 0) {
+              const mat = mesh.material as THREE.MeshBasicMaterial;
+              mat.color.setHSL((vj.primaryHue + hueShift) / 360, 0.8, 0.5 + avg * 0.2);
+            }
           });
+          if (isBeat) group.position.y = bass * 0.1;
+          else group.position.y *= 0.98;
         }
       }
 
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
-        cameraRef.current.fov = THREE.MathUtils.lerp(cameraRef.current.fov, isBeat ? vj.fov + 10 : vj.fov, 0.1);
+        cameraRef.current.fov = THREE.MathUtils.lerp(cameraRef.current.fov, isBeat ? vj.fov + (avg * 15) : vj.fov, 0.15);
         cameraRef.current.updateProjectionMatrix();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
       requestRef.current = requestAnimationFrame(animate);
     };
-    const interval = 0; // Fix for BPM logic
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, isShaderMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange]);
+  }, [activeMode, isShaderMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, _currentTime, recordCue, saveMap]);
 
   if (mode === 'none') return null;
 
