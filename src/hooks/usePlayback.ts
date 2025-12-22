@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, type QueueItem } from '../lib/supabase';
 import { searchYouTubeVideos, getSongLengthError } from '../lib/youtube';
 import { type SuggestedSong } from '../lib/gemini';
@@ -11,7 +11,6 @@ interface UsePlaybackProps {
   history: QueueItem[];
   suggestions: SuggestedSong[];
   userFingerprint: string | null;
-  markAsPlayed: (id: string) => Promise<void>;
 }
 
 export function usePlayback({ 
@@ -21,8 +20,7 @@ export function usePlayback({
   queue, 
   history, 
   suggestions, 
-  userFingerprint,
-  markAsPlayed 
+  userFingerprint
 }: UsePlaybackProps) {
   
   const [autoAddInProgress, setAutoAddInProgress] = useState(false);

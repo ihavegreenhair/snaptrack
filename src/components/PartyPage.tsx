@@ -15,7 +15,7 @@ import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
 import MoodSelector from './MoodSelector';
 import NameInputModal from './NameInputModal';
-import { Music, QrCode, X, Copy } from 'lucide-react';
+import { Music, QrCode, X } from 'lucide-react';
 
 function PartyPage() {
   const { partyCode } = useParams<{ partyCode: string }>();
@@ -72,8 +72,7 @@ function PartyPage() {
     queue,
     history,
     suggestions,
-    userFingerprint: fingerprint,
-    markAsPlayed
+    userFingerprint: fingerprint
   });
 
   // UI States
