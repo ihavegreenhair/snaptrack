@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useTheme, type Theme } from '../lib/ThemeContext';
+import { type VisualizerMode } from './Visualizer';
 
 interface UserMenuProps {
   displayName: string;
@@ -26,6 +27,8 @@ interface UserMenuProps {
   onPrePopulate?: () => void;
   autoAddEnabled?: boolean;
   onToggleAutoAdd?: () => void;
+  visualizerMode?: VisualizerMode;
+  onVisualizerChange?: (mode: VisualizerMode) => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ 
@@ -37,7 +40,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onEndParty,
   onPrePopulate,
   autoAddEnabled,
-  onToggleAutoAdd
+  onToggleAutoAdd,
+  visualizerMode = 'none',
+  onVisualizerChange
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -84,6 +89,21 @@ const UserMenu: React.FC<UserMenuProps> = ({
               <DropdownMenuRadioItem value="ocean">
                 <Waves className="mr-2 h-4 w-4" /> Ocean
               </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Sparkles className="mr-2 h-4 w-4 text-primary" />
+            <span>Visualizer</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={visualizerMode} onValueChange={(val) => onVisualizerChange?.(val as VisualizerMode)}>
+              <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="bars">Bars</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="waves">Waves</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="particles">Particles</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
