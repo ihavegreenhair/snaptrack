@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 
@@ -22,9 +22,10 @@ interface VisualizerProps {
   isPlaying: boolean;
   isDashboard?: boolean;
   sensitivity?: number;
+  onBPMChange?: (bpm: number) => void;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5 }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvas2DRef = useRef<HTMLCanvasElement>(null);
   
@@ -49,16 +50,23 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
-  // Advanced Beat Detection
+  // --- Pro VJ Brain State ---
   const energyHistory = useRef<number[]>([]);
-  const beatThreshold = useRef(1.2);
+  const beatHistory = useRef<number[]>([]);
+  const beatCount = useRef(0);
+  const detectedBPM = useRef(120);
+  const isDrop = useRef(false);
+  const lastEnergy = useRef(0);
+
   const audioState = useRef({
     bass: 0,
     mid: 0,
     high: 0,
     avg: 0,
     beat: false,
-    kick: false
+    kick: false,
+    bpm: 120,
+    phraseCount: 0
   });
 
   // Three.js
@@ -80,7 +88,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
           analyserRef.current = audioContextRef.current.createAnalyser();
           analyserRef.current.fftSize = 512;
-          analyserRef.current.smoothingTimeConstant = 0.8;
+          analyserRef.current.smoothingTimeConstant = 0.6; // Faster response for better transient detection
           dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
         }
 
@@ -99,35 +107,26 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   }, [mode, isPlaying]);
 
   // 2. The Infinite Randomizer (VJ Brain)
-  useEffect(() => {
-    if (mode !== 'vj') return;
-
+  const rollDice = useCallback(() => {
     const modes: VisualizerMode[] = ['grid', 'neural', 'tunnel', 'vortex', 'particles', 'waves', 'kaleidoscope', 'starfield', 'spheres', 'bars'];
+    const selectedMode = modes[Math.floor(Math.random() * modes.length)];
     
-    const rollDice = () => {
-      const selectedMode = modes[Math.floor(Math.random() * modes.length)];
-      
-      setVjConfig({
-        mode: selectedMode,
-        complexity: 0.5 + Math.random() * 2.5,
-        rotationSpeed: 0.2 + Math.random() * 3,
-        zoomScale: 0.5 + Math.random() * 2,
-        colorShift: Math.random() * 360,
-        symmetry: Math.floor(Math.random() * 10) + 4,
-        particleSize: 0.5 + Math.random() * 3,
-        fov: 60 + Math.random() * 60,
-        wireframe: Math.random() > 0.3,
-        intensity: 0.8 + Math.random() * 1.5
-      });
+    setVjConfig({
+      mode: selectedMode,
+      complexity: 0.5 + Math.random() * 2.5,
+      rotationSpeed: 0.2 + Math.random() * 3,
+      zoomScale: 0.5 + Math.random() * 2,
+      colorShift: Math.random() * 360,
+      symmetry: Math.floor(Math.random() * 10) + 4,
+      particleSize: 0.5 + Math.random() * 3,
+      fov: 60 + Math.random() * 60,
+      wireframe: Math.random() > 0.3,
+      intensity: 0.8 + Math.random() * 1.5
+    });
 
-      setVibeFlash(true);
-      setTimeout(() => setVibeFlash(false), 300);
-    };
-
-    rollDice(); // Initial roll
-    const interval = window.setInterval(rollDice, 12000); 
-    return () => clearInterval(interval);
-  }, [mode]);
+    setVibeFlash(true);
+    setTimeout(() => setVibeFlash(false), 400);
+  }, []);
 
   // 3. Three.js Engine Lifecycle
   useEffect(() => {
@@ -242,22 +241,53 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         // Advanced Peak Detection
         energyHistory.current.push(currentAvg);
-        if (energyHistory.current.length > 20) energyHistory.current.shift();
+        if (energyHistory.current.length > 40) energyHistory.current.shift();
         
         const localAvg = energyHistory.current.reduce((acc, v) => acc + v, 0) / energyHistory.current.length;
-        const isBeat = currentAvg > localAvg * beatThreshold.current && currentAvg > 30;
         const now = Date.now();
+        const instantEnergy = currentAvg;
+        
+        // Onset Detection
+        const isBeat = instantEnergy > localAvg * 1.15 && instantEnergy > 40 && (now - lastBeatTime > 280);
+        
+        if (isBeat) {
+          const interval = now - lastBeatTime;
+          lastBeatTime = now;
+          beatCount.current++;
+          
+          // BPM Calculation
+          if (interval > 300 && interval < 1000) {
+            const instantBPM = 60000 / interval;
+            beatHistory.current.push(instantBPM);
+            if (beatHistory.current.length > 10) beatHistory.current.shift();
+            const avgBPM = Math.round(beatHistory.current.reduce((a,b) => a+b, 0) / beatHistory.current.length);
+            if (avgBPM !== detectedBPM.current) {
+              detectedBPM.current = avgBPM;
+              onBPMChange?.(avgBPM);
+            }
+          }
+
+          // Phrase-synced transition (Auto VJ)
+          if (mode === 'vj' && beatCount.current % 16 === 0) {
+            rollDice();
+          }
+        }
+
+        // Drop Detection (Energy Delta)
+        const energyDiff = instantEnergy - lastEnergy.current;
+        isDrop.current = energyDiff > 40 && instantEnergy > 100;
+        lastEnergy.current = instantEnergy;
 
         audioState.current = {
           bass: (b / 8 / 255) * sensitivity * vjConfig.intensity,
           mid: (m / 56 / 255) * sensitivity * vjConfig.intensity,
           high: (hi / 64 / 255) * sensitivity * vjConfig.intensity,
           avg: (currentAvg / 255) * sensitivity * vjConfig.intensity,
-          beat: isBeat && (now - lastBeatTime > 250),
-          kick: b/8 > 180
+          beat: isBeat,
+          kick: b/8 > 190,
+          bpm: detectedBPM.current,
+          phraseCount: Math.floor(beatCount.current / 16)
         };
-
-        if (audioState.current.beat) lastBeatTime = now;
       } else {
         // Fallback Simulation
         const t = Date.now() * 0.002;
@@ -266,7 +296,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         audioState.current.beat = Math.sin(t * 4) > 0.95;
       }
 
-      const { avg, bass, mid, high, beat } = audioState.current;
+      const { avg, bass, mid, high, beat, kick } = audioState.current;
 
       // --- 2D Rendering ---
       if (ctx && canvas2D) {
@@ -276,7 +306,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         if (['bars', 'waves', 'kaleidoscope', 'particles'].includes(activeMode)) {
           ctx.clearRect(0, 0, w, h);
-          const pCol = `hsl(${vjConfig.colorShift}, 80%, 60%)`;
+          const pCol = `hsl(${vjConfig.colorShift + (isDrop.current ? 180 : 0)}, 80%, 60%)`;
           const aCol = `hsl(${(vjConfig.colorShift + 180) % 360}, 80%, 60%)`;
 
           if (activeMode === 'bars') {
@@ -303,10 +333,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               ctx.lineWidth = 2 + avg * 20;
               ctx.lineCap = 'round';
               ctx.stroke();
-              
-              // Internal glow
               if (beat) {
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 30;
                 ctx.shadowColor = pCol;
               }
             }
@@ -314,7 +342,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           } else if (activeMode === 'waves') {
             ctx.beginPath();
             ctx.strokeStyle = pCol;
-            ctx.lineWidth = 5 + bass * 20;
+            ctx.lineWidth = 5 + bass * 25;
             ctx.moveTo(0, h/2);
             for(let x=0; x<w; x+=5) {
               ctx.lineTo(x, h/2 + Math.sin(x * 0.01 + Date.now() * 0.005) * 150 * avg);
@@ -324,28 +352,28 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
       }
 
-      // --- 3D Rendering ---
+      // --- 3. 3D Rendering ---
       if (rendererRef.current && sceneRef.current && cameraRef.current && meshGroupRef.current) {
         const group = meshGroupRef.current;
         group.rotation.y += 0.005 * vjConfig.rotationSpeed;
         
-        if (beat) {
-          group.scale.setScalar(1.1 * vjConfig.zoomScale);
-          cameraRef.current.position.z = 10 + bass * 5;
+        if (beat || kick) {
+          group.scale.setScalar(1.15 * vjConfig.zoomScale);
+          cameraRef.current.position.z = 10 + bass * 6;
         } else {
-          group.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-          cameraRef.current.position.z += (10 - cameraRef.current.position.z) * 0.05;
+          group.scale.lerp(new THREE.Vector3(1,1,1), 0.15);
+          cameraRef.current.position.z += (10 - cameraRef.current.position.z) * 0.08;
         }
 
         if (activeMode === 'tunnel') {
           group.children.forEach((c) => {
-            c.position.z += 0.1 * vjConfig.rotationSpeed + high * 0.5;
+            c.position.z += 0.1 * vjConfig.rotationSpeed + high * 0.6;
             if (c.position.z > 5) c.position.z = -50;
-            c.rotation.z += 0.01;
+            c.rotation.z += 0.01 + bass * 0.05;
           });
         } else if (activeMode === 'grid') {
-          group.position.y = -2 + bass * 3;
-          group.rotation.x = Math.PI/2.5 + Math.sin(Date.now()*0.001) * 0.2;
+          group.position.y = -2 + bass * 4;
+          group.rotation.x = Math.PI/2.5 + Math.sin(Date.now()*0.001) * 0.25;
         }
 
         rendererRef.current.render(sceneRef.current, cameraRef.current);
@@ -356,7 +384,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, isPlaying, hasAudioAccess, sensitivity, vjConfig]);
+  }, [activeMode, isPlaying, hasAudioAccess, sensitivity, vjConfig, mode, onBPMChange, rollDice]);
 
   if (mode === 'none') return null;
 
@@ -365,7 +393,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       "fixed inset-0 w-full h-full pointer-events-none transition-all duration-1000",
       isDashboard ? "opacity-100 z-0 bg-black" : "opacity-30 z-0"
     )}>
-      {vibeFlash && <div className="absolute inset-0 bg-white/40 z-50 animate-out fade-out duration-500" />}
+      {vibeFlash && <div className="absolute inset-0 bg-white/50 z-50 animate-out fade-out duration-500" />}
       <canvas ref={canvas2DRef} className="absolute inset-0 w-full h-full" style={{ mixBlendMode: 'screen' }} />
     </div>
   );

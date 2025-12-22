@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useParty as usePartyContext } from '../lib/PartyContext';
@@ -33,10 +33,15 @@ function PartyPage() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
   const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
+  const [detectedBPM, setDetectedBPM] = useState<number>(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDashboardMode, setIsDashboardMode] = useState(false);
   const [showJoinInvite, setShowJoinInvite] = useState(true);
   const toast = useToast();
+
+  const handleBPMChange = useCallback((bpm: number) => {
+    setDetectedBPM(bpm);
+  }, []);
 
   // Cyclical Join Invite for Dashboard
   useEffect(() => {
@@ -229,7 +234,8 @@ function PartyPage() {
         mode={visualizerMode} 
         isPlaying={isPlaying} 
         isDashboard={isDashboardMode} 
-        sensitivity={visualizerSensitivity} 
+        sensitivity={visualizerSensitivity}
+        onBPMChange={handleBPMChange}
       />
       
       <header className={cn(
@@ -402,7 +408,7 @@ function PartyPage() {
               <div className="fixed bottom-8 left-8 z-50 flex items-center gap-6 text-white animate-in slide-in-from-bottom-8 duration-1000">
                 <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 flex items-center gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
-                  <span className="text-xs font-black tracking-widest uppercase">Live BPM: {isPlaying ? '124' : '---'}</span>
+                  <span className="text-xs font-black tracking-widest uppercase text-primary">Live BPM: {isPlaying ? detectedBPM : '---'}</span>
                 </div>
                 <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 flex items-center gap-3">
                   <RefreshCw className="w-3 h-3 text-primary animate-spin-slow" />
