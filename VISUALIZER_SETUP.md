@@ -25,5 +25,6 @@
 - [ ] **Mood Sync:** Automatically pick specific visualizers based on the current `partyMood` (e.g., chill mood uses Waves, hype mood uses Vortex).
 
 ## UI/UX Integration
-- **Dashboard Mode:** Optimized for projectors. Hides the YouTube video to focus on visuals.
-- **Sensitivity:** Adjustable boost (0.5x to 6.0x) to handle different room acoustics.
+- [x] **Dashboard Mode:** Optimized for projectors. Hides the YouTube video to focus on visuals.
+- [x] **Sensitivity:** Adjustable boost (0.5x to 6.0x) to handle different room acoustics.
+- [x] **Transition Effects:** Fade-to-black or white-flash transitions when the Auto-VJ changes modes.
