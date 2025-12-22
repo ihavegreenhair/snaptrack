@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 
 export type VisualizerMode = 
-  | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' // Shader Modes
+  | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' | 'matrix' | 'rooms' | 'bulb' // Shader Modes
   | 'shapes' | 'vortex' | 'neural' | 'rings' | 'core3d' | 'cloud' // Mesh Modes
   | 'vj' | 'none';
 
@@ -11,9 +11,13 @@ interface VJState {
   mode: VisualizerMode;
   pColor: THREE.Color;
   sColor: THREE.Color;
+  primaryHue: number;
+  secondaryHue: number;
   complexity: number;
   rotationSpeed: number;
   motionIntensity: number;
+  distortion: number;
+  colorCycle: number;
   wireframe: boolean;
   shapeType: 'box' | 'sphere' | 'pyramid' | 'torus';
   zoomLevel: number;
@@ -21,11 +25,11 @@ interface VJState {
 }
 
 const PALETTES = [
-  { p: '#ff00ff', s: '#00ffff' }, // Cyberpunk
-  { p: '#39ff14', s: '#bcff00' }, // Toxic
-  { p: '#ff4500', s: '#ff8c00' }, // Inferno
-  { p: '#710193', s: '#00ffcc' }, // Galactic
-  { p: '#ffffff', s: '#555555' }  // Mono
+  { p: '#ff00ff', s: '#00ffff', ph: 300, sh: 180 }, // Cyberpunk
+  { p: '#39ff14', s: '#bcff00', ph: 110, sh: 80 },  // Toxic
+  { p: '#ff4500', s: '#ff8c00', ph: 15, sh: 30 },   // Inferno
+  { p: '#710193', s: '#00ffcc', ph: 280, sh: 160 }, // Galactic
+  { p: '#ffffff', s: '#555555', ph: 0, sh: 0 }     // Mono
 ];
 
 const VERTEX_SHADER = `
@@ -113,15 +117,44 @@ const FRAGMENT_SHADER = `
     } else if (uMode == 7) { // Torus Tunnel
       p.z = mod(p.z + 6.0, 12.0) - 6.0;
       d = sdTorus(p, vec2(5.0 + uBass, 0.3 + uHigh * 0.5));
-    } else {
-      d = sdSphere(p, 1.0 + uEnergy);
+    } else if (uMode == 6) { // Matrix
+      vec2 grid = fract(p.xz * 0.5) - 0.5;
+      float dBox = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.05, 10.0, 0.05));
+      return dBox;
+    } else if (uMode == 8) { // Rooms
+      vec3 q = mod(p + 5.0, 10.0) - 5.0;
+      float box = -sdBox(q, vec3(4.8));
+      return max(box, sdBox(q, vec3(5.0, 1.0, 1.0)));
+    } else if (uMode == 15) { // Mandelbulb
+      vec3 z = p;
+      float dr = 1.0;
+      float r = 0.0;
+      float Power = 8.0 + sin(uTime * 0.1) * 2.0;
+      for (int i = 0; i < 5 ; i++) {
+        r = length(z);
+        if (r>4.0) break;
+        float theta = acos(z.z/r);
+        float phi = atan(z.y,z.x);
+        dr =  pow( r, Power-1.0)*Power*dr + 1.0;
+        float zr = pow( r,Power);
+        theta = theta*Power;
+        phi = phi*Power;
+        z = zr*vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        z+=p;
+      }
+      return 0.5*log(r)*r/dr;
+    } else { // Blob
+      float d = sdSphere(p, 1.5 + uBass * 0.5);
+      d += sin(p.x * 2.0 + uTime) * 0.2 * uMid;
+      return d;
     }
-    
-    return d;
   }
 
   void main() {
     vec2 uv = vUv * 2.0 - 1.0;
+    
+    // Chromatic Aberration on Bass
+    float shift = uBass * 0.02;
     vec3 ro = vec3(0.0, 2.0, 15.0 - uZoom); 
     vec3 rd = normalize(vec3(uv, -1.5));
     
@@ -143,6 +176,13 @@ const FRAGMENT_SHADER = `
       col *= atten;
       col += vec3(uBass * 0.15);
     }
+    
+    // Post-processing: Scanlines & Vignette
+    float scanline = sin(vUv.y * 800.0) * 0.04;
+    col -= scanline;
+    float vignette = 1.0 - length(uv * 0.5);
+    col *= vignette;
+
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -158,14 +198,18 @@ interface VisualizerProps {
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // v5.5 Modular State
+  // v6.0 Molecular Engine State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
     sColor: new THREE.Color(PALETTES[0].s),
+    primaryHue: PALETTES[0].ph,
+    secondaryHue: PALETTES[0].sh,
     complexity: 1,
-    rotationSpeed: 0.5,
-    motionIntensity: 0.5,
+    rotationSpeed: 0.2, 
+    motionIntensity: 0.3, 
+    distortion: 1,
+    colorCycle: 0,
     wireframe: true,
     shapeType: 'box',
     zoomLevel: 0,
@@ -223,7 +267,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // 2. VJ Brain (Randomizer Tree)
     const rollVJ = useCallback(() => {
-      const shaderModes: VisualizerMode[] = ['city', 'landmass', 'menger', 'columns', 'gyroid', 'tunnel', 'lava'];
+      const shaderModes: VisualizerMode[] = ['city', 'landmass', 'menger', 'columns', 'gyroid', 'tunnel', 'lava', 'matrix', 'rooms', 'bulb'];
       const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'vortex', 'core3d'];
       const modes = [...shaderModes, ...meshModes];
       
@@ -235,9 +279,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       ...prev,
       pColor: new THREE.Color(p.p),
       sColor: new THREE.Color(p.s),
+      primaryHue: p.ph,
+      secondaryHue: p.sh,
       complexity: 0.5 + Math.random() * 2,
-      rotationSpeed: 0.5 + Math.random() * 3,
-      motionIntensity: 0.8 + Math.random() * 2,
+      rotationSpeed: 0.2 + Math.random() * 1.5,
+      motionIntensity: 0.5 + Math.random() * 1.5,
       wireframe: Math.random() > 0.4,
       shapeType: shapes[Math.floor(Math.random() * shapes.length)],
       fov: 60 + Math.random() * 40
@@ -389,23 +435,48 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           u.uColorP.value = vj.pColor; u.uColorS.value = vj.sColor;
           u.uComplexity.value = vj.complexity;
           u.uZoom.value = THREE.MathUtils.lerp(u.uZoom.value, (beatCount.current % 16) * 0.5 + (isBeat ? 0.2 : 0), 0.1);
-          const modeMap: any = { menger: 0, columns: 1, blob: 2, lattice: 3, city: 4, landmass: 5, gyroid: 9, lava: 16, tunnel: 7 };
+          const modeMap: any = { menger: 0, columns: 1, blob: 2, lattice: 3, city: 4, landmass: 5, matrix: 6, tunnel: 7, rooms: 8, gyroid: 9, bulb: 15, lava: 16 };
           u.uMode.value = modeMap[activeMode] || 0;
         }
 
-        // Update Mesh
+        // Update Mesh (Molecular Physics)
         if (!isShaderMode && meshGroupRef.current) {
           const group = meshGroupRef.current;
-          // Apply energy-based damping: very slow during silence, energetic during loud parts
-          const damping = 0.1 + avg; 
-          group.rotation.y += (0.001 + mid * 0.015) * vj.rotationSpeed * damping;
+          const damping = (0.05 + avg * 0.2); // Extremely high damping for stability
+          
+          // Slow, atmospheric rotation
+          group.rotation.y += 0.001 * vj.rotationSpeed;
+          group.rotation.z += 0.0005 * damping;
+
+          // Dynamic Color Cycling
+          const hueShift = (now * 0.01) % 360;
+          
           group.children.forEach((obj, i) => {
-            obj.position.y += Math.sin(now * 0.001 + i) * 0.005 * damping;
-            if (isBeat) { obj.scale.setScalar(1.1 + bass * 0.5 * vj.motionIntensity); } 
-            else { obj.scale.lerp(new THREE.Vector3(1,1,1), 0.05); }
+            const mesh = obj as THREE.Mesh;
+            const mat = mesh.material as THREE.MeshBasicMaterial;
+            
+            // 1. Independent Axis Distortion (Non-Uniform)
+            const distX = 1 + (high * 2.0 * vj.distortion);
+            const distY = 1 + (bass * 2.5 * vj.distortion);
+            const distZ = 1 + (mid * 1.5 * vj.distortion);
+            
+            if (isBeat) {
+              mesh.scale.set(distX * 1.2, distY * 1.2, distZ * 1.2);
+            } else {
+              mesh.scale.lerp(new THREE.Vector3(distX, distY, distZ), 0.05);
+            }
+
+            // 2. Shape-Specific Jitter
+            mesh.position.y += Math.sin(now * 0.001 + i) * 0.002 * damping;
+            
+            // 3. Color "Life" (Subtle Pulse)
+            if (i % 3 === 0) {
+              mat.color.setHSL((vj.primaryHue + hueShift) / 360, 0.8, 0.5 + avg * 0.2);
+            }
           });
-          if (isBeat) group.position.y = bass * 0.3;
-          else group.position.y *= 0.95;
+
+          if (isBeat) group.position.y = bass * 0.1;
+          else group.position.y *= 0.98;
         }
       } else {
         avg = isPlaying ? 0.3 + Math.sin(now * 0.002) * 0.1 : 0;
