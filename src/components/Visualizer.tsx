@@ -17,9 +17,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   
   // VJ State
   const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('grid');
+  const [vibeFlash, setVibeFlash] = useState(false);
   const vibeIntensity = useRef(0); // 0 to 1 based on energy
 
-  // Audio Brain
+  // ... (Audio context and refs stay same)
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
@@ -57,7 +58,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
         }
 
-        if (!sourceRef.current) {
+        if (!sourceRef.current && analyserRef.current) {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
           sourceRef.current.connect(analyserRef.current);
@@ -83,6 +84,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       if (vibeIntensity.current < 0.8) {
         index = (index + 1) % vibes.length;
         setCurrentVibe(vibes[index]);
+        setVibeFlash(true);
+        setTimeout(() => setVibeFlash(false), 200);
       }
     }, 15000); 
 
@@ -136,7 +139,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         grid.rotation.x = Math.PI / 2;
         group.add(grid);
       } else if (activeMode === 'neural') {
-        const points = [];
         for (let i = 0; i < 150; i++) {
           const geometry = new THREE.SphereGeometry(0.05, 8, 8);
           const material = new THREE.MeshBasicMaterial({ color: aColor });
@@ -272,7 +274,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             else child.scale.setScalar(1 + (child.scale.x - 1) * 0.9);
           });
         } else if (activeMode === 'tunnel') {
-          group.children.forEach((child, i) => {
+          group.children.forEach((child) => {
             child.position.z += 0.1 + high * 0.5;
             if (child.position.z > 5) child.position.z = -40;
           });
@@ -295,6 +297,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       "fixed inset-0 w-full h-full pointer-events-none transition-all duration-1000",
       isDashboard ? "opacity-100 z-0 bg-black" : "opacity-30 z-0"
     )}>
+      {/* VJ Transition Flash */}
+      {vibeFlash && (
+        <div className="absolute inset-0 bg-white/30 z-50 animate-out fade-out duration-300" />
+      )}
+      
       <canvas ref={canvas2DRef} className="absolute inset-0 w-full h-full" style={{ mixBlendMode: 'screen' }} />
     </div>
   );

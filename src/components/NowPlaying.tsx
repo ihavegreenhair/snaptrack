@@ -321,15 +321,21 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
 
   // HOST VIEW: Full YouTube player controls
   return (
-    <Card className="h-full max-h-[90vh] xl:max-h-[95vh] flex flex-col overflow-hidden">
-      <CardHeader className="flex-shrink-0">
-        <CardTitle className="xl:text-xl 2xl:text-2xl flex items-center justify-between">
+    <Card className={cn(
+      "h-full flex flex-col overflow-hidden transition-all duration-500",
+      hideVideo ? "max-h-[40vh] border-white/5 bg-black/20" : "max-h-[90vh] xl:max-h-[95vh]"
+    )}>
+      <CardHeader className={cn("flex-shrink-0", hideVideo ? "p-3" : "p-6")}>
+        <CardTitle className={cn("flex items-center justify-between", hideVideo ? "text-lg" : "xl:text-xl 2xl:text-2xl")}>
           <span>Now Playing</span>
-          {hideVideo && <span className="text-xs text-muted-foreground animate-pulse">VJ MODE ACTIVE</span>}
+          {hideVideo && <span className="text-[10px] text-primary animate-pulse tracking-widest font-black">VJ MODE</span>}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 flex-1 overflow-hidden flex flex-col">
-        <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden group">
+      <CardContent className={cn("flex-1 overflow-hidden flex flex-col", hideVideo ? "p-3 space-y-2" : "p-6 space-y-4")}>
+        <div className={cn(
+          "relative w-full bg-muted rounded-xl overflow-hidden group transition-all duration-500",
+          hideVideo ? "aspect-[21/9]" : "aspect-video"
+        )}>
           {playerError ? (
             <div className="w-full h-full flex items-center justify-center bg-red-50 border-2 border-red-200">
               <div className="text-center p-6">
@@ -394,7 +400,10 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             alt="Song submitter's photo"
             song={song}
             isCurrentSong={true}
-            className="w-16 h-16 sm:w-24 sm:h-24 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0"
+            className={cn(
+              "rounded-full border-4 border-primary/30 hover:border-primary shadow-lg flex-shrink-0 transition-all",
+              hideVideo ? "w-12 h-12" : "w-16 h-16 sm:w-24 sm:h-24 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24"
+            )}
           >
             <img
               src={song.photo_url}
@@ -403,51 +412,55 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             />
           </PhotoZoom>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg sm:text-xl xl:text-lg 2xl:text-xl font-semibold mb-1 break-words">{song.title}</h3>
+            <h3 className={cn("font-semibold mb-0.5 break-words line-clamp-1", hideVideo ? "text-base" : "text-lg sm:text-xl xl:text-lg 2xl:text-xl")}>{song.title}</h3>
             {song.dedication && (
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 mb-2 inline-block max-w-full">
-                <p className="text-xs sm:text-sm text-primary italic break-words">
+              <div className={cn("bg-primary/10 border border-primary/20 rounded-lg inline-block max-w-full", hideVideo ? "p-1 mb-1" : "p-2 mb-2")}>
+                <p className={cn("text-primary italic break-words line-clamp-1", hideVideo ? "text-[10px]" : "text-xs sm:text-sm")}>
                   " {song.dedication} "
                 </p>
               </div>
             )}
-            <p className="text-muted-foreground text-xs sm:text-sm xl:text-xs 2xl:text-sm mb-2">Submitted by a party-goer</p>
-            <p className="text-xs xl:text-xs 2xl:text-sm text-muted-foreground/80 hidden sm:block">Click photo to view details</p>
+            {!hideVideo && <p className="text-muted-foreground text-xs sm:text-sm xl:text-xs 2xl:text-sm mb-2">Submitted by a party-goer</p>}
           </div>
         </div>
 
         {isHost && (
-          <div className="flex items-center justify-center gap-2 sm:gap-4 bg-muted/50 p-3 sm:p-4 xl:p-3 2xl:p-4 rounded-xl flex-shrink-0">
+          <div className={cn(
+            "flex items-center justify-center gap-2 sm:gap-4 bg-muted/50 rounded-xl flex-shrink-0 transition-all",
+            hideVideo ? "p-2" : "p-3 sm:p-4 xl:p-3 2xl:p-4"
+          )}>
             <Button
               onClick={handlePlayButtonClick}
               variant="ghost"
               size="icon"
-              className="w-16 h-16 sm:w-20 sm:h-20 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 rounded-full bg-primary/20 hover:bg-primary/30 transition-all hover:scale-110 active:scale-95"
+              className={cn("rounded-full bg-primary/20 hover:bg-primary/30 transition-all hover:scale-110 active:scale-95", hideVideo ? "w-10 h-10" : "w-16 h-16 sm:w-20 sm:h-20 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20")}
               disabled={!isPlayerReady || !!playerError}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
-              {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" />}
+              {isPlaying ? <Pause className={cn(hideVideo ? "w-4 h-4" : "w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10")} /> : <Play className={cn(hideVideo ? "w-4 h-4" : "w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10")} />}
             </Button>
             <Button
               onClick={() => onSkip(getPlaybackProgress())}
               variant="ghost"
               size="icon"
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-all hover:scale-110 active:scale-95"
+              className={cn("rounded-full bg-secondary/20 hover:bg-secondary/30 transition-all hover:scale-110 active:scale-95", hideVideo ? "w-8 h-8" : "w-12 h-12 sm:w-16 sm:h-16")}
               disabled={!isPlayerReady || !!playerError}
               aria-label="Skip song"
             >
-              <SkipForward className="w-6 h-6 sm:w-8 sm:h-8 text-secondary-foreground" />
+              <SkipForward className={cn(hideVideo ? "w-4 h-4" : "w-6 h-6 sm:w-8 sm:h-8")} />
             </Button>
-            <Button
-              onClick={onClearQueue}
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/20 hover:bg-destructive/30 transition-all hover:scale-110 active:scale-95"
-              title="Clear entire queue"
-              aria-label="Clear queue"
-            >
-              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6 text-destructive-foreground" />
-            </Button>
+            {!hideVideo && (
+              <Button
+                onClick={onClearQueue}
+                variant="ghost"
+                size="icon"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-destructive/20 hover:bg-destructive/30 transition-all hover:scale-110 active:scale-95"
+                title="Clear entire queue"
+                aria-label="Clear queue"
+              >
+                <Trash2 className="w-5 h-5 sm:w-6 sm:h-6 text-destructive-foreground" />
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

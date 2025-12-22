@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import PhotoZoom from './PhotoZoom';
 import { useToast } from './ui/toast';
 import { Skeleton } from './ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface QueueListProps {
   queue: QueueItem[];
@@ -394,24 +395,25 @@ export default function QueueList({
                         <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
                       )}
                       <CardContent className={`${
-                        isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
+                        isHostView ? 'p-2 xl:p-2' : (compact ? 'p-1.5 sm:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6')
                       }`}>
                         {isHostView ? (
-                                                // Ultra-compact host layout - minimal horizontal design
-                                                <div className="flex items-center gap-2">
-                                                  {/* Position number - ultra small */}
-                                                  {!isHistory && !compact && (
-                                                    <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
-                                                      {actualIndex + 1}
-                                                    </div>
-                                                  )}
-                                                  
-                                                  {/* Compact indicator for Dashboard */}
-                                                  {compact && actualIndex === 1 && (
-                                                    <div className="w-1.5 h-8 bg-primary rounded-full mr-1" />
-                                                  )}
-                                                  
-                                                  {/* Photo - ultra small */}                            <PhotoZoom 
+                          // Ultra-compact host layout - minimal horizontal design
+                          <div className={cn("flex items-center gap-2", compact && "gap-1.5")}>
+                            {/* Position number - ultra small */}
+                            {!isHistory && !compact && (
+                              <div className="w-5 h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 bg-muted text-muted-foreground">
+                                {actualIndex + 1}
+                              </div>
+                            )}
+                            
+                            {/* Compact indicator for Dashboard */}
+                            {compact && actualIndex === 1 && (
+                              <div className="w-1 h-6 bg-primary rounded-full mr-0.5" />
+                            )}
+                            
+                            {/* Photo - ultra small */}
+                            <PhotoZoom 
                               src={song.photo_url} 
                               alt="Submitter photo"
                               song={song}
@@ -419,47 +421,39 @@ export default function QueueList({
                               queue={queue}
                               currentIndex={actualIndex}
                               currentSongId={currentSongId}
-                              className="transition-all duration-200 hover:scale-105 flex-shrink-0"
+                              className={cn("transition-all duration-200 hover:scale-105 flex-shrink-0", compact ? "w-7 h-7" : "w-8 h-8 xl:w-10 xl:h-10")}
                               submitterName={userProfiles[song.submitted_by] || 'Anonymous'}
                             >
                               <img
                                 src={song.photo_url}
                                 alt="Submitter photo"
-                                className={`object-cover border ${
-                                  isNextUp ? 'border-accent/50' : 'border-border'
-                                } ${
-                                  isHistory 
-                                    ? 'w-8 h-8 xl:w-10 xl:h-10 rounded-md' 
-                                    : 'w-8 h-8 xl:w-10 xl:h-10 rounded-full'
-                                }`}
+                                className={cn(
+                                  "object-cover border",
+                                  isNextUp ? 'border-accent/50' : 'border-border',
+                                  isHistory ? 'rounded-md' : 'rounded-full',
+                                  compact ? "w-7 h-7" : "w-8 h-8 xl:w-10 xl:h-10"
+                                )}
                               />
                             </PhotoZoom>
                             
                             {/* Song title - ultra condensed */}
-                            <div className="flex-1 min-w-0 px-1">
+                            <div className="flex-1 min-w-0 px-0.5">
                               <div className="flex items-center gap-1">
-                                <h3 className={`font-medium truncate leading-tight ${
-                                  isNextUp ? 'text-accent' : 'text-foreground'
-                                } text-xs xl:text-sm`}>
+                                <h3 className={cn(
+                                  "font-medium truncate leading-tight",
+                                  isNextUp ? 'text-accent' : 'text-foreground',
+                                  compact ? "text-[10px]" : "text-xs xl:text-sm"
+                                )}>
                                   {song.title}
                                 </h3>
-                                {song.is_pinned && <Star className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                                {song.is_pinned && <Star className={cn("text-primary fill-current flex-shrink-0", compact ? "h-2 w-2" : "h-3 w-3")} />}
                               </div>
                             </div>
                             
-                            {/* Votes display - minimal */}
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <ThumbsUp className="w-3 h-3 text-muted-foreground" />
-                              <span className={`text-xs xl:text-sm font-bold min-w-[1rem] text-center ${
-                                animatingVotes[song.id] ? 'text-green-600 scale-110' : 'text-foreground'
-                              } transition-all duration-300`}>
-                                {song.votes}
-                              </span>
-                            </div>
-                            
-                                                    {/* Ultra-compact voting controls */}
-                                                    {!isHistory && !compact && (
-                                                      <div className="flex items-center gap-0.5 flex-shrink-0">                                <Button
+                            {/* Ultra-compact voting controls */}
+                            {!isHistory && !compact && (
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <Button
                                   onClick={() => handleVote(song.id, 1)}
                                   disabled={voting === song.id}
                                   size="icon"
