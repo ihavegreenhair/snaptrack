@@ -92,11 +92,17 @@ const FRAGMENT_SHADER = `
       d = deMenger(q / r) * r;
     } else if (uMode == 1) { // Columns
       vec2 grid = mod(p.xz + 6.0, 12.0) - 6.0;
-      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.5 + uBass, 15.0, 0.5 + uBass));
+      d = sdBox(vec3(grid.x, p.y, grid.y), vec3(0.3 + uBass, 15.0, 0.3 + uBass));
     } else if (uMode == 4) { // City
       vec2 g = mod(p.xz, 10.0) - 5.0;
       float h = (sin(floor(p.x/10.0)) * 8.0 + 8.0) + uBass * 6.0;
       d = sdBox(vec3(g.x, p.y + 5.0, g.y), vec3(1.5, h, 1.5));
+    } else if (uMode == 6) { // Matrix
+      vec2 g = fract(p.xz * 0.2) - 0.5;
+      d = sdBox(vec3(g.x, p.y, g.y), vec3(0.05, 20.0, 0.05));
+    } else if (uMode == 8) { // Rooms
+      vec3 q = mod(p + 8.0, 16.0) - 8.0;
+      d = -sdBox(q, vec3(7.8));
     } else if (uMode == 15) { // Bulb
       vec3 z = p * 0.4;
       float dr = 1.0, r = 0.0, pwr = 8.0 + uBass * 2.0;
@@ -167,13 +173,19 @@ interface VisualizerProps {
   isDashboard?: boolean;
   sensitivity?: number;
   onBPMChange?: (bpm: number) => void;
-  _videoId?: string;
-  _currentTime?: number;
+  videoId?: string;
+  currentTime?: number;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, _videoId, _currentTime }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { activeMap, recordCue, saveMap } = useSongMapper(_videoId);
+  const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
+  
+  useEffect(() => {
+    if (videoId && currentTime) {
+      // Logic for future song-mapping based on time
+    }
+  }, [videoId, currentTime]);
   
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
@@ -220,10 +232,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // Sync with Map
   useEffect(() => {
-    if (!activeMap || !_currentTime) return;
-    const cue = activeMap.cues.find(c => Math.abs(c.time - _currentTime) < 0.5);
+    if (!activeMap || !currentTime) return;
+    const cue = activeMap.cues.find(c => Math.abs(c.time - currentTime) < 0.5);
     if (cue) rollVJ();
-  }, [activeMap, _currentTime]);
+  }, [activeMap, currentTime]);
 
   // Audio cortex
   useEffect(() => {
@@ -399,7 +411,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         if ((avg - sAvg) > 0.35 && avg > lAvg * 1.7 && now > dropCooldown.current) {
           rollVJ(); 
-          if (_currentTime) recordCue(_currentTime, 'DROP');
+          if (currentTime) recordCue(currentTime, 'DROP');
           dropCooldown.current = now + 6000;
         }
 
@@ -417,7 +429,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           
           if (mode === 'vj' && beatCount.current % 16 === 0) {
             rollVJ();
-            if (_currentTime) recordCue(_currentTime, 'BUILD');
+            if (currentTime) recordCue(currentTime, 'BUILD');
           }
         }
 
@@ -427,9 +439,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
         if (isShaderMode && shaderPlaneRef.current) {
           const u = (shaderPlaneRef.current.material as THREE.ShaderMaterial).uniforms;
-          u.uTime.value = performance.now() / 1000;
-          u.uBass.value = bass; u.uMid.value = mid; u.uHigh.value = high; u.uEnergy.value = avg;
-          u.uColorP.value = vj.pColor; u.uColorS.value = vj.sColor;
           u.uComplexity.value = vj.complexity;
           u.uZoom.value = THREE.MathUtils.lerp(u.uZoom.value, (beatCount.current % 16) * 0.8, 0.05);
           const modeMap: any = { menger: 0, columns: 1, city: 4, bulb: 15 };
@@ -469,7 +478,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, isShaderMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, _currentTime, recordCue, saveMap]);
+  }, [activeMode, isShaderMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, currentTime, recordCue, saveMap]);
 
   if (mode === 'none') return null;
 

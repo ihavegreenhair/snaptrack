@@ -237,8 +237,8 @@ function PartyPage() {
         isDashboard={isDashboardMode} 
         sensitivity={visualizerSensitivity}
         onBPMChange={handleBPMChange}
-        _videoId={nowPlaying?.video_id}
-        _currentTime={currentSongTime}
+        videoId={nowPlaying?.video_id}
+        currentTime={currentSongTime}
       />
       
       <header className={cn(
