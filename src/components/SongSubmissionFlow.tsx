@@ -157,23 +157,23 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
-    const canvas = canvas.current;
-    const context = canvas.getContext('2d');
+    const canvasEl = canvasRef.current;
+    const context = canvasEl.getContext('2d');
 
     if (context) {
       console.log("Taking photo...");
       setIsFlashing(true);
       setTimeout(() => setIsFlashing(false), 150);
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvasEl.width = video.videoWidth;
+      canvasEl.height = video.videoHeight;
 
       // Flip for selfie
       context.scale(-1, 1);
-      context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      context.drawImage(video, -canvasEl.width, 0, canvasEl.width, canvasEl.height);
       context.setTransform(1, 0, 0, 1, 0, 0);
 
-      canvas.toBlob((blob) => {
+      canvasEl.toBlob((blob: Blob | null) => {
         if (blob) {
           console.log("Photo captured, auto-submitting...");
           setPhotoBlob(blob);
