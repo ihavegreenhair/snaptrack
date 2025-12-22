@@ -18,6 +18,7 @@ import NameInputModal from './NameInputModal';
 import PartyInsights from './PartyInsights';
 import UserMenu from './UserMenu';
 import { Music, QrCode, X, Share2, Check } from 'lucide-react';
+import { useToast } from './ui/toast';
 
 function PartyPage() {
   const { partyCode } = useParams<{ partyCode: string }>();
@@ -25,6 +26,17 @@ function PartyPage() {
   const [copied, setCopied] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const toast = useToast();
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      toast.success('Link copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy link');
+    }
+  };
   
   // 1. Party Data & User Profile
   const {

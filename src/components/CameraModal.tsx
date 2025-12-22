@@ -25,10 +25,12 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const countdownStartedRef = useRef(false);
 
   // Start camera when modal opens
   useEffect(() => {
     if (isOpen) {
+      countdownStartedRef.current = false; // Reset on open
       startCamera();
     } else {
       stopCamera();
@@ -101,7 +103,7 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
               videoElement.play().then(() => {
                 setVideoReady(true);
                 setTimeout(() => {
-                  if (!countdown) {
+                  if (!countdownStartedRef.current) {
                     startCountdown();
                   }
                 }, 1500);
@@ -114,7 +116,7 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
             videoElement.play().then(() => {
               setVideoReady(true);
               setTimeout(() => {
-                if (!countdown) {
+                if (!countdownStartedRef.current) {
                   startCountdown();
                 }
               }, 1000);
@@ -277,6 +279,9 @@ export default function CameraModal({ isOpen, onClose, onPhotoTaken }: CameraMod
   };
 
   const startCountdown = () => {
+    if (countdownStartedRef.current) return;
+    countdownStartedRef.current = true;
+    
     setCountdown(3);
     const timer = setInterval(() => {
       setCountdown(prev => {

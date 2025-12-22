@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Settings, LogOut, Trash2, ShieldCheck, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { User, LogOut, Trash2, ShieldCheck, RefreshCw, Palette, Sun, Moon, Sparkles, Sunset, Waves } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,9 +7,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { useToast } from './ui/toast';
+import { useTheme, type Theme } from '../lib/ThemeContext';
 
 interface UserMenuProps {
   displayName: string;
@@ -28,7 +33,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onClearQueue,
   onEndParty 
 }) => {
-  const toast = useToast();
+  const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -50,6 +55,32 @@ const UserMenu: React.FC<UserMenuProps> = ({
           <RefreshCw className="mr-2 h-4 w-4" />
           <span>Change Name</span>
         </DropdownMenuItem>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Palette className="mr-2 h-4 w-4" />
+            <span>Theme</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={(val) => setTheme(val as Theme)}>
+              <DropdownMenuRadioItem value="light">
+                <Sun className="mr-2 h-4 w-4" /> Light
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">
+                <Moon className="mr-2 h-4 w-4" /> Dark
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neon">
+                <Sparkles className="mr-2 h-4 w-4" /> Neon
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="sunset">
+                <Sunset className="mr-2 h-4 w-4" /> Sunset
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="ocean">
+                <Waves className="mr-2 h-4 w-4" /> Ocean
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         {!isHost && onBecomeHost && (
           <DropdownMenuItem onClick={onBecomeHost}>
