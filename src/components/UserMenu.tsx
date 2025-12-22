@@ -23,6 +23,7 @@ interface UserMenuProps {
   onBecomeHost?: () => void;
   onClearQueue?: () => void;
   onEndParty?: () => void;
+  onPrePopulate?: () => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ 
@@ -31,7 +32,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onRename, 
   onBecomeHost, 
   onClearQueue,
-  onEndParty 
+  onEndParty,
+  onPrePopulate
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -94,6 +96,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
         {isHost && (
           <>
             <DropdownMenuLabel className="text-xs uppercase text-muted-foreground">Host Actions</DropdownMenuLabel>
+            {onPrePopulate && (
+              <DropdownMenuItem onClick={onPrePopulate} className="text-blue-500">
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>Pre-populate Queue</span>
+              </DropdownMenuItem>
+            )}
             {onClearQueue && (
               <DropdownMenuItem onClick={onClearQueue} className="text-amber-600">
                 <Trash2 className="mr-2 h-4 w-4" />

@@ -145,12 +145,12 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
           <div className="space-y-4">
             {/* Featured Next Up Section */}
             {sortedQueue.length > 0 && !isHistory && (
-              <Card className="relative overflow-hidden border-amber-500/50 ring-2 ring-amber-500/20 shadow-lg bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-900/10 dark:to-orange-900/10">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
+              <Card className="relative overflow-hidden border-accent/50 ring-2 ring-accent/20 shadow-lg bg-gradient-to-br from-accent/10 to-transparent">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent to-primary" />
                 <CardContent className={`${isHostView ? 'p-4' : 'p-4 sm:p-6 xl:p-6 2xl:p-8'}`}>
                   <div className="flex items-center gap-2 mb-4">
-                    <Star className="w-5 h-5 xl:w-6 xl:h-6 text-amber-500" />
-                    <h3 className="text-lg xl:text-xl 2xl:text-2xl font-bold text-amber-700 dark:text-amber-300">Next Up</h3>
+                    <Star className="w-5 h-5 xl:w-6 xl:h-6 text-accent" />
+                    <h3 className="text-lg xl:text-xl 2xl:text-2xl font-bold text-foreground">Next Up</h3>
                   </div>
                   
                   {(() => {
@@ -161,7 +161,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                       // Compact host version with larger image
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm xl:text-base">
+                          <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm xl:text-base">
                             1
                           </div>
                           <PhotoZoom 
@@ -178,13 +178,13 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             <img
                               src={nextSong.photo_url}
                               alt="Submitter photo"
-                              className="w-16 h-16 xl:w-20 xl:h-20 object-cover border-2 border-amber-500/50 rounded-full shadow-lg"
+                              className="w-16 h-16 xl:w-20 xl:h-20 object-cover border-2 border-accent/50 rounded-full shadow-lg"
                             />
                           </PhotoZoom>
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-base xl:text-lg text-amber-800 dark:text-amber-200 line-clamp-2 mb-1">
+                          <h4 className="font-bold text-base xl:text-lg text-foreground line-clamp-2 mb-1">
                             {nextSong.title}
                           </h4>
                           <p className="text-sm text-muted-foreground">
@@ -194,8 +194,8 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <div className="flex items-center gap-1">
-                            <ThumbsUp className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm xl:text-base font-bold text-amber-700 dark:text-amber-300">
+                            <ThumbsUp className="w-4 h-4 text-accent" />
+                            <span className="text-sm xl:text-base font-bold text-accent">
                               {nextSong.votes}
                             </span>
                           </div>
@@ -241,7 +241,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                       // Full guest version with large showcase image
                       <div className="flex flex-col sm:flex-row gap-6 items-start">
                         <div className="flex items-center gap-4 flex-shrink-0">
-                          <div className="w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg xl:text-xl">
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 xl:w-16 xl:h-16 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-lg xl:text-xl">
                             1
                           </div>
                           <PhotoZoom 
@@ -258,24 +258,24 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             <img
                               src={nextSong.photo_url}
                               alt="Submitter photo"
-                              className="w-24 h-24 sm:w-28 sm:h-28 xl:w-32 xl:h-32 2xl:w-36 2xl:h-36 object-cover border-4 border-amber-400/60 rounded-xl shadow-xl"
+                              className="w-24 h-24 sm:w-28 sm:h-28 xl:w-32 xl:h-32 2xl:w-36 2xl:h-36 object-cover border-4 border-accent/60 rounded-xl shadow-xl"
                             />
                           </PhotoZoom>
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-xl sm:text-2xl xl:text-3xl 2xl:text-4xl text-amber-800 dark:text-amber-200 line-clamp-2 leading-tight mb-2">
+                          <h4 className="font-bold text-xl sm:text-2xl xl:text-3xl 2xl:text-4xl text-foreground line-clamp-2 leading-tight mb-2">
                             {nextSong.title}
                           </h4>
                           <p className="text-sm xl:text-base 2xl:text-lg text-muted-foreground mb-4">
-                            Submitted by <span className="font-medium text-amber-700 dark:text-amber-300">{userProfiles[nextSong.submitted_by] || 'Anonymous'}</span>
+                            Submitted by <span className="font-medium text-accent">{userProfiles[nextSong.submitted_by] || 'Anonymous'}</span>
                           </p>
                           
                           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                             <div className="flex items-center gap-6">
                               <div className="flex items-center gap-2">
-                                <ThumbsUp className="w-5 h-5 xl:w-6 xl:h-6 text-amber-600" />
-                                <span className="text-lg xl:text-xl font-bold text-amber-700 dark:text-amber-300">
+                                <ThumbsUp className="w-5 h-5 xl:w-6 xl:h-6 text-accent" />
+                                <span className="text-lg xl:text-xl font-bold text-accent">
                                   {nextSong.votes} votes
                                 </span>
                               </div>
@@ -350,7 +350,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         className="relative overflow-hidden transition-all duration-200 ease-out hover:scale-[1.01] hover:shadow-md hover:bg-accent/50"
                       >
                   {isNextUp && (
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
                   )}
                   <CardContent className={`${
                     isHostView ? 'p-2 xl:p-2' : 'p-2 sm:p-3 xl:p-4 2xl:p-6'
@@ -381,7 +381,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                             src={song.photo_url}
                             alt="Submitter photo"
                             className={`object-cover border ${
-                              isNextUp ? 'border-amber-500/50' : 'border-border'
+                              isNextUp ? 'border-accent/50' : 'border-border'
                             } ${
                               isHistory 
                                 ? 'w-8 h-8 xl:w-10 xl:h-10 rounded-md' 
@@ -393,7 +393,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                         {/* Song title - ultra condensed */}
                         <div className="flex-1 min-w-0 px-1">
                           <h3 className={`font-medium truncate leading-tight ${
-                            isNextUp ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'
+                            isNextUp ? 'text-accent' : 'text-foreground'
                           } text-xs xl:text-sm`}>
                             {song.title}
                           </h3>
@@ -456,7 +456,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                           {!isHistory && (
                             <div className={`w-6 h-6 sm:w-8 sm:h-8 xl:w-10 xl:h-10 rounded-full flex items-center justify-center font-bold text-xs xl:text-sm ${
                               isNextUp
-                                ? 'bg-amber-500 text-white'
+                                ? 'bg-accent text-accent-foreground'
                                 : 'bg-muted text-muted-foreground'
                             }`}>
                               {actualIndex + 1}
@@ -480,7 +480,7 @@ export default function QueueList({ queue, currentSongId, title, isHistory, isHo
                               alt="Submitter photo"
                               className={`w-full h-full object-cover border ${
                                 isNextUp 
-                                  ? 'border-amber-500/50' 
+                                  ? 'border-accent/50' 
                                   : 'border-border'
                               } ${isHistory ? 'rounded-lg' : 'rounded-full'}`}
                             />

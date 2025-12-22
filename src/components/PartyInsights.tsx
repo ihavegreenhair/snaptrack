@@ -43,7 +43,7 @@ const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfi
       <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm font-medium">Party Vibe</CardTitle>
-          <Flame className="h-4 w-4 text-orange-500" />
+          <Flame className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{vibeStatus}</div>
@@ -56,7 +56,7 @@ const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfi
       <Card className="bg-gradient-to-br from-secondary/10 to-transparent border-secondary/20">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm font-medium">Top DJs</CardTitle>
-          <Users className="h-4 w-4 text-blue-500" />
+          <Users className="h-4 w-4 text-secondary-foreground" />
         </CardHeader>
         <CardContent>
           <div className="space-y-1">
@@ -70,10 +70,10 @@ const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfi
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20">
+      <Card className="bg-gradient-to-br from-accent/10 to-transparent border-accent/20">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm font-medium">Crowd Favorites</CardTitle>
-          <Trophy className="h-4 w-4 text-amber-500" />
+          <Trophy className="h-4 w-4 text-accent" />
         </CardHeader>
         <CardContent>
           <div className="space-y-1">
@@ -83,7 +83,7 @@ const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfi
                   <Music2 className="h-3 w-3" />
                   {song.title}
                 </span>
-                <span className="text-amber-600 font-bold">+{song.votes}</span>
+                <span className="text-accent font-bold">+{song.votes}</span>
               </div>
             )) : <div className="text-sm text-muted-foreground italic">No votes yet</div>}
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { useParty as usePartyContext } from '../lib/PartyContext';
 import { usePartyData } from '../hooks/usePartyData';
 import { useQueue } from '../hooks/useQueue';
@@ -35,6 +36,47 @@ function PartyPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast.error('Failed to copy link');
+    }
+  };
+
+  const handlePrePopulate = async () => {
+    if (!partyId || !isHost) return;
+    
+    toast.info('Adding 10 songs to the queue...');
+    
+    // Fallback/Starter songs
+    const songs = [
+      { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up - Rick Astley', thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg' },
+      { id: 'OPf0YbXqDm0', title: 'Uptown Funk - Mark Ronson ft. Bruno Mars', thumbnail: 'https://i.ytimg.com/vi/OPf0YbXqDm0/hqdefault.jpg' },
+      { id: '09R8_2nJtjg', title: 'Sugar - Maroon 5', thumbnail: 'https://i.ytimg.com/vi/09R8_2nJtjg/hqdefault.jpg' },
+      { id: 'JGwWNGJdvx8', title: 'Shape of You - Ed Sheeran', thumbnail: 'https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg' },
+      { id: 'fRh_vgS2dFE', title: 'Sorry - Justin Bieber', thumbnail: 'https://i.ytimg.com/vi/fRh_vgS2dFE/hqdefault.jpg' },
+      { id: 'kJQP7kiw5Fk', title: 'Despacito - Luis Fonsi ft. Daddy Yankee', thumbnail: 'https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg' },
+      { id: 'CevxZvSJLk8', title: 'Roar - Katy Perry', thumbnail: 'https://i.ytimg.com/vi/CevxZvSJLk8/hqdefault.jpg' },
+      { id: 'ru0K8uYEZWw', title: 'Can\'t Stop the Feeling! - Justin Timberlake', thumbnail: 'https://i.ytimg.com/vi/ru0K8uYEZWw/hqdefault.jpg' },
+      { id: 'YQHsXMglC9A', title: 'Hello - Adele', thumbnail: 'https://i.ytimg.com/vi/YQHsXMglC9A/hqdefault.jpg' },
+      { id: 'lp-EO5I60KA', title: 'Thinking Out Loud - Ed Sheeran', thumbnail: 'https://i.ytimg.com/vi/lp-EO5I60KA/hqdefault.jpg' }
+    ];
+
+    try {
+      const { error } = await supabase.from('queue_items').insert(
+        songs.map(song => ({
+          party_id: partyId,
+          video_id: song.id,
+          title: song.title,
+          thumbnail_url: song.thumbnail,
+          submitted_by: fingerprint,
+          photo_url: song.thumbnail, // Use thumbnail as photo for pre-populated
+          played: false
+        }))
+      );
+
+      if (error) throw error;
+      toast.success('Queue populated with 10 songs!');
+      // Force refresh is handled by realtime subscription
+    } catch (err) {
+      console.error('Pre-populate failed:', err);
+      toast.error('Failed to populate queue');
     }
   };
   
@@ -193,6 +235,7 @@ function PartyPage() {
                 onRename={() => setShowRenameModal(true)}
                 onBecomeHost={() => setShowHostModal(true)}
                 onClearQueue={isHost ? clearQueue : undefined}
+                onPrePopulate={isHost ? handlePrePopulate : undefined}
                 onEndParty={isHost ? () => {
                   if (confirm('Are you sure you want to end the party for everyone?')) {
                     // Logic to delete party or just logout
