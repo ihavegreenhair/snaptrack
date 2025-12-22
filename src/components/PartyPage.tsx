@@ -376,11 +376,7 @@ function PartyPage() {
           </div>
         ) : (
           /* Active Party Layout */
-          <div className={cn(
-            "relative w-full h-full",
-            isDashboardMode ? "grid grid-cols-4 grid-rows-4 p-8 gap-8" : "block"
-          )}>
-            {/* Background Layer: Insights (Hidden in Dashboard) */}
+          <>
             <div className={cn("transition-all duration-500", isDashboardMode && "hidden")}>
               <PartyInsights 
                 queue={queue} 
@@ -389,77 +385,70 @@ function PartyPage() {
               />
             </div>
             
-            {/* Dashboard Mode: Now Playing (Top Left) */}
             <div className={cn(
-              "transition-all duration-700",
+              "grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8",
               isDashboardMode 
-                ? "col-span-2 row-span-2 flex flex-col justify-start" 
-                : "block"
+                ? "fixed right-0 top-0 bottom-0 w-[30vw] min-w-[350px] p-6 bg-black/40 backdrop-blur-2xl border-l border-white/10 z-50 flex flex-col gap-6 overflow-y-auto custom-scrollbar" 
+                : (isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6')
             )}>
+              {/* Now Playing Section */}
               <div className={cn(
-                "h-full sticky top-20 sm:relative sm:top-0 z-30 transition-all duration-1000",
-                isDashboardMode ? "bg-card/40 backdrop-blur-xl border-white/10 rounded-3xl shadow-2xl scale-90 origin-top-left p-2" : ""
+                "transition-all duration-500",
+                isDashboardMode 
+                  ? "flex-shrink-0" 
+                  : (isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2')
               )} ref={nowPlayingEl}>
-                <NowPlaying
-                  song={nowPlaying}
-                  onEnded={(progress) => {
-                    nowPlaying && markAsPlayed(nowPlaying.id, progress);
-                    setIsPlaying(false);
-                  }}
-                  onSkip={(progress) => {
-                    nowPlaying && markAsPlayed(nowPlaying.id, progress);
-                    setIsPlaying(false);
-                  }}
-                  onClearQueue={clearQueue}
-                  onSongStartedPlaying={() => setIsPlaying(true)}
-                  isHost={isHost}
-                  partyCode={partyCode || undefined}
-                  onAddSong={() => addSongModalRef.current?.openModal()}
-                  skipVotesRequired={3}
-                  skipVoteCount={skipVoteCount}
-                  hasSkipVoted={hasSkipVoted}
-                  onSkipVote={handleSkipVote}
-                  skipVoting={skipVoting}
-                />
-              </div>
-            </div>
-
-            {/* Dashboard Mode: QR Code (Top Right) */}
-            <div className={cn(
-              "hidden transition-all duration-700 delay-100",
-              isDashboardMode && "col-span-2 row-span-2 flex flex-col items-end justify-start opacity-100"
-            )}>
-              <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-2xl animate-in zoom-in-75 duration-700">
-                <div className="space-y-4 text-center text-black">
-                  <div className="p-2 bg-white rounded-2xl shadow-inner inline-block">
-                    <QRCode value={`${window.location.origin}/party/${partyCode}`} size={200} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black italic tracking-tighter uppercase">SCAN TO JOIN</h3>
-                    <p className="text-xl font-mono font-bold tracking-[0.2em]">{partyCode}</p>
-                  </div>
+                <div className={cn(
+                  "transition-all duration-500",
+                  isDashboardMode ? "scale-95 origin-top" : ""
+                )}>
+                  <NowPlaying
+                    song={nowPlaying}
+                    onEnded={(progress) => {
+                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                      setIsPlaying(false);
+                    }}
+                    onSkip={(progress) => {
+                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                      setIsPlaying(false);
+                    }}
+                    onClearQueue={clearQueue}
+                    onSongStartedPlaying={() => setIsPlaying(true)}
+                    isHost={isHost}
+                    partyCode={partyCode || undefined}
+                    onAddSong={() => addSongModalRef.current?.openModal()}
+                    skipVotesRequired={3}
+                    skipVoteCount={skipVoteCount}
+                    hasSkipVoted={hasSkipVoted}
+                    onSkipVote={handleSkipVote}
+                    skipVoting={skipVoting}
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* Standard Sidebar / Dashboard Mini Queue (Bottom Left/Right) */}
-            <div className={cn(
-              "transition-all duration-700 delay-200",
-              isDashboardMode 
-                ? "col-span-4 row-span-2 flex items-end justify-between gap-8" 
-                : "block"
-            )}>
-              {/* Only show queue in Dashboard Mode at the bottom, or standard sidebar */}
+              {/* QR Code (Dashboard Mode Only) */}
+              {isDashboardMode && (
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl border border-white/10 flex items-center gap-4 animate-in fade-in slide-in-from-right-4 duration-700">
+                  <div className="p-1.5 bg-white rounded-xl shadow-inner flex-shrink-0">
+                    <QRCode value={`${window.location.origin}/party/${partyCode}`} size={100} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black italic tracking-tighter uppercase text-primary">Join Party</h3>
+                    <p className="text-xl font-mono font-bold tracking-widest truncate">{partyCode}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Right/Secondary Column: Queue & Info */}
               <div className={cn(
-                "w-full transition-all duration-1000",
+                "transition-all duration-500",
                 isDashboardMode 
-                  ? "bg-card/30 backdrop-blur-lg border-white/5 rounded-3xl max-h-[300px] overflow-hidden p-2" 
-                  : "space-y-4"
+                  ? "flex-1 min-h-0" 
+                  : (isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-3 2xl:col-span-4')
               )}>
                 {/* QR Code Overlay (Standard Mode) */}
                 {showQRCode && !isDashboardMode && (
-                  <div className="bg-card border border-border rounded-xl p-6 shadow-lg animate-in fade-in slide-in-from-top-2">
-                    {/* ... (Existing QR Code code) */}
+                  <div className="bg-card border border-border rounded-xl p-6 shadow-lg animate-in fade-in slide-in-from-top-2 mb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex gap-6 items-center">
                         <div className="p-2 bg-white rounded-lg">
@@ -486,7 +475,7 @@ function PartyPage() {
                   queue={queue} 
                   currentSongId={nowPlaying?.id} 
                   isHost={isHost} 
-                  height={isDashboardMode ? 280 : (screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined))}
+                  height={isDashboardMode ? undefined : (screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined))}
                   isHostView={isHost}
                   userProfiles={userProfiles}
                   onPin={pinSong}
@@ -499,7 +488,7 @@ function PartyPage() {
             <div className={cn("mt-4 sm:mt-6 transition-all duration-500", isDashboardMode && "hidden")}>
               <PhotoGallery title="Previously Played" queue={history} userProfiles={userProfiles} />
             </div>
-          </div>
+          </>
         )}
       </main>
 
