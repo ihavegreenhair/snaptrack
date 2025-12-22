@@ -34,6 +34,7 @@ function PartyPage() {
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
   const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
   const [detectedBPM, setDetectedBPM] = useState<number>(120);
+  const [currentSongTime, setCurrentSongTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDashboardMode, setIsDashboardMode] = useState(false);
   const [showJoinInvite, setShowJoinInvite] = useState(true);
@@ -236,6 +237,8 @@ function PartyPage() {
         isDashboard={isDashboardMode} 
         sensitivity={visualizerSensitivity}
         onBPMChange={handleBPMChange}
+        _videoId={nowPlaying?.video_id}
+        _currentTime={currentSongTime}
       />
       
       <header className={cn(
@@ -434,20 +437,22 @@ function PartyPage() {
                   "transition-all duration-700",
                   isDashboardMode ? "scale-75 -mt-8 origin-top" : ""
                 )}>
-                  <NowPlaying
-                    song={nowPlaying}
-                    onEnded={(progress) => {
-                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
-                      setIsPlaying(false);
-                    }}
-                    onSkip={(progress) => {
-                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
-                      setIsPlaying(false);
-                    }}
-                    onClearQueue={clearQueue}
-                    onSongStartedPlaying={() => setIsPlaying(true)}
-                    isHost={isHost}
-                    partyCode={partyCode || undefined}
+                                  <NowPlaying
+                                    song={nowPlaying}
+                                    onEnded={(progress) => {
+                                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                                      setIsPlaying(false);
+                                      setCurrentSongTime(0);
+                                    }}
+                                    onSkip={(progress) => {
+                                      nowPlaying && markAsPlayed(nowPlaying.id, progress);
+                                      setIsPlaying(false);
+                                      setCurrentSongTime(0);
+                                    }}
+                                    onClearQueue={clearQueue}
+                                    onSongStartedPlaying={() => setIsPlaying(true)}
+                                    onTimeUpdate={setCurrentSongTime}
+                                    isHost={isHost}                    partyCode={partyCode || undefined}
                     onAddSong={() => addSongModalRef.current?.openModal()}
                     skipVotesRequired={3}
                     skipVoteCount={skipVoteCount}

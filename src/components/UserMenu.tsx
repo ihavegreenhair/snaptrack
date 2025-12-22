@@ -130,6 +130,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Geometric Physics (Mesh)</DropdownMenuLabel>
               <DropdownMenuRadioItem value="shapes">3D Shape Storm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="trees">Fractal Trees</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="platonic">Platonic Solids</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="helix">DNA Helix</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="neural">Neural Web</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="rings">Audio Rings</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="core3d">Geometric Core</DropdownMenuRadioItem>
