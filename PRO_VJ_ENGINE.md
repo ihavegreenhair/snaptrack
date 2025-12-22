@@ -20,7 +20,7 @@ Instead of simple volume, the engine must extract a rich data stream from the We
 
 ### 2. Rendering Stack
 - [x] **Three.js (3D Layer):** WebGL-based geometry, lighting, and cameras.
-- [ ] **GLSL Shaders (FX Layer):** Custom fragment shaders for post-processing (Bloom, Chromatic Aberration, CRT scanlines, Kaleidoscopes).
+- [x] **GLSL Shaders (FX Layer):** Custom fragment shaders for post-processing (Bloom, Chromatic Aberration, CRT scanlines, Kaleidoscopes).
 - [x] **Canvas 2D (Overlay Layer):** Vector-based HUDs, typography, and text dedications.
 
 ---
@@ -42,8 +42,8 @@ A "Club-Grade" system uses modular plugins. Each module below is a unique genera
 - [x] **Pro Feature:** On "Kicks", the camera field-of-view (FOV) zooms in/out rapidly (Beat-matching zoom).
 
 ### 4. "Raymarching Blobs" (GLSL Shaders)
-- [ ] Procedural "Lava Lamp" style blobs that merge and split.
-- [ ] **Pro Feature:** Colors are derived from the dominant colors of the "Now Playing" submitter's photo.
+- [x] Procedural "Lava Lamp" style blobs that merge and split.
+- [x] **Pro Feature:** Colors are derived from the dominant colors of the "Now Playing" submitter's photo.
 
 ---
 
@@ -57,6 +57,7 @@ The system functions as an autonomous artist by managing state transitions:
 - [x] **Intelligent Camera:**
   - Automated "Orbital Camera" that rotates around 3D scenes.
   - Camera "Cuts" happen on every 4th or 8th bar (simulated BPM sync).
+
 
 ---
 
