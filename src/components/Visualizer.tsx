@@ -57,6 +57,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const beatCount = useRef(0);
   const lastBeatTime = useRef(0);
   const detectedBPM = useRef(120);
+  const energyBuffer = useRef<number[]>([]);
+  const dropCooldown = useRef(0);
 
   // Three.js Core
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -205,6 +207,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   // 4. Main Animation Loop
   useEffect(() => {
     const animate = () => {
+      const now = Date.now();
       // --- Audio Brain ---
       let bass = 0, mid = 0, high = 0, avg = 0, isBeat = false;
       
@@ -221,11 +224,31 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         high = (hSum / 70 / 255) * sensitivity;
         avg = (bass + mid + high) / 3;
 
+        // --- Velocity Analysis (Drop Detection) ---
+        energyBuffer.current.push(avg);
+        if (energyBuffer.current.length > 50) energyBuffer.current.shift();
+        
+        const shortTermAvg = energyBuffer.current.slice(-5).reduce((a,b)=>a+b,0)/5;
+        const longTermAvg = energyBuffer.current.reduce((a,b)=>a+b,0)/energyBuffer.current.length;
+        
+        const energyVelocity = avg - shortTermAvg;
+        
+        // 1. Drop Detection (Sudden spike > 60% above long term average)
+        if (energyVelocity > 0.3 && avg > longTermAvg * 1.6 && now > dropCooldown.current) {
+          console.log("DROP DETECTED! Triggering VJ roll.");
+          rollVJ(); 
+          dropCooldown.current = now + 5000; // 5s cooldown
+        }
+
+        // 2. Breakdown Detection (Sudden drop < 30% of average)
+        if (avg < longTermAvg * 0.3 && energyHistory.current.length > 30 && mode === 'vj' && activeMode !== 'terrain') {
+          setVj(prev => ({ ...prev, mode: 'terrain', wireframe: true }));
+        }
+
         energyHistory.current.push(avg);
         if (energyHistory.current.length > 40) energyHistory.current.shift();
         const lAvg = energyHistory.current.reduce((a, b) => a + b, 0) / energyHistory.current.length;
         
-        const now = Date.now();
         if (avg > lAvg * 1.2 && avg > 0.2 && now - lastBeatTime.current > 300) {
           isBeat = true;
           const interval = now - lastBeatTime.current;
@@ -246,7 +269,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           if (mode === 'vj' && beatCount.current % 16 === 0) rollVJ();
         }
       } else {
-        avg = isPlaying ? 0.3 + Math.sin(Date.now() * 0.002) * 0.1 : 0;
+        avg = isPlaying ? 0.3 + Math.sin(now * 0.002) * 0.1 : 0;
         bass = avg * 1.2;
       }
 
