@@ -106,23 +106,36 @@ const UserMenu: React.FC<UserMenuProps> = ({
             <Sparkles className="mr-2 h-4 w-4 text-primary" />
             <span>Visualizer</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
+          <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
             <DropdownMenuRadioGroup value={visualizerMode} onValueChange={(val) => onVisualizerChange?.(val as VisualizerMode)}>
               <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="vj" className="font-bold text-primary">
                 <Sparkles className="mr-2 h-4 w-4" /> Auto VJ Mode
               </DropdownMenuRadioItem>
+              
               <DropdownMenuSeparator />
-              <DropdownMenuRadioItem value="menger">Fractal City</DropdownMenuRadioItem>
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Shader Worlds (SDF)</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="menger">Fractal Menger</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="city">Infinite Skyscrapers</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="landmass">Voxel Landmass</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="columns">Infinite Pillars</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="blob">Sub-Bass Blob</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="shapes">3D Shapes Storm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="columns">Neon Pillars</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="blob">Liquid Blob</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="gyroid">Gyroid Membrane</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="tunnel">Hyper-Torus</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="lava">Lava Sea</DropdownMenuRadioItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Geometric Physics (Mesh)</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="shapes">3D Shape Storm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neural">Neural Web</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="rings">Audio Rings</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="core3d">Geometric Core</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="vortex">Rotating Vortex</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="cloud">Hyper-Cloud</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[10px] uppercase">Sensitivity</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Sensitivity</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={visualizerSensitivity.toString()} onValueChange={(val) => onSensitivityChange?.(parseFloat(val))}>
               <DropdownMenuRadioItem value="0.5">Low</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="1.5">Normal</DropdownMenuRadioItem>
