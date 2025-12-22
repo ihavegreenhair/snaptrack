@@ -9,8 +9,8 @@ import { useToast } from './ui/toast';
 
 interface NowPlayingProps {
   song: QueueItem | null;
-  onEnded: () => void;
-  onSkip: () => void;
+  onEnded: (progress: number) => void;
+  onSkip: (progress: number) => void;
   onClearQueue: () => void;
   onSongStartedPlaying: (songId: string) => void;
   isHost: boolean;
@@ -39,11 +39,22 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const toast = useToast();
 
+  const getPlaybackProgress = () => {
+    if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function' && typeof playerRef.current.getDuration === 'function') {
+      const currentTime = playerRef.current.getCurrentTime();
+      const duration = playerRef.current.getDuration();
+      if (duration > 0) {
+        return (currentTime / duration) * 100;
+      }
+    }
+    return 0;
+  };
+
   useEffect(() => {
     if (isHost && skipVoteCount >= (skipVotesRequired || 3)) {
-      onSkip();
+      onSkip(getPlaybackProgress());
     }
-  }, [skipVoteCount, isHost, onSkip, skipVotesRequired]);
+  }, [skipVoteCount, isHost, skipVotesRequired]);
 
   // Initialize YouTube API and create player when DOM is ready - ONLY FOR HOSTS
   useEffect(() => {
@@ -87,7 +98,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
             },
             onStateChange: (event: any) => {
               if (event.data === window.YT.PlayerState.ENDED) {
-                onEnded();
+                onEnded(100); // Progress is 100% when ended naturally
               }
               if (event.data === window.YT.PlayerState.PLAYING && song && onSongStartedPlaying) {
                 onSongStartedPlaying(song.id);
@@ -284,7 +295,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
           {/* Vote to skip button for guests */}
           <div className="flex justify-center">
             <Button
-              onClick={onSkipVote}
+              onClick={() => onSkipVote?.()}
               disabled={skipVoting || hasSkipVoted}
               size="sm"
               variant={hasSkipVoted ? "destructive" : "outline"}
@@ -320,7 +331,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
                 <div className="text-red-600 text-lg font-semibold mb-2">Playback Error</div>
                 <div className="text-red-700 text-sm mb-4">{playerError}</div>
                 <Button 
-                  onClick={onSkip} 
+                  onClick={() => onSkip(0)} 
                   variant="destructive" 
                   size="sm"
                   className="mr-2"
@@ -403,7 +414,7 @@ export default function NowPlaying({ song, onEnded, onSkip, onClearQueue, onSong
               {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 text-primary" />}
             </Button>
             <Button
-              onClick={onSkip}
+              onClick={() => onSkip(getPlaybackProgress())}
               variant="ghost"
               size="icon"
               className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/20 hover:bg-secondary/30 transition-transform duration-200 ease-in-out hover:scale-105"

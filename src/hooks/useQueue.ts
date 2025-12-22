@@ -174,8 +174,16 @@ export function useQueue({ partyId, fingerprint }: UseQueueProps) {
     }
   };
 
-  const markAsPlayed = async (songId: string) => {
+  const markAsPlayed = async (songId: string, progress: number = 100) => {
      if (!partyId) return;
+
+     if (progress < 10) {
+       // If skipped very early, just delete it so it doesn't show in history
+       console.log(`Song ${songId} skipped early (${progress.toFixed(1)}%), removing instead of marking played.`);
+       await removeSong(songId);
+       return;
+     }
+
      await supabase
       .from('queue_items')
       .update({ played: true, played_at: new Date().toISOString() })

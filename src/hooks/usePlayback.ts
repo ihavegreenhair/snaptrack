@@ -11,6 +11,7 @@ interface UsePlaybackProps {
   history: QueueItem[];
   suggestions: SuggestedSong[];
   userFingerprint: string | null;
+  markAsPlayed: (id: string, progress?: number) => Promise<void>;
 }
 
 export function usePlayback({ 
@@ -20,7 +21,8 @@ export function usePlayback({
   queue, 
   history, 
   suggestions, 
-  userFingerprint
+  userFingerprint,
+  markAsPlayed
 }: UsePlaybackProps) {
   
   const [autoAddInProgress, setAutoAddInProgress] = useState(false);
@@ -56,7 +58,13 @@ export function usePlayback({
         .select('*', { count: 'exact', head: true })
         .eq('queue_id', nowPlaying.id);
 
-      setSkipVoteCount(count || 0);
+      const currentCount = count || 0;
+      setSkipVoteCount(currentCount);
+
+      // Auto-skip if threshold reached
+      if (isHost && currentCount >= 3) {
+        markAsPlayed(nowPlaying.id, 0); // 0 progress for skip
+      }
 
       const { data } = await supabase
         .from('skip_votes')

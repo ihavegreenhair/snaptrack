@@ -158,7 +158,8 @@ function PartyPage() {
     queue,
     history,
     suggestions,
-    userFingerprint: fingerprint
+    userFingerprint: fingerprint,
+    markAsPlayed
   });
 
   // UI States
@@ -362,8 +363,8 @@ function PartyPage() {
               }`} ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlaying}
-                  onEnded={() => nowPlaying && markAsPlayed(nowPlaying.id)}
-                  onSkip={() => nowPlaying && markAsPlayed(nowPlaying.id)}
+                  onEnded={(progress) => nowPlaying && markAsPlayed(nowPlaying.id, progress)}
+                  onSkip={(progress) => nowPlaying && markAsPlayed(nowPlaying.id, progress)}
                   onClearQueue={clearQueue}
                   onSongStartedPlaying={() => {}}
                   isHost={isHost}
