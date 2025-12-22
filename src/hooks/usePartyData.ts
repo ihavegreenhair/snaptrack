@@ -99,6 +99,29 @@ export function usePartyData(partyCode: string | undefined) {
     }
   };
 
+  const updateProfile = async (displayName: string) => {
+    if (!partyId || !fingerprint) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update({ display_name: displayName })
+        .eq('fingerprint', fingerprint)
+        .eq('party_id', partyId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setUserProfile(data);
+      setUserProfiles(prev => ({ ...prev, [fingerprint]: displayName }));
+      return data;
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      return null;
+    }
+  };
+
   return {
     partyId,
     fingerprint,
@@ -106,6 +129,7 @@ export function usePartyData(partyCode: string | undefined) {
     userProfiles,
     loading,
     error,
-    createProfile
+    createProfile,
+    updateProfile
   };
 }

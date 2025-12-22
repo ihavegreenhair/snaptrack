@@ -15,22 +15,27 @@ import HostAuthModal from './HostAuthModal';
 import QRCode from './QRCode';
 import MoodSelector from './MoodSelector';
 import NameInputModal from './NameInputModal';
-import { Music, QrCode, X } from 'lucide-react';
+import PartyInsights from './PartyInsights';
+import UserMenu from './UserMenu';
+import { Music, QrCode, X, Share2, Check } from 'lucide-react';
 
 function PartyPage() {
   const { partyCode } = useParams<{ partyCode: string }>();
   const { isHost } = usePartyContext(); // Context still holds the isHost global state
+  const [copied, setCopied] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const toast = useToast();
   
   // 1. Party Data & User Profile
-  const { 
-    partyId, 
-    fingerprint, 
-    userProfile, 
-    userProfiles, 
-    loading: partyLoading, 
-    createProfile 
+  const {
+    partyId,
+    fingerprint,
+    userProfile,
+    userProfiles,
+    loading: partyLoading,
+    createProfile,
+    updateProfile
   } = usePartyData(partyCode);
-
   // 2. Queue & History
   const {
     queue,
@@ -137,6 +142,14 @@ function PartyPage() {
               currentMood={partyMood}
             />
             <button 
+              onClick={handleCopyLink}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
+              title="Copy invite link"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              <span className="hidden sm:inline">Invite</span>
+            </button>
+            <button 
               onClick={() => setShowQRCode(!showQRCode)}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
               title="Toggle QR code for joining"
@@ -161,6 +174,21 @@ function PartyPage() {
               onRefreshSuggestions={async () => refreshSuggestions()}
               partyId={partyId!}
             />
+            {userProfile && (
+              <UserMenu 
+                displayName={userProfile.display_name}
+                isHost={isHost}
+                onRename={() => setShowRenameModal(true)}
+                onBecomeHost={() => setShowHostModal(true)}
+                onClearQueue={isHost ? clearQueue : undefined}
+                onEndParty={isHost ? () => {
+                  if (confirm('Are you sure you want to end the party for everyone?')) {
+                    // Logic to delete party or just logout
+                    window.location.href = '/';
+                  }
+                } : undefined}
+              />
+            )}
           </div>
         </div>
       </header>
@@ -240,6 +268,12 @@ function PartyPage() {
         ) : (
           /* Active Party Layout */
           <>
+            <PartyInsights 
+              queue={queue} 
+              history={history} 
+              userProfiles={userProfiles} 
+            />
+            
             <div className={`grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8 ${
               isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6'
             }`}>
@@ -329,6 +363,21 @@ function PartyPage() {
           partyCode={partyCode}
           onSubmit={async (name) => {
             await createProfile(name);
+          }}
+        />
+      )}
+
+      {showRenameModal && partyCode && userProfile && (
+        <NameInputModal
+          isOpen={true}
+          isMandatory={false}
+          initialValue={userProfile.display_name}
+          partyCode={partyCode}
+          onClose={() => setShowRenameModal(false)}
+          onSubmit={async (name) => {
+            await updateProfile(name);
+            setShowRenameModal(false);
+            toast.success('Name updated!');
           }}
         />
       )}

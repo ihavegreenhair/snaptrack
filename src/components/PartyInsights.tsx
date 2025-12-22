@@ -1,0 +1,96 @@
+import React from 'react';
+import { Users, Trophy, Flame, Music2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { type QueueItem } from '../lib/supabase';
+
+interface PartyInsightsProps {
+  queue: QueueItem[];
+  history: QueueItem[];
+  userProfiles: {[fingerprint: string]: string};
+}
+
+const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfiles }) => {
+  const allSongs = [...queue, ...history];
+  
+  // 1. Top Contributors
+  const contributorStats: {[key: string]: number} = {};
+  allSongs.forEach(song => {
+    contributorStats[song.submitted_by] = (contributorStats[song.submitted_by] || 0) + 1;
+  });
+
+  const topContributors = Object.entries(contributorStats)
+    .map(([fingerprint, count]) => ({
+      name: userProfiles[fingerprint] || 'Anonymous',
+      count
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  // 2. Crowd Favorites (Highest Votes)
+  const crowdFavorites = [...allSongs]
+    .sort((a, b) => b.votes - a.votes)
+    .slice(0, 3);
+
+  // 3. Party Vibe (Simple heuristic based on average votes)
+  const averageVotes = allSongs.length > 0 
+    ? allSongs.reduce((acc, s) => acc + s.votes, 0) / allSongs.length 
+    : 0;
+  
+  const vibeStatus = averageVotes > 2 ? 'Explosive' : averageVotes > 0.5 ? 'Groovy' : 'Chilled';
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium">Party Vibe</CardTitle>
+          <Flame className="h-4 w-4 text-orange-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{vibeStatus}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Based on {allSongs.length} tracks played/queued
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-secondary/10 to-transparent border-secondary/20">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium">Top DJs</CardTitle>
+          <Users className="h-4 w-4 text-blue-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            {topContributors.length > 0 ? topContributors.map((dj, i) => (
+              <div key={i} className="flex justify-between items-center text-sm">
+                <span className="truncate font-medium">{dj.name}</span>
+                <span className="text-muted-foreground">{dj.count} songs</span>
+              </div>
+            )) : <div className="text-sm text-muted-foreground italic">No songs yet</div>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium">Crowd Favorites</CardTitle>
+          <Trophy className="h-4 w-4 text-amber-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            {crowdFavorites.length > 0 ? crowdFavorites.map((song, i) => (
+              <div key={i} className="flex justify-between items-center text-sm">
+                <span className="truncate font-medium flex items-center gap-1">
+                  <Music2 className="h-3 w-3" />
+                  {song.title}
+                </span>
+                <span className="text-amber-600 font-bold">+{song.votes}</span>
+              </div>
+            )) : <div className="text-sm text-muted-foreground italic">No votes yet</div>}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default PartyInsights;

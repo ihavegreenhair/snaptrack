@@ -12,11 +12,21 @@ import {
 interface NameInputModalProps {
   isOpen: boolean;
   onSubmit: (name: string) => void;
+  onClose?: () => void;
   partyCode: string;
+  initialValue?: string;
+  isMandatory?: boolean;
 }
 
-export default function NameInputModal({ isOpen, onSubmit, partyCode }: NameInputModalProps) {
-  const [name, setName] = useState('');
+export default function NameInputModal({ 
+  isOpen, 
+  onSubmit, 
+  onClose,
+  partyCode, 
+  initialValue = '',
+  isMandatory = true
+}: NameInputModalProps) {
+  const [name, setName] = useState(initialValue);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +36,7 @@ export default function NameInputModal({ isOpen, onSubmit, partyCode }: NameInpu
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isMandatory && onClose) onClose(); }}>
       <DialogContent className="max-w-md w-[95vw] sm:w-full">
         <DialogHeader className="text-center space-y-3 pb-4">
           <div className="flex items-center justify-center">
@@ -34,9 +44,13 @@ export default function NameInputModal({ isOpen, onSubmit, partyCode }: NameInpu
               <User className="w-6 h-6 text-primary" />
             </div>
           </div>
-          <DialogTitle className="text-xl">Welcome to Party {partyCode}!</DialogTitle>
+          <DialogTitle className="text-xl">
+            {isMandatory ? `Welcome to Party ${partyCode}!` : 'Change Your Name'}
+          </DialogTitle>
           <DialogDescription>
-            Enter your name so others can see who's adding great music to the queue
+            {isMandatory 
+              ? "Enter your name so others can see who's adding great music to the queue" 
+              : "Update your name for other party members to see"}
           </DialogDescription>
         </DialogHeader>
 
@@ -59,12 +73,17 @@ export default function NameInputModal({ isOpen, onSubmit, partyCode }: NameInpu
           </div>
 
           <div className="flex gap-3 pt-2">
+            {!isMandatory && (
+              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+                Cancel
+              </Button>
+            )}
             <Button 
               type="submit" 
               className="flex-1 h-12 font-medium shadow-sm hover:shadow-md transition-shadow duration-200"
-              disabled={!name.trim()}
+              disabled={!name.trim() || name === initialValue}
             >
-              Join Party
+              {isMandatory ? 'Join Party' : 'Update Name'}
             </Button>
           </div>
         </form>
