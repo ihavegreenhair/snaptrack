@@ -17,8 +17,8 @@ interface VJState {
   complexity: number;
   rotationSpeed: number;
   motionIntensity: number;
-  distortion: number;
-  colorCycle: number;
+  distortionScale: number;
+  individualDamping: number;
   wireframe: boolean;
   shapeType: 'box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron';
   fov: number;
@@ -47,9 +47,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const containerRef = useRef<HTMLDivElement>(null);
   const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
   
-  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('shapes');
-  const [vibeFlash, setVibeFlash] = useState(false);
-
+  // v8.0 Autonomous Agent State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
     pColor: new THREE.Color(PALETTES[0].p),
@@ -58,13 +56,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     secondaryHue: PALETTES[0].sh,
     complexity: 1,
     rotationSpeed: 1.0, 
-    motionIntensity: 1.0, 
-    distortion: 1,
-    colorCycle: 0,
+    motionIntensity: 1.0,
+    distortionScale: 1.0,
+    individualDamping: 0.1,
     wireframe: true,
     shapeType: 'box',
     fov: 75
   });
+
+  const [currentVibe, setCurrentVibe] = useState<VisualizerMode>('shapes');
+  const [vibeFlash, setVibeFlash] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -89,42 +90,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   const activeMode = mode === 'vj' ? currentVibe : mode;
 
-  // VJ Brain
-  const rollVJ = useCallback(() => {
-    const modes: VisualizerMode[] = [
-      'shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield',
-      'crystal', 'voxels', 'fibonacci', 'galaxy', 'ribbons', 'swarm', 'rubik', 'islands', 'circuit', 'rain', 'pulse'
-    ];
-    const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
-    const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
-    
-    setCurrentVibe(modes[Math.floor(Math.random() * modes.length)]);
-    setVj(prev => ({
-      ...prev,
-      pColor: new THREE.Color(p.p),
-      sColor: new THREE.Color(p.s),
-      primaryHue: p.ph,
-      secondaryHue: p.sh,
-      complexity: 0.5 + Math.random() * 2.0,
-      rotationSpeed: 0.5 + Math.random() * 2.0,
-      motionIntensity: 0.8 + Math.random() * 1.5,
-      wireframe: Math.random() > 0.3,
-      shapeType: shapes[Math.floor(Math.random() * shapes.length)],
-      fov: 60 + Math.random() * 40
-    }));
-
-    setVibeFlash(true);
-    setTimeout(() => setVibeFlash(false), 300);
-  }, []);
-
-  // Sync with Map
-  useEffect(() => {
-    if (!activeMap || !currentTime) return;
-    const cue = activeMap.cues.find(c => Math.abs(c.time - currentTime) < 0.5);
-    if (cue) rollVJ();
-  }, [activeMap, currentTime, rollVJ]);
-
-  // Audio cortex init
+  // Audio cortex
   useEffect(() => {
     if (mode === 'none' || !isPlaying) return;
     const init = async () => {
@@ -146,7 +112,44 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     init();
   }, [mode, isPlaying]);
 
-  // Black Screen Watchdog
+  // VJ Brain (Deep Randomization)
+  const rollVJ = useCallback(() => {
+    const modes: VisualizerMode[] = [
+      'shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield',
+      'crystal', 'voxels', 'fibonacci', 'galaxy', 'ribbons', 'swarm', 'rubik', 'islands', 'circuit', 'rain', 'pulse'
+    ];
+    const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
+    const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+    
+    setCurrentVibe(modes[Math.floor(Math.random() * modes.length)]);
+    setVj(prev => ({
+      ...prev,
+      pColor: new THREE.Color(p.p),
+      sColor: new THREE.Color(p.s),
+      primaryHue: p.ph,
+      secondaryHue: p.sh,
+      complexity: 0.5 + Math.random() * 2.5,
+      rotationSpeed: 0.2 + Math.random() * 2.0,
+      motionIntensity: 0.5 + Math.random() * 2.0,
+      distortionScale: 0.5 + Math.random() * 3.0,
+      individualDamping: 0.02 + Math.random() * 0.2,
+      wireframe: Math.random() > 0.3,
+      shapeType: shapes[Math.floor(Math.random() * shapes.length)],
+      fov: 50 + Math.random() * 60
+    }));
+
+    setVibeFlash(true);
+    setTimeout(() => setVibeFlash(false), 300);
+  }, []);
+
+  // Sync with Map
+  useEffect(() => {
+    if (!activeMap || !currentTime) return;
+    const cue = activeMap.cues.find(c => Math.abs(c.time - currentTime) < 0.5);
+    if (cue) rollVJ();
+  }, [activeMap, currentTime, rollVJ]);
+
+  // Watchdog
   useEffect(() => {
     if (mode === 'none' || !isPlaying) return;
     const checkVisibility = () => {
@@ -154,16 +157,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       const gl = rendererRef.current.getContext();
       const pixel = new Uint8Array(4);
       gl.readPixels(gl.drawingBufferWidth / 2, gl.drawingBufferHeight / 2, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-      const brightness = (pixel[0] + pixel[1] + pixel[2]) / 3;
-      if (brightness < 2) {
+      if ((pixel[0] + pixel[1] + pixel[2]) / 3 < 2) {
         blackoutCounter.current++;
-        if (blackoutCounter.current >= 3) {
-          rollVJ();
-          blackoutCounter.current = 0;
-        }
-      } else {
-        blackoutCounter.current = 0;
-      }
+        if (blackoutCounter.current >= 3) { rollVJ(); blackoutCounter.current = 0; }
+      } else { blackoutCounter.current = 0; }
     };
     const interval = setInterval(checkVisibility, 2000);
     return () => clearInterval(interval);
@@ -203,61 +200,37 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       return new THREE.TorusGeometry(size * 0.5, size * 0.2, 8, 24);
     };
 
-    if (activeMode === 'shapes') {
-      for (let i = 0; i < 100; i++) {
-        const mesh = new THREE.Mesh(getGeo(Math.random() * 2), i % 2 === 0 ? pMat : aMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60));
-        group.add(mesh);
-      }
-    } else if (activeMode === 'neural' || activeMode === 'swarm') {
-      const count = activeMode === 'neural' ? 150 : 400;
-      for (let i = 0; i < count; i++) {
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), pMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50), THREE.MathUtils.randFloatSpread(50));
-        group.add(mesh);
-      }
-    } else if (activeMode === 'rings' || activeMode === 'pulse') {
-      for (let i = 0; i < 25; i++) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(i * 2, 0.1, 16, 100), aMat);
-        group.add(ring);
-      }
-    } else if (activeMode === 'fibonacci') {
-      for (let i = 0; i < 200; i++) {
+    // --- Autonomous Agent Factory ---
+    const count = Math.floor(80 * vj.complexity);
+    for (let i = 0; i < count; i++) {
+      const mesh = new THREE.Mesh(getGeo(0.5 + Math.random() * 1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
+      
+      // Assign unique autonomous properties
+      mesh.userData = {
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 2.0,
+        freqIndex: Math.floor(Math.random() * 128),
+        orbitRadius: 10 + Math.random() * 30,
+        driftVec: new THREE.Vector3(THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1))
+      };
+
+      if (activeMode === 'fibonacci') {
         const t = i * 0.1;
-        const r = 2 * Math.sqrt(i);
-        const mesh = new THREE.Mesh(getGeo(0.5), pMat);
+        const r = 2 * Math.sqrt(i) * vj.complexity;
         mesh.position.set(Math.cos(t) * r, Math.sin(t) * r, i * 0.1 - 10);
-        group.add(mesh);
+      } else if (activeMode === 'voxels') {
+        const x = (i % 10) - 5;
+        const z = Math.floor(i / 10) - 5;
+        mesh.position.set(x * 4, -10, z * 4);
+      } else if (activeMode === 'rings') {
+        const ringGeo = new THREE.TorusGeometry(i * 2, 0.1, 8, 64);
+        mesh.geometry = ringGeo;
+        mesh.position.set(0,0,0);
+      } else {
+        mesh.position.set(THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60));
       }
-    } else if (activeMode === 'voxels') {
-      for (let x = -5; x < 5; x++) {
-        for (let z = -5; z < 5; z++) {
-          const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1, 1.8), pMat);
-          mesh.position.set(x * 2, -10, z * 2);
-          group.add(mesh);
-        }
-      }
-    } else if (activeMode === 'helix') {
-      for (let i = 0; i < 150; i++) {
-        const t = i * 0.2;
-        const m1 = new THREE.Mesh(new THREE.SphereGeometry(0.4), pMat);
-        const m2 = new THREE.Mesh(new THREE.SphereGeometry(0.4), aMat);
-        m1.position.set(Math.sin(t) * 6, t * 2 - 15, Math.cos(t) * 6);
-        m2.position.set(Math.sin(t + Math.PI) * 6, t * 2 - 15, Math.cos(t + Math.PI) * 6);
-        group.add(m1, m2);
-      }
-    } else if (activeMode === 'rain') {
-      for (let i = 0; i < 300; i++) {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2, 0.1), aMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100));
-        group.add(mesh);
-      }
-    } else {
-      for (let i = 0; i < 50; i++) {
-        const mesh = new THREE.Mesh(getGeo(2), pMat);
-        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
-        group.add(mesh);
-      }
+      
+      group.add(mesh);
     }
 
     camera.fov = vj.fov;
@@ -270,9 +243,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe, vj.fov]);
+  }, [activeMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe, vj.fov, vj.complexity]);
 
-  // Animation Loop
+  // Animation Engine
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
@@ -296,8 +269,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const lAvg = energyBuffer.current.reduce((a,b)=>a+b,0)/energyBuffer.current.length;
         
         if ((avg - lAvg) > 0.4 && avg > 0.5 && now > dropCooldown.current) {
-          rollVJ(); dropCooldown.current = now + 5000;
+          rollVJ(); 
           if (currentTime) recordCue(currentTime, 'DROP');
+          dropCooldown.current = now + 5000;
         }
 
         energyHistory.current.push(avg);
@@ -314,16 +288,22 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const bpm = Math.round(60000 / interval);
             bpmHistory.current.push(bpm);
             if (bpmHistory.current.length > 15) bpmHistory.current.shift();
-            onBPMChange?.(Math.round(bpmHistory.current.reduce((a,b)=>a+b,0)/bpmHistory.current.length));
+            const smoothedBPM = Math.round(bpmHistory.current.reduce((a,b)=>a+b,0)/bpmHistory.current.length);
+            onBPMChange?.(smoothedBPM);
           }
+          
           if (mode === 'vj' && beatCount.current % 16 === 0) {
             rollVJ();
             if (currentTime) recordCue(currentTime, 'BUILD');
           }
         }
 
+        // Periodically save mapping
         if (beatCount.current > 0 && beatCount.current % 128 === 0) {
-          saveMap(120);
+          const avgBPM = bpmHistory.current.length > 0 
+            ? Math.round(bpmHistory.current.reduce((a,b)=>a+b,0)/bpmHistory.current.length) 
+            : 120;
+          saveMap(avgBPM);
         }
       } else {
         avg = isPlaying ? 0.3 + Math.sin(now * 0.002) * 0.1 : 0;
@@ -334,35 +314,52 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const cam = cameraRef.current;
         const hueShift = (now * 0.02) % 360;
 
-        group.rotation.y += 0.005 * vj.rotationSpeed;
-        group.rotation.x += 0.002 * vj.rotationSpeed;
+        // Kinematics (Slow global drift)
+        group.rotation.y += 0.001 * vj.rotationSpeed;
 
         group.children.forEach((obj, i) => {
           const mesh = obj as THREE.Mesh;
-          if (activeMode === 'voxels') {
-            const freq = dataArrayRef.current?.[i % 128] || 0;
-            mesh.scale.y = THREE.MathUtils.lerp(mesh.scale.y, 1 + (freq / 255) * 20, 0.1);
-            mesh.position.y = -10 + mesh.scale.y / 2;
-          } else if (activeMode === 'rain') {
-            mesh.position.y -= 0.5 + (bass * 2.0);
-            if (mesh.position.y < -50) mesh.position.y = 50;
-          } else if (activeMode === 'pulse') {
-            mesh.scale.setScalar(THREE.MathUtils.lerp(mesh.scale.x, 1 + bass * 5, 0.1));
+          const agent = mesh.userData;
+          const localFreq = dataArrayRef.current?.[agent.freqIndex] || 0;
+          const localIntensity = (localFreq / 255) * sensitivity;
+
+          // 1. Independent Axis Distortion
+          const scaleX = 1 + (localIntensity * 2.0 * vj.distortionScale);
+          const scaleY = 1 + (bass * 3.0 * vj.distortionScale);
+          const scaleZ = 1 + (mid * 1.5 * vj.distortionScale);
+          
+          if (isBeat) {
+            mesh.scale.set(scaleX * 1.2, scaleY * 1.2, scaleZ * 1.2);
           } else {
-            if (isBeat) mesh.scale.setScalar(1.2 + bass);
-            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+            mesh.scale.lerp(new THREE.Vector3(scaleX, scaleY, scaleZ), vj.individualDamping);
           }
 
-          if (i % 5 === 0 && mesh.material instanceof THREE.MeshBasicMaterial) {
-            mesh.material.color.setHSL((vj.primaryHue + hueShift) / 360, 0.8, 0.5 + avg * 0.3);
+          // 2. Independent Movement (Floating Drift)
+          const time = now * 0.001 * agent.speed;
+          mesh.position.addScaledVector(agent.driftVec, Math.sin(time + agent.phase) * 0.05 * vj.motionIntensity);
+          mesh.rotation.x += 0.01 * agent.speed * vj.rotationSpeed;
+
+          // 3. Mode-Specific Agent Logic
+          if (activeMode === 'voxels') {
+            mesh.scale.y = THREE.MathUtils.lerp(mesh.scale.y, 1 + localIntensity * 20, 0.1);
+            mesh.position.y = -10 + mesh.scale.y / 2;
+          } else if (activeMode === 'rings') {
+            mesh.rotation.z += 0.01 * (i % 2 === 0 ? 1 : -1) * vj.rotationSpeed;
+            mesh.scale.setScalar(1 + bass * 2.0);
+          }
+
+          // 4. Color Morphing
+          if (i % 3 === 0 && mesh.material instanceof THREE.MeshBasicMaterial) {
+            mesh.material.color.setHSL((vj.primaryHue + hueShift + (i * 2)) / 360, 0.8, 0.4 + localIntensity * 0.4);
           }
         });
 
-        const t = now * 0.0005;
-        cam.position.x = Math.sin(t) * 15.0;
-        cam.position.y = Math.cos(t * 0.7) * 10.0;
+        // Cinematic Drone Camera
+        const t = now * 0.0003;
+        cam.position.x = Math.sin(t) * 25.0;
+        cam.position.y = Math.cos(t * 0.8) * 15.0;
         cam.lookAt(0, 0, 0);
-        cam.fov = THREE.MathUtils.lerp(cam.fov, isBeat ? vj.fov + 15 : vj.fov, 0.2);
+        cam.fov = THREE.MathUtils.lerp(cam.fov, isBeat ? vj.fov + (avg * 20) : vj.fov, 0.1);
         cam.updateProjectionMatrix();
 
         rendererRef.current.render(sceneRef.current, cam);
@@ -371,7 +368,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, currentTime, recordCue, saveMap]);
+  }, [activeMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, currentTime]);
 
   if (mode === 'none') return null;
 
