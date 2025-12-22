@@ -113,10 +113,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
                 <Sparkles className="mr-2 h-4 w-4" /> Auto VJ Mode
               </DropdownMenuRadioItem>
               <DropdownMenuSeparator />
-              <DropdownMenuRadioItem value="menger">Fractal City (Menger)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="menger">Fractal City</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="city">Infinite Skyscrapers</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="landmass">Voxel Landmass</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="columns">Infinite Pillars</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="blob">Sub-Bass Blob</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="lattice">Energy Lattice</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="shapes">3D Shapes Storm</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
