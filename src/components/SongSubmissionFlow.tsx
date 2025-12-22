@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, 
-  Upload, 
-  X, 
   Check, 
   Loader2, 
   Plus, 
@@ -290,8 +288,8 @@ export default React.forwardRef<{ openModal: () => void }, SongSubmissionFlowPro
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-xl p-0 overflow-hidden sm:rounded-2xl border-none shadow-2xl bg-background">
-        <div className="flex flex-col h-[90vh] sm:h-auto max-h-[800px]">
+      <DialogContent className="max-w-xl p-0 overflow-hidden sm:rounded-2xl border-none shadow-2xl bg-background max-h-[95vh] flex flex-col">
+        <div className="flex flex-col min-h-0 flex-1">
           
           {/* Header */}
           <DialogHeader className="p-6 pb-4 border-b">
