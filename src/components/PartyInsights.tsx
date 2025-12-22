@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Trophy, Flame, Music2 } from 'lucide-react';
+import { Users, Trophy, Music2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { type QueueItem } from '../lib/supabase';
 
@@ -31,28 +31,8 @@ const PartyInsights: React.FC<PartyInsightsProps> = ({ queue, history, userProfi
     .sort((a, b) => b.votes - a.votes)
     .slice(0, 3);
 
-  // 3. Party Vibe (Simple heuristic based on average votes)
-  const averageVotes = allSongs.length > 0 
-    ? allSongs.reduce((acc, s) => acc + s.votes, 0) / allSongs.length 
-    : 0;
-  
-  const vibeStatus = averageVotes > 2 ? 'Explosive' : averageVotes > 0.5 ? 'Groovy' : 'Chilled';
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm font-medium">Party Vibe</CardTitle>
-          <Flame className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{vibeStatus}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Based on {allSongs.length} tracks played/queued
-          </p>
-        </CardContent>
-      </Card>
-
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <Card className="bg-gradient-to-br from-secondary/10 to-transparent border-secondary/20">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm font-medium">Top DJs</CardTitle>
