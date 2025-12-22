@@ -6,9 +6,10 @@ interface VisualizerProps {
   mode: VisualizerMode;
   isPlaying: boolean;
   isDashboard?: boolean;
+  sensitivity?: number;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -104,7 +105,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard })
         avgFreq = isPlaying ? 40 + Math.sin(frame * 0.1) * 20 + Math.sin(frame * 0.05) * 10 : 0;
       }
 
-      const boost = avgFreq / 128; // 0 to 2 normalization
+      const boost = (avgFreq / 128) * sensitivity; // 0 to 2 normalization * sensitivity
       
       // Theme colors
       const style = getComputedStyle(document.documentElement);

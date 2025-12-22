@@ -29,6 +29,8 @@ interface UserMenuProps {
   onToggleAutoAdd?: () => void;
   visualizerMode?: VisualizerMode;
   onVisualizerChange?: (mode: VisualizerMode) => void;
+  visualizerSensitivity?: number;
+  onSensitivityChange?: (value: number) => void;
   isDashboardMode?: boolean;
   onDashboardChange?: (enabled: boolean) => void;
 }
@@ -45,6 +47,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onToggleAutoAdd,
   visualizerMode = 'none',
   onVisualizerChange,
+  visualizerSensitivity = 1.5,
+  onSensitivityChange,
   isDashboardMode,
   onDashboardChange
 }) => {
@@ -108,6 +112,15 @@ const UserMenu: React.FC<UserMenuProps> = ({
               <DropdownMenuRadioItem value="bars">Bars</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="waves">Waves</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="particles">Particles</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase">Sensitivity</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={visualizerSensitivity.toString()} onValueChange={(val) => onSensitivityChange?.(parseFloat(val))}>
+              <DropdownMenuRadioItem value="0.5">Low</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="1.5">Normal</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="3.0">High</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="6.0">MAX</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>

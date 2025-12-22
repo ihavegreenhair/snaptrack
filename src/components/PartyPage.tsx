@@ -32,6 +32,7 @@ function PartyPage() {
   const [copied, setCopied] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
+  const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDashboardMode, setIsDashboardMode] = useState(false);
   const toast = useToast();
@@ -212,7 +213,12 @@ function PartyPage() {
       "min-h-screen bg-background text-foreground transition-all duration-1000 overflow-x-hidden relative",
       isDashboardMode && "bg-black"
     )}>
-      <Visualizer mode={visualizerMode} isPlaying={isPlaying} isDashboard={isDashboardMode} />
+      <Visualizer 
+        mode={visualizerMode} 
+        isPlaying={isPlaying} 
+        isDashboard={isDashboardMode} 
+        sensitivity={visualizerSensitivity} 
+      />
       
       <header className={cn(
         "border-b bg-card/50 backdrop-blur-md sticky top-0 z-50 transition-all duration-500",
@@ -281,6 +287,8 @@ function PartyPage() {
                 onToggleAutoAdd={isHost ? () => setAutoAddEnabled(!autoAddEnabled) : undefined}
                 visualizerMode={visualizerMode}
                 onVisualizerChange={setVisualizerMode}
+                visualizerSensitivity={visualizerSensitivity}
+                onSensitivityChange={setVisualizerSensitivity}
                 isDashboardMode={isDashboardMode}
                 onDashboardChange={setIsDashboardMode}
                 onEndParty={isHost ? () => {
@@ -295,11 +303,15 @@ function PartyPage() {
         </div>
       </header>
 
-      <main className="max-w-[1920px] mx-auto p-4 sm:p-6 xl:p-8 2xl:p-12">
+      <main className={cn(
+        "max-w-[1920px] mx-auto p-4 sm:p-6 xl:p-8 2xl:p-12 transition-all duration-1000",
+        isDashboardMode && "fixed inset-0 p-0 max-w-none h-screen overflow-hidden z-10"
+      )}>
         
         {/* Empty State / Welcome Screen */}
         {!nowPlaying && queue.length === 0 ? (
           <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* ... (Existing empty state code remains same for now) */}
             <div className="text-center mb-8 xl:mb-12 2xl:mb-16">
               <div className="w-20 h-20 xl:w-28 xl:h-28 2xl:w-36 2xl:h-36 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 xl:mb-6 2xl:mb-8 shadow-inner">
                 <Music className="w-10 h-10 xl:w-14 xl:h-14 2xl:w-18 2xl:h-18 text-muted-foreground" />
@@ -341,7 +353,7 @@ function PartyPage() {
                   <div className="text-center flex flex-col justify-center h-full border-t lg:border-t-0 lg:border-l border-border pt-12 lg:pt-0 lg:pl-12">
                     <div className="space-y-6">
                       <div className="w-48 h-48 mx-auto bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center p-4">
-                        <QRCode value={`${window.location.origin}/party/${partyCode}`} size={160} />
+                        <QRCode value={`${window.location.origin}/party/${partyCode}`} size={200} />
                       </div>
                       
                       <div>
@@ -364,8 +376,12 @@ function PartyPage() {
           </div>
         ) : (
           /* Active Party Layout */
-          <>
-            <div className={cn("transition-all duration-500", isDashboardMode && "opacity-0 h-0 overflow-hidden mb-0")}>
+          <div className={cn(
+            "relative w-full h-full",
+            isDashboardMode ? "grid grid-cols-4 grid-rows-4 p-8 gap-8" : "block"
+          )}>
+            {/* Background Layer: Insights (Hidden in Dashboard) */}
+            <div className={cn("transition-all duration-500", isDashboardMode && "hidden")}>
               <PartyInsights 
                 queue={queue} 
                 history={history} 
@@ -373,14 +389,16 @@ function PartyPage() {
               />
             </div>
             
+            {/* Dashboard Mode: Now Playing (Top Left) */}
             <div className={cn(
-              "grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8",
-              isDashboardMode ? "xl:grid-cols-4 2xl:grid-cols-5" : (isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6')
+              "transition-all duration-700",
+              isDashboardMode 
+                ? "col-span-2 row-span-2 flex flex-col justify-start" 
+                : "block"
             )}>
-              {/* Left/Main Column: Player */}
               <div className={cn(
-                "h-full sticky top-20 sm:relative sm:top-0 z-30 transition-all duration-500",
-                isDashboardMode ? "xl:col-span-3 2xl:col-span-4" : (isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2')
+                "h-full sticky top-20 sm:relative sm:top-0 z-30 transition-all duration-1000",
+                isDashboardMode ? "bg-card/40 backdrop-blur-xl border-white/10 rounded-3xl shadow-2xl scale-90 origin-top-left p-2" : ""
               )} ref={nowPlayingEl}>
                 <NowPlaying
                   song={nowPlaying}
@@ -404,15 +422,44 @@ function PartyPage() {
                   skipVoting={skipVoting}
                 />
               </div>
+            </div>
 
-              {/* Right/Secondary Column: Queue & Info */}
+            {/* Dashboard Mode: QR Code (Top Right) */}
+            <div className={cn(
+              "hidden transition-all duration-700 delay-100",
+              isDashboardMode && "col-span-2 row-span-2 flex flex-col items-end justify-start opacity-100"
+            )}>
+              <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-2xl animate-in zoom-in-75 duration-700">
+                <div className="space-y-4 text-center text-black">
+                  <div className="p-2 bg-white rounded-2xl shadow-inner inline-block">
+                    <QRCode value={`${window.location.origin}/party/${partyCode}`} size={200} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black italic tracking-tighter uppercase">SCAN TO JOIN</h3>
+                    <p className="text-xl font-mono font-bold tracking-[0.2em]">{partyCode}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Standard Sidebar / Dashboard Mini Queue (Bottom Left/Right) */}
+            <div className={cn(
+              "transition-all duration-700 delay-200",
+              isDashboardMode 
+                ? "col-span-4 row-span-2 flex items-end justify-between gap-8" 
+                : "block"
+            )}>
+              {/* Only show queue in Dashboard Mode at the bottom, or standard sidebar */}
               <div className={cn(
-                "space-y-4 transition-all duration-500",
-                isDashboardMode ? "xl:col-span-1 2xl:col-span-1" : (isHost ? 'xl:col-span-2 2xl:col-span-3' : 'xl:col-span-3 2xl:col-span-4')
+                "w-full transition-all duration-1000",
+                isDashboardMode 
+                  ? "bg-card/30 backdrop-blur-lg border-white/5 rounded-3xl max-h-[300px] overflow-hidden p-2" 
+                  : "space-y-4"
               )}>
-                {/* QR Code Overlay */}
-                {showQRCode && (
+                {/* QR Code Overlay (Standard Mode) */}
+                {showQRCode && !isDashboardMode && (
                   <div className="bg-card border border-border rounded-xl p-6 shadow-lg animate-in fade-in slide-in-from-top-2">
+                    {/* ... (Existing QR Code code) */}
                     <div className="flex items-start justify-between">
                       <div className="flex gap-6 items-center">
                         <div className="p-2 bg-white rounded-lg">
@@ -439,7 +486,7 @@ function PartyPage() {
                   queue={queue} 
                   currentSongId={nowPlaying?.id} 
                   isHost={isHost} 
-                  height={screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined)}
+                  height={isDashboardMode ? 280 : (screenWidth < 640 ? undefined : (isHost ? (showQRCode ? undefined : nowPlayingHeight) : undefined))}
                   isHostView={isHost}
                   userProfiles={userProfiles}
                   onPin={pinSong}
@@ -449,10 +496,10 @@ function PartyPage() {
               </div>
             </div>
             
-            <div className={cn("mt-4 sm:mt-6 transition-all duration-500", isDashboardMode && "opacity-0 h-0 overflow-hidden")}>
+            <div className={cn("mt-4 sm:mt-6 transition-all duration-500", isDashboardMode && "hidden")}>
               <PhotoGallery title="Previously Played" queue={history} userProfiles={userProfiles} />
             </div>
-          </>
+          </div>
         )}
       </main>
 
