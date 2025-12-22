@@ -114,31 +114,22 @@ const UserMenu: React.FC<UserMenuProps> = ({
               </DropdownMenuRadioItem>
               
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Shader Worlds (SDF)</DropdownMenuLabel>
-              <DropdownMenuRadioItem value="menger">Fractal Menger</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="city">Infinite Skyscrapers</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="matrix">Digital Matrix</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="rooms">Recursive Rooms</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="bulb">Mandelbulb Fractal</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="landmass">Voxel Landmass</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="columns">Neon Pillars</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="blob">Liquid Blob</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="gyroid">Gyroid Membrane</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="tunnel">Hyper-Torus</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="lava">Lava Sea</DropdownMenuRadioItem>
-              
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Geometric Physics (Mesh)</DropdownMenuLabel>
-              <DropdownMenuRadioItem value="shapes">3D Shape Storm</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="trees">Fractal Trees</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="flower">Geometric Flower</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="starfield">Starfield Galaxy</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="helix">DNA Helix</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="neural">Neural Web</DropdownMenuRadioItem>
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Geometric Physics</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="shapes">Shape Storm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="voxels">Voxel Towers</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="rings">Audio Rings</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="core3d">Geometric Core</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="vortex">Rotating Vortex</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="cloud">Hyper-Cloud</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="rain">Digital Rain</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="pulse">Pulse Rings</DropdownMenuRadioItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Procedural Swarms</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="neural">Neural Web</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="fibonacci">Fibonacci Spiral</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="helix">DNA Helix</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="flower">Geometric Flower</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="starfield">Starfield Galaxy</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="trees">Fractal Trees</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
