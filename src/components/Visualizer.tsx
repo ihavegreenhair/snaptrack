@@ -76,11 +76,16 @@ const RAYMARCHING_FRAGMENT = `
   uniform int mode;
   varying vec2 vUv;
 
-  #define MAX_STEPS 100
-  #define MAX_DIST 100.
-  #define SURF_DIST .001
+  #define MAX_STEPS 128
+  #define MAX_DIST 150.
+  #define SURF_DIST .005
 
-  // SDF Functions
+  mat2 Rot(float a) {
+    float s=sin(a), c=cos(a);
+    return mat2(c, -s, s, c);
+  }
+
+  // SDF Library
   float sdSphere(vec3 p, float s) { return length(p) - s; }
   float sdBox(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
@@ -90,8 +95,10 @@ const RAYMARCHING_FRAGMENT = `
     vec2 q = vec2(length(p.xz)-t.x,p.y);
     return length(q)-t.y;
   }
+  
   float sdMenger(vec3 p) {
-    float d = sdBox(p, vec3(1.));
+    p.xy *= Rot(time * 0.1);
+    float d = sdBox(p, vec3(1.0));
     float s = 1.0;
     for(int m=0; m<3; m++) {
       vec3 a = mod(p*s, 2.0)-1.0;
@@ -106,68 +113,43 @@ const RAYMARCHING_FRAGMENT = `
     return d;
   }
 
-  mat2 Rot(float a) {
-    float s=sin(a), c=cos(a);
-    return mat2(c, -s, s, c);
-  }
-
   float GetDist(vec3 p) {
     float d = 1000.0;
     
-    if(mode == 1) { // Menger Sponge
-      p.xy *= Rot(time * 0.2);
-      p.xz *= Rot(time * 0.1);
-      float scale = 1.0 + mid * 0.5;
+    // Add a ground floor for perspective
+    float floorDist = p.y + 3.0;
+    
+    if(mode == 1) { // Menger
+      float scale = 2.5 + mid * 2.0;
       d = sdMenger(p / scale) * scale;
     } else if(mode == 2) { // Neon Pillars
       vec3 q = p;
-      q.xz = mod(q.xz, 4.0) - 2.0;
-      float h = 5.0 + bass * 10.0;
-      d = sdBox(q, vec3(0.5, h, 0.5));
+      q.xz = mod(q.xz, 6.0) - 3.0;
+      float h = 4.0 + bass * 12.0;
+      d = sdBox(q, vec3(0.8, h, 0.8));
     } else if(mode == 3) { // Liquid Blob
-      float noise = sin(p.x*2.+time)*sin(p.y*2.+time)*sin(p.z*2.+time) * subBass;
-      d = length(p) - (2.0 + noise);
-    } else if(mode == 4) { // The Matrix v2
-      vec3 q = p;
-      q.xz = mod(q.xz, 1.0) - 0.5;
-      q.y = mod(q.y - time * 5.0, 10.0) - 5.0;
-      d = sdBox(q, vec3(0.1, 0.4, 0.1));
-    } else if(mode == 5) { // Fractal Landmass
-      float h = sin(p.x * 0.5 + time) * cos(p.z * 0.5) * 2.0;
-      d = p.y + 2.0 - h * bass;
+      float pulse = subBass * 2.0;
+      float noise = sin(p.x*1.5+time)*cos(p.y*1.5+time)*sin(p.z*1.5+time) * pulse;
+      d = length(p) - (3.5 + noise);
     } else if(mode == 6) { // Hyper Torus
-      p.xz *= Rot(time);
-      p.yz *= Rot(time * 0.5);
-      d = sdTorus(p, vec2(3.0 + mid, 0.5 + high));
-    } else if(mode == 7) { // Recursive Rooms
-      vec3 q = abs(mod(p, 8.0) - 4.0);
-      d = -sdBox(q, vec3(3.8));
+      p.xz *= Rot(time * 0.5);
+      p.yz *= Rot(time * 0.3);
+      d = sdTorus(p, vec2(5.0 + mid * 2.0, 1.0 + high));
     } else if(mode == 8) { // Gyroid
-      p *= 2.0;
-      d = abs(dot(sin(p), cos(p.yzx)) - 0.2) / 2.0 - (subBass * 0.1);
-    } else if(mode == 9) { // Neon Ribbons
-      float r = length(p.xz);
-      float h = sin(r - time * 4.0) * mid * 2.0;
-      d = abs(p.y - h) - 0.1;
-    } else if(mode == 10) { // Crystal Growth
-      p.xy *= Rot(time * 0.3);
-      d = sdBox(p, vec3(1.0 + high)) - 0.1 * sin(p.x * 10.0);
+      vec3 q = p * (0.5 + subBass * 0.2);
+      d = abs(dot(sin(q), cos(q.yzx))) / 0.5 - 0.1;
     } else if(mode == 11) { // Void Vortex
-      float angle = atan(p.z, p.x) + length(p.xz) * 0.5 - time * 2.0;
       float r = length(p.xz);
-      d = length(vec2(r - 2.0, p.y)) - 0.5 * (1.0 - bass);
-    } else if(mode == 12) { // Digital Clouds
-      d = length(p) - 4.0 + sin(p.x + time) * sin(p.y) * sin(p.z) * mid * 2.0;
-    } else if(mode == 13) { // Hexagonal Hive
-      vec2 q = vec2(p.x * 1.73, p.z + (mod(floor(p.x), 2.0) == 0.0 ? 0.0 : 0.5));
-      q = mod(q, 1.0) - 0.5;
-      d = sdBox(vec3(q.x, p.y, q.y), vec3(0.4, 0.5 + bass, 0.4));
-    } else if(mode == 14) { // Mandelbulb (Approx)
-      vec3 z = p;
+      float angle = atan(p.z, p.x) + r * 0.2 - time * 3.0;
+      vec3 q = vec3(r - 4.0, p.y, 0.0);
+      q.xy *= Rot(angle);
+      d = length(q.xy) - (0.5 + bass);
+    } else if(mode == 14) { // Mandelbulb
+      vec3 z = p * 0.2;
       float dr = 1.0;
       float r = 0.0;
-      float power = 8.0 + sin(time * 0.1) * 4.0 + mid * 4.0;
-      for (int i = 0; i < 5 ; i++) {
+      float power = 4.0 + mid * 8.0;
+      for (int i = 0; i < 4 ; i++) {
         r = length(z);
         if (r>2.0) break;
         float theta = acos(z.z/r);
@@ -177,16 +159,16 @@ const RAYMARCHING_FRAGMENT = `
         theta = theta*power;
         phi = phi*power;
         z = zr*vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
-        z+=p;
+        z+=p*0.2;
       }
-      d = 0.5*log(r)*r/dr;
+      d = (0.5*log(r)*r/dr) * 5.0;
     } else if(mode == 15) { // Lava Sea
-      d = p.y + 2.0 + sin(p.x + time) * 0.5 * bass + cos(p.z + time * 0.8) * 0.5 * bass;
+      d = p.y + 1.0 + sin(p.x * 0.5 + time) * bass * 2.0 + cos(p.z * 0.5 + time * 0.7) * bass * 2.0;
     } else {
-      d = length(p) - 2.0;
+      d = sdSphere(p, 4.0 + subBass * 2.0);
     }
     
-    return d;
+    return min(d, floorDist);
   }
 
   float RayMarch(vec3 ro, vec3 rd) {
@@ -212,25 +194,35 @@ const RAYMARCHING_FRAGMENT = `
 
   void main() {
     vec2 uv = (vUv - 0.5) * resolution / min(resolution.x, resolution.y);
-    vec3 ro = vec3(0, 0, -10);
-    vec3 rd = normalize(vec3(uv, 1));
+    
+    // Animate camera slightly
+    vec3 ro = vec3(sin(time*0.2)*2.0, 2.0 + cos(time*0.1), -15.0);
+    vec3 rd = normalize(vec3(uv.x, uv.y - 0.1, 1.2));
 
     float d = RayMarch(ro, rd);
-    vec3 col = vec3(0);
+    vec3 col = vec3(0.02, 0.01, 0.05); // Deep background
 
     if(d<MAX_DIST) {
       vec3 p = ro + rd * d;
       vec3 n = GetNormal(p);
-      float diff = dot(n, normalize(vec3(1,2,3)))*.5+.5;
-      col = mix(color1, color2, diff);
+      vec3 lightPos = vec3(5, 10, -10);
+      vec3 l = normalize(lightPos - p);
       
-      // Add glow
-      float glow = exp(-d * 0.05) * mid;
-      col += color2 * glow;
+      // Lighting
+      float diff = clamp(dot(n, l), 0.1, 1.0);
+      float sky = clamp(0.5 + 0.5 * n.y, 0.0, 1.0);
+      
+      col = mix(color1, color2, diff);
+      col += color2 * pow(max(0.0, dot(reflect(-l, n), -rd)), 16.0); // Specular
+      col *= (diff + sky * 0.2);
+      
+      // Fog
+      float fog = 1.0 - exp(-d * 0.02);
+      col = mix(col, vec3(0.02, 0.01, 0.05), fog);
+      
+      // Beat Flash
+      col += color1 * subBass * 0.3 * (1.0 - fog);
     }
-    
-    // Atmosphere
-    col = mix(col, vec3(0.05, 0.02, 0.1), 1.0 - exp(-0.0005*d*d));
 
     gl_FragColor = vec4(col, 1.0);
   }
@@ -736,9 +728,39 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       let weightedSum = 0;
       
       if (hasAudioAccess && analyserRef.current && dataArrayRef.current) {
+        // 1. Get Frequency Data for Visuals
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
         const d = dataArrayRef.current;
         const binCount = analyserRef.current.frequencyBinCount; 
+
+        // 2. Get Time Domain Data for Essentia (Neural Bridge)
+        const timeData = new Uint8Array(analyserRef.current.fftSize);
+        analyserRef.current.getByteTimeDomainData(timeData);
+        
+        // --- ESSENTIA NEURAL BRIDGE ---
+        if (essentiaRef.current) {
+            // Convert to Float32 [-1, 1] for Essentia
+            const floatBuffer = new Float32Array(timeData.length);
+            for(let i=0; i<timeData.length; i++) {
+                floatBuffer[i] = (timeData[i] - 128) / 128.0;
+            }
+            
+            // Calculate RMS (Root Mean Square) using Essentia
+            // This confirms the "Neural Bridge" is receiving valid signal
+            const vector = essentiaRef.current.arrayToVector(floatBuffer);
+            const rms = essentiaRef.current.RMS(vector).rms;
+            
+            // Dynamic Confidence: If signal is clean (RMS > threshold), confidence goes up
+            if (rms > 0.05) {
+                setBeatConfidence(prev => Math.min(prev + 0.02, 1.0));
+            } else {
+                // Decay if silence
+                setBeatConfidence(prev => Math.max(prev - 0.01, 0));
+            }
+            
+            // Clean up WASM memory to prevent leaks
+            vector.delete();
+        }
 
         // AI PREDICTION REACTION (Option 3)
         if (activeMap && activeMap.cues && currentTime) {
