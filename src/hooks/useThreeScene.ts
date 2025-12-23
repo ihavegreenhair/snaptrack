@@ -14,7 +14,7 @@ export function useThreeScene(activeMode: string, vj: VJState, photoUrl?: string
 
     if (!rendererRef.current) {
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -30,6 +30,10 @@ export function useThreeScene(activeMode: string, vj: VJState, photoUrl?: string
     const group = meshGroupRef.current!;
     const camera = cameraRef.current!;
     group.clear();
+
+    // Zoom Out: Set default camera position further back
+    camera.position.set(0, 0, 45); 
+    camera.lookAt(0, 0, 0);
 
     const pMat = new THREE.MeshBasicMaterial({ color: vj.pColor, wireframe: vj.wireframe, transparent: true, opacity: 0.7 });
     const aMat = new THREE.MeshBasicMaterial({ color: vj.sColor, wireframe: true, transparent: true, opacity: 0.4 });

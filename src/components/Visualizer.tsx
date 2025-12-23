@@ -63,9 +63,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const crazyFactor = 1.0 + (Math.max(0, res.gradient) * 10.0) + (res.tension * 0.5);
         const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1) * crazyFactor;
 
-        // Auto-roll logic: Only roll if NOT building or in a breakdown
-        const shouldLockMode = res.isBuilding || res.isBreakdown;
-        if (res.tension > 5.0 && !shouldLockMode && Math.random() > 0.99) rollVJ();
+        // --- ADAPTIVE VJ ROLLING ---
+        // Instead of locking, we just slow down the probability
+        let rollChance = 0.99; // Standard 1% chance per frame at high tension
+        if (res.isBreakdown) rollChance = 0.998; // 0.2% chance (5x slower)
+        if (res.isBuilding) rollChance = 0.995; // 0.5% chance (2x slower)
+
+        if (res.tension > 5.0 && Math.random() > rollChance) rollVJ();
 
         // 1. Global Scene Movement
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
@@ -75,8 +79,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
            group.rotation.y += 0.002 * rotSpeed;
         } else if (isGame) {
            if (activeMode !== 'puzzle') {
-               group.rotation.y = Math.sin(now * 0.0002) * 0.1 * crazyFactor; 
-               group.rotation.x = Math.sin(now * 0.0001) * 0.05 * crazyFactor;
+               // Limit game rotation to prevent camera flying out (Black Screen fix)
+               group.rotation.y = Math.sin(now * 0.0002) * 0.05 * crazyFactor; 
+               group.rotation.x = Math.sin(now * 0.0001) * 0.03 * crazyFactor;
            } else {
                group.rotation.z = Math.sin(now * 0.005) * 0.05 * res.bass * crazyFactor;
            }
@@ -85,12 +90,19 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         // 2. Camera Physics
         const targetFov = res.isBeat ? vj.fov + (res.sub * 5 * crazyFactor) : vj.fov + (isBuildUp ? -10 : 0); 
         cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.2);
+        
+        // Stabilize Camera Frustum
+        cam.position.z = THREE.MathUtils.lerp(cam.position.z, 45, 0.05);
         cam.updateProjectionMatrix();
 
         if (isBuildUp || res.gradient > 0.05) {
-            const shake = (buildupFactor * 0.5) + (Math.max(0, res.gradient) * 5.0);
-            cam.position.x += (Math.random() - 0.5) * shake;
-            cam.position.y += (Math.random() - 0.5) * shake;
+            const shake = (buildupFactor * 0.3) + (Math.max(0, res.gradient) * 3.0);
+            cam.position.x = THREE.MathUtils.lerp(cam.position.x, (Math.random() - 0.5) * shake, 0.5);
+            cam.position.y = THREE.MathUtils.lerp(cam.position.y, (Math.random() - 0.5) * shake, 0.5);
+        } else {
+            // Smoothly return to center to avoid black screens
+            cam.position.x = THREE.MathUtils.lerp(cam.position.x, 0, 0.1);
+            cam.position.y = THREE.MathUtils.lerp(cam.position.y, 0, 0.1);
         }
 
         // 3. Object Modulation
