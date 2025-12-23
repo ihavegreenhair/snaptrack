@@ -42,10 +42,11 @@ export function useVisualizerAudio({
   onAICue
 }: UseVisualizerAudioProps) {
   const essentiaRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const timeBufferRef = useRef<Uint8Array | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   
   const [analysis, setAnalysis] = useState<AudioAnalysis>({
     sub: 0, bass: 0, mid: 0, high: 0, energy: 0, gradient: 0, tension: 0, confidence: 0,
@@ -63,25 +64,52 @@ export function useVisualizerAudio({
   const subBassAvg = useRef(0);
   const lastLogTime = useRef(0);
 
-  // Initialize Essentia
+  // 1. Initialize Audio Context & Analyser
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const initAudio = async () => {
+      try {
+        if (!audioContextRef.current) {
+          const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+          audioContextRef.current = new AudioContextClass();
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 1024;
+          dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+          timeBufferRef.current = new Uint8Array(analyserRef.current.fftSize);
+        }
+
+        if (!sourceRef.current && audioContextRef.current && analyserRef.current) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
+          sourceRef.current.connect(analyserRef.current);
+          console.log('[Audio] Input Connected');
+        }
+      } catch (e) {
+        console.error('[Audio] Connection Failed:', e);
+      }
+    };
+
+    initAudio();
+  }, [isPlaying]);
+
+  // 2. Initialize Essentia WASM
   useEffect(() => {
     let isMounted = true;
-    const init = async () => {
+    const initEssentia = async () => {
       try {
         console.log('[Essentia] ⚙️ Initializing WASM Module...');
         const wasmModule = typeof EssentiaWASM === 'function' ? await (EssentiaWASM as any)() : (EssentiaWASM as any).default ? await (EssentiaWASM as any).default() : EssentiaWASM;
         if (!isMounted) return;
         essentiaRef.current = new (Essentia as any)(wasmModule);
         console.log('%c[Essentia] 🧠 NEURAL ENGINE READY', 'color: #00ff00; font-weight: bold;');
-      } catch (e) { 
-        console.error('[Essentia] ❌ Setup failed:', e); 
-      }
+      } catch (e) { console.error('[Essentia] Setup failed:', e); }
     };
-    init();
+    initEssentia();
     return () => { isMounted = false; };
   }, []);
 
-  // Reset on song change
+  // 3. Reset on song change
   useEffect(() => {
     if (videoId) {
       console.log(`[BPM] 🎵 Song changed: ${videoId}. Resetting confidence.`);
@@ -95,16 +123,14 @@ export function useVisualizerAudio({
   }, [videoId]);
 
   const updateAnalysis = useCallback((now: number) => {
-    if (!isPlaying || !analyserRef.current || !dataArrayRef.current) return analysis;
+    if (!isPlaying || !analyserRef.current || !dataArrayRef.current || !timeBufferRef.current) return analysis;
 
     analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+    analyserRef.current.getByteTimeDomainData(timeBufferRef.current);
+    
     const d = dataArrayRef.current;
     const binCount = analyserRef.current.frequencyBinCount;
 
-    // Time domain for Essentia
-    if (!timeBufferRef.current) timeBufferRef.current = new Uint8Array(analyserRef.current.fftSize);
-    analyserRef.current.getByteTimeDomainData(timeBufferRef.current);
-    
     // AI Predicted Cue reaction
     if (activeMap?.cues && currentTime) {
         const cue = activeMap.cues.find((c: any) => Math.abs(c.time - currentTime) < 0.1);
@@ -140,23 +166,22 @@ export function useVisualizerAudio({
     const gradient = currentEnergy - avgEnergy;
     tensionRef.current = (tensionRef.current * 0.98) + (Math.max(0, gradient) * 2.0);
 
-    // BUILDING & BREAKDOWN DETECTION
     const isBuilding = tensionRef.current > 2.0 && gradient > 0.01;
     const isBreakdown = gradient < -0.05 && currentEnergy < 0.3;
 
-    // Essentia Bridge
+    // --- ESSENTIA PROCESSING ---
     if (essentiaRef.current) {
       const floatBuffer = new Float32Array(timeBufferRef.current.length);
       for(let i=0; i<timeBufferRef.current.length; i++) floatBuffer[i] = (timeBufferRef.current[i] - 128) / 128.0;
       const vector = essentiaRef.current.arrayToVector(floatBuffer);
       const rms = essentiaRef.current.RMS(vector).rms;
       
-      // Dynamic Confidence
+      // Energy Confidence
       if (rms > 0.005) confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
       else confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
       
       if (now - lastLogTime.current > 2000) {
-        console.log(`[Neural] RMS: ${rms.toFixed(4)} | Conf: ${Math.round(confidenceRef.current * 100)}% | Engine: ${essentiaRef.current ? 'WASM' : 'OFF'}`);
+        console.log(`[Neural] Signal: ${rms.toFixed(4)} | Confidence: ${Math.round(confidenceRef.current * 100)}% | Mode: ${isBuilding ? 'BUILD' : isBreakdown ? 'BREAK' : 'FLOW'}`);
         lastLogTime.current = now;
       }
       vector.delete();
@@ -170,9 +195,8 @@ export function useVisualizerAudio({
     const timeSinceLast = now - lastBeatTime.current;
     const phaseError = Math.abs(timeSinceLast - beatInterval.current);
     
-    // Phase Lock Logic
     if (isAudioBeat) {
-        if (phaseError < 60) { // Slightly more forgiving threshold
+        if (phaseError < 60) {
             confidenceRef.current = Math.min(confidenceRef.current + 0.05, 1.0);
             if (now - lastLogTime.current > 500) console.log(`[Phase] Match! Error: ${Math.round(phaseError)}ms`);
         } else {
@@ -207,24 +231,16 @@ export function useVisualizerAudio({
     }
 
     const result = {
-      sub, bass, mid, high, 
-      energy: currentEnergy, 
-      gradient, 
-      tension: tensionRef.current, 
-      confidence: confidenceRef.current,
-      isBeat, 
-      isSnare: (mid > 0.6 && sub < 0.3),
-      isBuilding,
-      isBreakdown,
-      bpm: bpmEstimate.current,
-      spectralFlatness: flatness
+      sub, bass, mid, high, energy: currentEnergy, gradient, tension: tensionRef.current, 
+      confidence: confidenceRef.current, isBeat, isSnare: (mid > 0.6 && sub < 0.3),
+      isBuilding, isBreakdown, bpm: bpmEstimate.current, spectralFlatness: flatness
     };
 
-    // Update state occasionally for UI (every 10th frame approx)
-    if (now % 10 === 0) setAnalysis(result);
+    // Update React State for UI (every 15 frames approx)
+    if (Math.floor(now / 16) % 15 === 0) setAnalysis(result);
 
     return result;
-  }, [isPlaying, sensitivity, onBPMChange, onBeatTrigger, activeMap, currentTime, onAICue]);
+  }, [analysis, isPlaying, sensitivity, onBPMChange, onBeatTrigger, activeMap, currentTime, onAICue]);
 
-  return { analysis, updateAnalysis, audioContextRef, analyserRef, dataArrayRef };
+  return { analysis, updateAnalysis };
 }
