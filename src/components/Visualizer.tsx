@@ -9,7 +9,7 @@ export type VisualizerMode =
   // Original Modes
   | 'menger' | 'city' | 'tunnel' | 'matrix' | 'shapes' | 'rings' | 'starfield' | 'fibonacci' | 'voxels' 
   | 'pong' | 'invaders' | 'pacman' | 'snake' | 'tetris' | 'puzzle' | 'population'
-  // Catalog Type A: Raymarching & SDF
+  // Catalog Type A: Geometry Versions
   | 'menger_sponge' | 'neon_pillars' | 'liquid_blob' | 'the_matrix_v2' | 'fractal_landmass' 
   | 'hyper_torus' | 'recursive_rooms' | 'gyroid_membrane' | 'neon_ribbons' | 'crystal_growth'
   | 'void_vortex' | 'digital_clouds' | 'hexagonal_hive' | 'mandelbulb' | 'lava_sea'
@@ -56,177 +56,6 @@ const catalogB: VisualizerMode[] = [
   'jellyfish', 'voxelizer', 'spring_field', 'particle_fountain', 'floating_islands',
   'light_trails', 'physics_pile', 'string_theory', 'geometric_core', 'mirror_prism'
 ];
-
-const RAYMARCHING_VERTEX = `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const RAYMARCHING_FRAGMENT = `
-  uniform float time;
-  uniform vec2 resolution;
-  uniform float subBass;
-  uniform float bass;
-  uniform float mid;
-  uniform float high;
-  uniform vec3 color1;
-  uniform vec3 color2;
-  uniform int mode;
-  varying vec2 vUv;
-
-  #define MAX_STEPS 128
-  #define MAX_DIST 150.
-  #define SURF_DIST .005
-
-  mat2 Rot(float a) {
-    float s=sin(a), c=cos(a);
-    return mat2(c, -s, s, c);
-  }
-
-  // SDF Library
-  float sdSphere(vec3 p, float s) { return length(p) - s; }
-  float sdBox(vec3 p, vec3 b) {
-    vec3 q = abs(p) - b;
-    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
-  }
-  float sdTorus(vec3 p, vec2 t) {
-    vec2 q = vec2(length(p.xz)-t.x,p.y);
-    return length(q)-t.y;
-  }
-  
-  float sdMenger(vec3 p) {
-    p.xy *= Rot(time * 0.1);
-    float d = sdBox(p, vec3(1.0));
-    float s = 1.0;
-    for(int m=0; m<3; m++) {
-      vec3 a = mod(p*s, 2.0)-1.0;
-      s *= 3.0;
-      vec3 r = abs(1.0 - 3.0*abs(a));
-      float da = max(r.x,r.y);
-      float db = max(r.y,r.z);
-      float dc = max(r.z,r.x);
-      float c = (min(da,min(db,dc))-1.0)/s;
-      d = max(d,c);
-    }
-    return d;
-  }
-
-  float GetDist(vec3 p) {
-    float d = 1000.0;
-    
-    // Add a ground floor for perspective
-    float floorDist = p.y + 3.0;
-    
-    if(mode == 1) { // Menger
-      float scale = 2.5 + mid * 2.0;
-      d = sdMenger(p / scale) * scale;
-    } else if(mode == 2) { // Neon Pillars
-      vec3 q = p;
-      q.xz = mod(q.xz, 6.0) - 3.0;
-      float h = 4.0 + bass * 12.0;
-      d = sdBox(q, vec3(0.8, h, 0.8));
-    } else if(mode == 3) { // Liquid Blob
-      float pulse = subBass * 2.0;
-      float noise = sin(p.x*1.5+time)*cos(p.y*1.5+time)*sin(p.z*1.5+time) * pulse;
-      d = length(p) - (3.5 + noise);
-    } else if(mode == 6) { // Hyper Torus
-      p.xz *= Rot(time * 0.5);
-      p.yz *= Rot(time * 0.3);
-      d = sdTorus(p, vec2(5.0 + mid * 2.0, 1.0 + high));
-    } else if(mode == 8) { // Gyroid
-      vec3 q = p * (0.5 + subBass * 0.2);
-      d = abs(dot(sin(q), cos(q.yzx))) / 0.5 - 0.1;
-    } else if(mode == 11) { // Void Vortex
-      float r = length(p.xz);
-      float angle = atan(p.z, p.x) + r * 0.2 - time * 3.0;
-      vec3 q = vec3(r - 4.0, p.y, 0.0);
-      q.xy *= Rot(angle);
-      d = length(q.xy) - (0.5 + bass);
-    } else if(mode == 14) { // Mandelbulb
-      vec3 z = p * 0.2;
-      float dr = 1.0;
-      float r = 0.0;
-      float power = 4.0 + mid * 8.0;
-      for (int i = 0; i < 4 ; i++) {
-        r = length(z);
-        if (r>2.0) break;
-        float theta = acos(z.z/r);
-        float phi = atan(z.y,z.x);
-        dr =  pow( r, power-1.0)*power*dr + 1.0;
-        float zr = pow( r,power);
-        theta = theta*power;
-        phi = phi*power;
-        z = zr*vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
-        z+=p*0.2;
-      }
-      d = (0.5*log(r)*r/dr) * 5.0;
-    } else if(mode == 15) { // Lava Sea
-      d = p.y + 1.0 + sin(p.x * 0.5 + time) * bass * 2.0 + cos(p.z * 0.5 + time * 0.7) * bass * 2.0;
-    } else {
-      d = sdSphere(p, 4.0 + subBass * 2.0);
-    }
-    
-    return min(d, floorDist);
-  }
-
-  float RayMarch(vec3 ro, vec3 rd) {
-    float dO=0.;
-    for(int i=0; i<MAX_STEPS; i++) {
-      vec3 p = ro + rd*dO;
-      float dS = GetDist(p);
-      dO += dS;
-      if(dO>MAX_DIST || abs(dS)<SURF_DIST) break;
-    }
-    return dO;
-  }
-
-  vec3 GetNormal(vec3 p) {
-    float d = GetDist(p);
-    vec2 e = vec2(.01, 0);
-    vec3 n = d - vec3(
-        GetDist(p-e.xyy),
-        GetDist(p-e.yxy),
-        GetDist(p-e.yyx));
-    return normalize(n);
-  }
-
-  void main() {
-    vec2 uv = (vUv - 0.5) * resolution / min(resolution.x, resolution.y);
-    
-    // Zoom out: ro.z moved from -15 to -30
-    vec3 ro = vec3(sin(time*0.1)*5.0, 5.0 + cos(time*0.05)*2.0, -30.0);
-    vec3 rd = normalize(vec3(uv.x, uv.y - 0.2, 1.5)); // Wider perspective
-
-    float d = RayMarch(ro, rd);
-    vec3 col = vec3(0.01, 0.005, 0.02); // Deeper background
-
-    if(d<MAX_DIST) {
-      vec3 p = ro + rd * d;
-      vec3 n = GetNormal(p);
-      vec3 lightPos = vec3(10, 20, -20);
-      vec3 l = normalize(lightPos - p);
-      
-      // Better Lighting
-      float diff = clamp(dot(n, l), 0.1, 1.0);
-      float amb = 0.1;
-      
-      col = mix(color1, color2, diff + amb);
-      col += color2 * pow(max(0.0, dot(reflect(-l, n), -rd)), 32.0); // Sharper Specular
-      
-      // Fog
-      float fog = 1.0 - exp(-d * 0.015);
-      col = mix(col, vec3(0.01, 0.005, 0.02), fog);
-      
-      // Beat Flash
-      col += color1 * subBass * 0.4 * (1.0 - fog);
-    }
-
-    gl_FragColor = vec4(col, 1.0);
-  }
-`;
 
 interface VisualizerProps {
   mode: VisualizerMode;
@@ -356,7 +185,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     if (nextMode === 'tetris') count = 40; 
     if (nextMode === 'puzzle') count = 15;
     if (nextMode === 'population') count = 0;
-    if (catalogA.includes(nextMode)) count = 1; // Only 1 plane for shader
 
     setCurrentVibe(nextMode);
     setVj(prev => ({
@@ -430,28 +258,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     const pMat = new THREE.MeshBasicMaterial({ color: vj.pColor, wireframe: vj.wireframe, transparent: true, opacity: 0.7 });
     const aMat = new THREE.MeshBasicMaterial({ color: vj.sColor, wireframe: true, transparent: true, opacity: 0.4 });
 
-    if (catalogA.includes(activeMode)) {
-      const shaderMat = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0 },
-          resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-          subBass: { value: 0 },
-          bass: { value: 0 },
-          mid: { value: 0 },
-          high: { value: 0 },
-          color1: { value: vj.pColor },
-          color2: { value: vj.sColor },
-          mode: { value: catalogA.indexOf(activeMode) + 1 }
-        },
-        vertexShader: RAYMARCHING_VERTEX,
-        fragmentShader: RAYMARCHING_FRAGMENT
-      });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), shaderMat);
-      plane.position.z = 0;
-      group.add(plane);
-      (group as any).shaderMat = shaderMat;
-    }
-
     const getGeo = (size = 1, type = vj.shapeType) => {
       if (type === 'box') return new THREE.BoxGeometry(size, size, size);
       if (type === 'sphere') return new THREE.SphereGeometry(size * 0.6, 12, 12);
@@ -463,8 +269,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     // --- Autonomous Agent Factory ---
     const count = vj.objectCount;
     for (let i = 0; i < count; i++) {
-      if (catalogA.includes(activeMode)) break; 
-      
       let mesh: THREE.Mesh | undefined;
       let userData: any = {
          phase: Math.random() * Math.PI * 2,
@@ -474,8 +278,88 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
          driftVec: new THREE.Vector3(THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1))
       };
 
-      // --- NEW CATALOG B MODES ---
-      if (activeMode === 'shape_storm') {
+      // --- CATALOG A GEOMETRY VERSIONS ---
+      if (activeMode === 'menger_sponge') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+        userData.isMengerPart = true;
+      }
+      else if (activeMode === 'neon_pillars') {
+        const h = 2 + Math.random() * 10;
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), pMat.clone());
+        mesh.position.set((i % 10 - 5) * 4, -10 + h/2, (Math.floor(i / 10) - 5) * 4);
+        userData.isPillar = true;
+        userData.baseH = h;
+      }
+      else if (activeMode === 'liquid_blob') {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(20));
+        userData.isBlobPart = true;
+      }
+      else if (activeMode === 'the_matrix_v2') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 }));
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), Math.random() * 40, THREE.MathUtils.randFloatSpread(20));
+        userData.isMatrixPart = true;
+      }
+      else if (activeMode === 'fractal_landmass') {
+        mesh = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 4), aMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(60), -10, THREE.MathUtils.randFloatSpread(60));
+        userData.isLandPart = true;
+      }
+      else if (activeMode === 'hyper_torus') {
+        mesh = new THREE.Mesh(new THREE.TorusGeometry(5 + i, 0.2, 8, 32), pMat.clone());
+        userData.isHyperRing = true;
+      }
+      else if (activeMode === 'recursive_rooms') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(40 - i*2, 40 - i*2, 40 - i*2), aMat.clone());
+        userData.isRoom = true;
+      }
+      else if (activeMode === 'gyroid_membrane') {
+        mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+        userData.isMembrane = true;
+      }
+      else if (activeMode === 'neon_ribbons') {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 20), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), 0, THREE.MathUtils.randFloatSpread(40));
+        userData.isRibbon = true;
+      }
+      else if (activeMode === 'crystal_growth') {
+        mesh = new THREE.Mesh(new THREE.OctahedronGeometry(1.5), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(30));
+        userData.isCrystal = true;
+      }
+      else if (activeMode === 'void_vortex') {
+        mesh = new THREE.Mesh(new THREE.TorusGeometry(i * 0.5, 0.1, 8, 32), aMat.clone());
+        userData.isVortexRing = true;
+      }
+      else if (activeMode === 'digital_clouds') {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1 }));
+        mesh.position.set(THREE.MathUtils.randFloatSpread(100), 10 + Math.random() * 20, THREE.MathUtils.randFloatSpread(100));
+        userData.isCloud = true;
+      }
+      else if (activeMode === 'hexagonal_hive') {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.5, 6), pMat.clone());
+        const x = (i % 10 - 5) * 2;
+        const z = (Math.floor(i / 10) - 5) * 1.73;
+        mesh.position.set(x + (Math.floor(i / 10) % 2 * 1), 0, z);
+        mesh.rotation.x = Math.PI / 2;
+        userData.isHiveCell = true;
+      }
+      else if (activeMode === 'mandelbulb') {
+        mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), pMat.clone());
+        const angle = i * 0.2;
+        const r = Math.sqrt(i) * 2;
+        mesh.position.set(Math.cos(angle) * r, Math.sin(angle) * r, THREE.MathUtils.randFloatSpread(10));
+        userData.isFractalPart = true;
+      }
+      else if (activeMode === 'lava_sea') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial({ color: 0xff4500, wireframe: true }));
+        mesh.position.set((i % 10 - 5) * 2.1, -10, (Math.floor(i / 10) - 5) * 2.1);
+        userData.isLavaPart = true;
+      }
+      // --- CATALOG B MODES ---
+      else if (activeMode === 'shape_storm') {
         mesh = new THREE.Mesh(getGeo(1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
         mesh.position.set(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(100));
         userData.velocity = new THREE.Vector3(THREE.MathUtils.randFloatSpread(0.5), THREE.MathUtils.randFloatSpread(0.5), THREE.MathUtils.randFloatSpread(0.5));
@@ -687,7 +571,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe, vj.fov, vj.complexity, vj.objectCount]);
+  }, [activeMode, vj.pColor, vj.sColor, vj.shapeType, vj.wireframe, vj.fov, vj.complexity, vj.objectCount, photoUrl]);
 
 
   // Audio Analysis & Animation Engine
@@ -748,12 +632,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             }
             
             // Calculate RMS (Root Mean Square) using Essentia
-            // This confirms the "Neural Bridge" is receiving valid signal
             const vector = essentiaRef.current.arrayToVector(floatBuffer);
             const rms = essentiaRef.current.RMS(vector).rms;
             
             // Dynamic Confidence: If signal is clean (RMS > threshold), confidence goes up
-            if (rms > 0.02) { // Increased sensitivity from 0.05 to 0.02
+            if (rms > 0.02) {
                 confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
             } else {
                 confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
@@ -865,10 +748,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           if (analysisRef.current.barPhase === 0) {
              analysisRef.current.phrasePhase = (analysisRef.current.phrasePhase + 1) % 16;
              
-             // Energy Analysis - FIXED: Include Highs to catch builds
+             // Energy Analysis
              const barEnergy = (sub + bass + mid + high) / 4;
              
-             // Calculate average BEFORE pushing current bar to see relative jump
              const avgPhraseEnergy = analysisRef.current.phraseEnergy.length > 0 
                 ? analysisRef.current.phraseEnergy.reduce((a,b)=>a+b,0) / analysisRef.current.phraseEnergy.length
                 : 0.5;
@@ -876,28 +758,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
              analysisRef.current.phraseEnergy.push(barEnergy);
              if (analysisRef.current.phraseEnergy.length > 16) analysisRef.current.phraseEnergy.shift();
              
-             // Sensitive Prediction Logic
              let state = 'FLOW';
-             // If this bar is louder than average AND has highs -> Build
              if (barEnergy > avgPhraseEnergy * 1.1 && high > 0.3) state = 'BUILD';
-             // Drop if we had a build score and sub bass returns
              if (sub > 0.6 && analysisRef.current.buildUpScore > 0.5) state = 'DROP';
              analysisRef.current.predictedState = state;
-
-             // Console Report
-             console.log(
-               `%c🔊 [VJ] Bar: ${analysisRef.current.phrasePhase + 1} | Energy: ${barEnergy.toFixed(2)} | Trend: ${(barEnergy - avgPhraseEnergy).toFixed(2)} | State: ${state}`,
-               `color: ${state === 'DROP' ? '#ff0055' : state === 'BUILD' ? '#ffcc00' : '#00ffff'}; font-weight: bold;`
-             );
 
              // Change Visual Mode every 8 Bars (Phrase End)
              if (analysisRef.current.phrasePhase % 8 === 0 && mode === 'vj') {
                 rollVJ();
              }
-          }
-
-          if (mode === 'vj' && beatCount.current % 16 === 0) {
-             // Redundant backup trigger
           }
         } else {
           analysisRef.current.framesSinceBeat++;
@@ -908,7 +777,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
 
         // 3. Build-up & Drop Engine
-        
         if (high > 0.4 && sub < 0.5 && spectralCentroid > 0.4) {
            analysisRef.current.buildUpScore += 0.05;
         } else {
@@ -932,18 +800,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const isBuildUp = analysisRef.current.buildUpScore > 1.5;
         const buildupFactor = Math.min(analysisRef.current.buildUpScore / 5, 1); 
         const flatness = analysisRef.current.spectralFlatness;
-
-        // Update Shader Uniforms
-        if ((group as any).shaderMat) {
-          const mat = (group as any).shaderMat;
-          mat.uniforms.time.value = now * 0.001;
-          mat.uniforms.subBass.value = sub;
-          mat.uniforms.bass.value = bass;
-          mat.uniforms.mid.value = mid;
-          mat.uniforms.high.value = high;
-          mat.uniforms.color1.value = vj.pColor;
-          mat.uniforms.color2.value = vj.sColor;
-        }
 
         // POPULATION MODE: ADD ENTITIES ON BEAT
         if (activeMode === 'population' && isBeat) {
@@ -974,50 +830,32 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             }
         }
 
-        // PUZZLE LOGIC (Run once per beat or fast interval)
+        // PUZZLE LOGIC
         if (activeMode === 'puzzle' && isBeat && group.children.length > 0) {
-            // Pick neighbor
             const { x, y } = analysisRef.current.puzzleState.empty;
             const neighbors = [
-                { x: x, y: y - 1 }, // Up
-                { x: x, y: y + 1 }, // Down
-                { x: x - 1, y: y }, // Left
-                { x: x + 1, y: y }  // Right
+                { x: x, y: y - 1 }, { x: x, y: y + 1 }, { x: x - 1, y: y }, { x: x + 1, y: y }
             ].filter(n => n.x >= 0 && n.x < 4 && n.y >= 0 && n.y < 4);
             
             const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-            
-            // Find the mesh at 'target' logical position
-            const tileMesh = group.children.find(m => m.userData.gridPos.x === target.x && m.userData.gridPos.y === target.y);
+            const tileMesh = group.children.find(m => m.userData.gridPos && m.userData.gridPos.x === target.x && m.userData.gridPos.y === target.y);
             
             if (tileMesh) {
-                // Swap logic
-                // 1. Move empty to target
                 analysisRef.current.puzzleState.empty = target;
-                // 2. Move tile to old empty
                 tileMesh.userData.gridPos = { x, y };
-                
-                // 3. Update Target World Position
                 const spacing = 3.6;
                 const offsetX = -1.5 * spacing;
                 const offsetY = -1.5 * spacing;
-                tileMesh.userData.targetPos.set(
-                    (x * spacing) + offsetX, 
-                    (y * spacing) + offsetY, 
-                    0
-                );
+                tileMesh.userData.targetPos.set((x * spacing) + offsetX, (y * spacing) + offsetY, 0);
             }
         }
 
         // 1. Global Scene Movement & Camera Logic
         const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1);
-        
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
         const isInfinite = ['city', 'starfield', 'matrix'].includes(activeMode);
-        const isRaymarching = catalogA.includes(activeMode);
         
-        // --- SCENE ROTATION ---
-        if (!isGame && !isInfinite && !isRaymarching) {
+        if (!isGame && !isInfinite) {
            if (activeMode === 'tunnel') group.rotation.z += 0.005 * rotSpeed; 
            else group.rotation.y += 0.002 * rotSpeed;
         } else if (isGame) {
@@ -1025,11 +863,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                group.rotation.y = Math.sin(now * 0.0002) * 0.1; 
                group.rotation.x = Math.sin(now * 0.0001) * 0.05;
            } else {
-               // Puzzle bounce
                group.rotation.z = Math.sin(now * 0.005) * 0.05 * bass;
            }
         } else {
-           // Fixed perspective for City/Matrix/Raymarching
            group.rotation.set(0,0,0);
         }
 
@@ -1037,49 +873,37 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const t = now * 0.0003;
         
         if (activeMode === 'pong' || activeMode === 'invaders') {
-            // Classic 2D Front View
             cam.position.set(0, 0, 25);
             cam.lookAt(0, 0, 0);
         } else if (activeMode === 'pacman') {
-            // Top-Down
             cam.position.set(0, 35, 1);
             cam.lookAt(0, 0, 0);
-            cam.rotation.z = Math.PI / 2; // Orient correctly
+            cam.rotation.z = Math.PI / 2;
         } else if (activeMode === 'snake') {
-            // Isometric
             cam.position.set(0, 20, 20);
             cam.lookAt(0, 0, 0);
         } else if (activeMode === 'tetris') {
-            // Tall View
             cam.position.set(0, 0, 40);
             cam.lookAt(0, 0, 0);
         } else if (activeMode === 'city') {
-            // Low Flyover
             cam.position.set(Math.sin(t) * 5, 2, 10);
             cam.lookAt(0, 0, -50);
-        } else if (isRaymarching) {
-            // Locked view for Raymarching (Shader handles movement)
-            cam.position.set(0, 0, 10);
-            cam.lookAt(0, 0, 0);
         } else {
-            // Standard Drone Camera
             cam.position.x = Math.sin(t) * 25.0;
             cam.position.y = Math.cos(t * 0.8) * 15.0;
             if (activeMode === 'tunnel' || activeMode === 'starfield') {
-                cam.position.set(0, 0, 10); // Center of tunnel
+                cam.position.set(0, 0, 10);
                 cam.lookAt(0, 0, -50);
             } else {
                 cam.lookAt(0, 0, 0);
             }
         }
 
-        // 2. Camera Physics (FOV Kick)
-        const baseFov = isGame ? 60 : vj.fov; // Lock FOV for games
+        const baseFov = isGame ? 60 : vj.fov;
         const targetFov = isBeat ? baseFov + (sub * 5) : baseFov + (isBuildUp ? -10 : 0); 
         cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.2);
         cam.updateProjectionMatrix();
 
-        // Shake Effect
         if (isBuildUp) {
             cam.position.x += (Math.random() - 0.5) * buildupFactor * 0.5;
             cam.position.y += (Math.random() - 0.5) * buildupFactor * 0.5;
@@ -1089,7 +913,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         group.children.forEach((obj, i) => {
           const mesh = obj as THREE.Mesh;
           const agent = mesh.userData;
-          
           if (!agent) return;
 
           let localIntensity = 0;
@@ -1098,45 +921,73 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           else if (agent.freqIndex < 80) localIntensity = mid;
           else if (agent.freqIndex !== undefined) localIntensity = high;
 
-          // SKIP MODULATION FOR SHADER PLANE
-          if (catalogA.includes(activeMode)) return;
-
-          // INFINITE SCROLL LOGIC
-          if (agent.infiniteZ) {
-              const speed = agent.scrollSpeed * (1 + sub * 2); // Bass boosts speed
-              mesh.position.z += speed;
-              
-              // Recycle geometry
-              if (mesh.position.z > 20) {
-                  mesh.position.z = -150; // Send to back
-                  // Randomize new entry position for starfield
-                  if (activeMode === 'starfield') {
-                      mesh.position.x = THREE.MathUtils.randFloatSpread(100);
-                      mesh.position.y = THREE.MathUtils.randFloatSpread(60);
-                  }
-              }
+          // CATALOG A GEOMETRY ANIMATIONS
+          if (agent.isMengerPart) {
+            mesh.rotation.x += 0.01;
+            mesh.rotation.y += 0.01;
+            if (isBeat) mesh.scale.setScalar(1.5);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
-          if (agent.infiniteY) {
-              // Matrix Rain
-              mesh.position.y -= agent.fallSpeed * (1 + high);
-              if (mesh.position.y < -30) {
-                  mesh.position.y = 30;
-              }
+          else if (agent.isPillar) {
+            mesh.scale.y = 1 + localIntensity * 10;
+            mesh.position.y = -10 + (mesh.scale.y * (agent.baseH || 1) / 2);
           }
-
-          // PUZZLE INTERPOLATION
-          if (activeMode === 'puzzle' && agent.targetPos) {
-              mesh.position.lerp(agent.targetPos, 0.2); 
-              // Scale Pulse
-              if (isBeat) {
-                  mesh.scale.setScalar(1.1);
-              } else {
-                  mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-              }
+          else if (agent.isBlobPart) {
+            const time = now * 0.001;
+            mesh.position.x += Math.sin(time + (agent.phase || 0)) * 0.1;
+            mesh.position.y += Math.cos(time + (agent.phase || 0)) * 0.1;
+            if (isBeat) mesh.scale.setScalar(2);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+          }
+          else if (agent.isMatrixPart) {
+            mesh.position.y -= 0.5 + high;
+            if (mesh.position.y < -20) mesh.position.y = 20;
+          }
+          else if (agent.isLandPart) {
+            mesh.scale.y = 1 + sub * 5;
+          }
+          else if (agent.isHyperRing) {
+            mesh.rotation.x += 0.01 * (i % 3 + 1);
+            mesh.rotation.z += 0.01;
+            mesh.scale.setScalar(1 + mid * 0.5);
+          }
+          else if (agent.isRoom) {
+            mesh.rotation.y += 0.005 * (i + 1);
+            if (isBeat) mesh.scale.setScalar(1.1);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+          }
+          else if (agent.isMembrane) {
+            mesh.position.z += Math.sin(now * 0.002 + i) * sub;
+          }
+          else if (agent.isRibbon) {
+            mesh.rotation.z += 0.05 + high;
+          }
+          else if (agent.isCrystal) {
+            mesh.rotation.x += 0.02;
+            if (isSnare) mesh.scale.setScalar(2);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+          }
+          else if (agent.isVortexRing) {
+            mesh.rotation.x = now * 0.001;
+            mesh.scale.setScalar(1 + bass);
+          }
+          else if (agent.isCloud) {
+            mesh.position.x += 0.05;
+            if (mesh.position.x > 50) mesh.position.x = -50;
+          }
+          else if (agent.isHiveCell) {
+            mesh.scale.z = 1 + localIntensity * 5;
+          }
+          else if (agent.isFractalPart) {
+            mesh.rotation.y += 0.02;
+            mesh.position.z = Math.sin(now * 0.001 + i) * 5;
+          }
+          else if (agent.isLavaPart) {
+            mesh.position.y = -10 + Math.sin(now * 0.002 + i) * bass * 5;
           }
 
           // CATALOG B PHYSICS
-          if (agent.isVinyl) {
+          else if (agent.isVinyl) {
             mesh.position.y -= 0.1 + bass * 0.5;
             mesh.rotation.z += 0.05 + mid * 0.1;
             if (mesh.position.y < -30) mesh.position.y = 30;
@@ -1173,22 +1024,17 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             if (isBeat) mesh.scale.setScalar(1.1);
             else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
-          // GAME PHYSICS ENGINE
+          
+          // GAME PHYSICS
           else if (activeMode === 'pong') {
              if (agent.role === 'ball' && agent.vel) {
-                 // Move
                  mesh.position.add(agent.vel);
-                 // Bounce Y
                  if (mesh.position.y > 10 || mesh.position.y < -10) agent.vel.y *= -1;
-                 // Bounce X (Paddles)
                  if (mesh.position.x > 14 || mesh.position.x < -14) {
                      agent.vel.x *= -1;
-                     // Speed up on hit
                      agent.vel.multiplyScalar(1.05);
-                     // Clamp speed
                      agent.vel.clampLength(0.2, 0.8);
                  }
-                 // Beat Kick
                  if (isBeat) {
                      agent.vel.multiplyScalar(1.2);
                      mesh.scale.setScalar(1.5);
@@ -1196,45 +1042,26 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                      mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
                  }
              } else if (agent.role?.startsWith('paddle')) {
-                 // AI Tracking
-                 // Find ball
                  const ball = group.children.find(c => c.userData.role === 'ball');
                  if (ball) {
-                     // Lerp towards ball Y
                      const targetY = ball.position.y;
-                     // Add delay/error based on frequency
                      const lag = 0.05 + (localIntensity * 0.1); 
                      mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, targetY, lag);
-                     // Clamp paddle to field
                      mesh.position.y = THREE.MathUtils.clamp(mesh.position.y, -8, 8);
                  }
              }
           }
           else if (activeMode === 'invaders') {
-              // Grid Movement
               const time = now * 0.001;
               const xOffset = Math.sin(time) * 5;
-              
               if (agent.gridPos) {
                 mesh.position.x = ((agent.gridPos.x - 5) * 2) + xOffset;
-                
-                // Drop on beat
-                if (isBeat) {
-                    mesh.position.y -= 0.5;
-                }
-                // Reset height if too low
+                if (isBeat) mesh.position.y -= 0.5;
                 if (mesh.position.y < -15) mesh.position.y = 15;
-                
-                // Alien bob
                 mesh.position.y += Math.sin(time * 5 + agent.gridPos.x) * 0.2;
               }
-              
-              // Scale on shoot
-              if (isSnare && Math.random() > 0.8) {
-                  mesh.scale.y = 2;
-              } else {
-                  mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-              }
+              if (isSnare && Math.random() > 0.8) mesh.scale.y = 2;
+              else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
           else if (activeMode === 'snake') {
               const time = now * 0.002;
@@ -1242,20 +1069,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                   mesh.position.x = Math.sin(time) * 10;
                   mesh.position.y = Math.cos(time * 0.5) * 8;
                   mesh.position.z = Math.sin(time * 1.5) * 5;
-                  
-                  // Store history for body
                   if (agent.history) {
                     agent.history.unshift(mesh.position.clone());
                     if (agent.history.length > 50) agent.history.pop();
                   }
               } else {
-                  // Body follows head
                   const head = group.children[0];
                   if (head && head.userData && head.userData.history && head.userData.history[agent.index || 0]) {
                       mesh.position.copy(head.userData.history[agent.index || 0]);
                   }
               }
-              // Pulse on beat
               if (isBeat) mesh.scale.setScalar(1.2);
               else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
@@ -1265,10 +1088,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                   mesh.position.x = Math.sin(time) * 12;
                   mesh.position.z = Math.cos(time) * 12;
                   if (agent.dir) mesh.lookAt(mesh.position.clone().add(agent.dir));
-                  // Chomp
                   mesh.scale.y = 1 - Math.abs(Math.sin(now * 0.01)) * 0.5;
               } else if (agent.role === 'ghost') {
-                  // Chase Pacman
                   const pacman = group.children[0];
                   if (pacman) {
                       const dir = new THREE.Vector3().subVectors(pacman.position, mesh.position).normalize();
@@ -1278,53 +1099,35 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               }
           }
           else if (activeMode === 'tetris') {
-              // Fall
-              mesh.position.y -= 0.05 + (sub * 0.2); // Faster with bass
+              mesh.position.y -= 0.05 + (sub * 0.2);
               if (mesh.position.y < -20) {
                   mesh.position.y = 20;
                   mesh.position.x = THREE.MathUtils.randFloatSpread(20);
               }
-              // Rotate
-              if (isBeat) {
-                  mesh.rotation.z += Math.PI / 2;
-              }
+              if (isBeat) mesh.rotation.z += Math.PI / 2;
           }
           else if (activeMode === 'city') {
-              // City specific modulation
-              // Buildings grow on bass
               if (agent.isBuilding) {
                   mesh.scale.y = 1 + (bass * 5);
-                  mesh.position.y = (agent.baseY || 0) + (mesh.scale.y / 2); // anchor bottom
+                  mesh.position.y = (agent.baseY || 0) + (mesh.scale.y / 2);
               }
           }
           else {
-              // SWARM PHYSICS (Original Logic)
               let targetScaleX = 1 + localIntensity * vj.distortionScale;
               let targetScaleY = 1 + localIntensity * vj.distortionScale;
               let targetScaleZ = 1 + localIntensity * vj.distortionScale;
-
               if (isBeat && agent.freqIndex < 20) {
-                 targetScaleX *= 1.5;
-                 targetScaleY *= 1.5;
-                 targetScaleZ *= 1.5;
+                 targetScaleX *= 1.5; targetScaleY *= 1.5; targetScaleZ *= 1.5;
               }
-
-              if (isSnare && agent.freqIndex > 80) {
-                 targetScaleX *= 2.0;
-              }
-
+              if (isSnare && agent.freqIndex > 80) targetScaleX *= 2.0;
               mesh.scale.lerp(new THREE.Vector3(targetScaleX, targetScaleY, targetScaleZ), 0.2);
 
-              // POSITION: Drift + Noise
-              // Only apply drift if NOT infinite scrolling (to avoid fighting physics)
               if (!agent.infiniteZ && !agent.infiniteY) {
                   const time = now * 0.001 * (agent.speed || 1);
                   const jitter = (high * 0.5) + (buildupFactor * 0.5);
-                  
                   if (agent.driftVec) {
                     mesh.position.addScaledVector(agent.driftVec, Math.sin(time + (agent.phase || 0)) * 0.02 * vj.motionIntensity);
                   }
-                  
                   if (jitter > 0.1) {
                      mesh.position.x += (Math.random() - 0.5) * jitter;
                      mesh.position.y += (Math.random() - 0.5) * jitter;
@@ -1333,20 +1136,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               }
           }
 
-          // MATERIAL: Tonality vs Noise (Shared across all modes)
+          // MATERIAL
           if (mesh.material instanceof THREE.MeshBasicMaterial) {
             const baseHue = i % 2 === 0 ? vj.primaryHue : vj.secondaryHue;
             const activeHue = isBuildUp ? THREE.MathUtils.lerp(baseHue, 0, buildupFactor) : (baseHue + hueShift) % 360;
-            const saturation = isBuildUp ? 1.0 : 0.8;
             const lightness = isBeat ? 0.7 : (0.4 + localIntensity * 0.4);
-
-            mesh.material.color.setHSL(activeHue / 360, saturation, lightness);
-            
-            if (flatness > 0.6) {
-                mesh.material.opacity = 0.2 + (Math.random() * 0.5);
-            } else {
-                mesh.material.opacity = 0.7; 
-            }
+            mesh.material.color.setHSL(activeHue / 360, isBuildUp ? 1.0 : 0.8, lightness);
+            mesh.material.opacity = flatness > 0.6 ? 0.2 + (Math.random() * 0.5) : 0.7; 
           }
         });
 
@@ -1356,7 +1152,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     };
     animate();
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [activeMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, currentTime]);
+  }, [activeMode, hasAudioAccess, sensitivity, vj, rollVJ, mode, isPlaying, onBPMChange, currentTime, photoUrl]);
 
   if (mode === 'none') return null;
 
