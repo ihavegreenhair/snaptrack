@@ -70,19 +70,27 @@ export function useVisualizerAudio({
 
     const initAudio = async () => {
       try {
-        if (!audioContextRef.current) {
+        let ctx = audioContextRef.current;
+        if (!ctx) {
           const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-          audioContextRef.current = new AudioContextClass();
-          analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 1024;
-          dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-          timeBufferRef.current = new Uint8Array(analyserRef.current.fftSize);
+          const newCtx = new AudioContextClass();
+          ctx = newCtx;
+          audioContextRef.current = newCtx;
+          
+          const analyser = newCtx.createAnalyser();
+          analyser.fftSize = 1024;
+          analyserRef.current = analyser;
+          
+          dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+          timeBufferRef.current = new Uint8Array(analyser.fftSize);
         }
 
-        if (!sourceRef.current && audioContextRef.current && analyserRef.current) {
+        const analyser = analyserRef.current;
+        if (!sourceRef.current && ctx && analyser) {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-          sourceRef.current.connect(analyserRef.current);
+          const source = ctx.createMediaStreamSource(stream);
+          source.connect(analyser);
+          sourceRef.current = source;
           console.log('[Audio] Input Connected');
         }
       } catch (e) {
