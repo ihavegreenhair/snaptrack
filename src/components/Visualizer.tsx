@@ -87,21 +87,31 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // Initialize Essentia
   useEffect(() => {
+    let isMounted = true;
     const initEssentia = async () => {
       try {
-        console.log('[Essentia] 🚀 Starting Neural Engine...');
+        console.log('[Essentia] ⚙️ Initializing WASM Module...');
         
-        // Fix for different build exports
-        const wasmFunc = (EssentiaWASM as any).EssentiaWASM || EssentiaWASM;
-        const wasm = await wasmFunc();
+        // Emscripten standard initialization
+        let wasmModule;
+        if (typeof EssentiaWASM === 'function') {
+            wasmModule = await (EssentiaWASM as any)();
+        } else if ((EssentiaWASM as any).default) {
+            wasmModule = await (EssentiaWASM as any).default();
+        } else {
+            wasmModule = EssentiaWASM;
+        }
         
-        essentiaRef.current = new (Essentia as any)(wasm);
-        console.log('%c[Essentia] ✅ NEURAL ENGINE READY (WASM)', 'color: #00ff00; font-weight: bold;');
+        if (!isMounted) return;
+
+        essentiaRef.current = new (Essentia as any)(wasmModule);
+        console.log('%c[Essentia] 🧠 NEURAL ENGINE READY (WASM)', 'color: #00ff00; font-weight: bold;');
       } catch (e) {
-        console.error('%c[Essentia] ❌ Critical Init Failure:', 'color: #ff0000;', e);
+        console.error('%c[Essentia] ❌ Setup failed:', 'color: #ff0000;', e);
       }
     };
     initEssentia();
+    return () => { isMounted = false; };
   }, []);
 
   // v8.1 Weighted Agent State
@@ -146,13 +156,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // Audio cortex
   useEffect(() => {
-    if (mode === 'none' || !isPlaying) return;
+    if (activeMode === 'none' || !isPlaying) return;
     const init = async () => {
       try {
         if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
           analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 512;
+          analyserRef.current.fftSize = 1024;
           dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
         }
         if (!sourceRef.current && analyserRef.current) {
@@ -164,7 +174,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       } catch (e) { setHasAudioAccess(false); }
     };
     init();
-  }, [mode, isPlaying]);
+  }, [activeMode, isPlaying]);
 
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
