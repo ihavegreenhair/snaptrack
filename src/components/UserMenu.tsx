@@ -68,9 +68,51 @@ const UserMenu: React.FC<UserMenuProps> = ({
 
   return (
     <DropdownMenu>
-// ... (existing menu trigger)
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full bg-muted">
+          <User className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-// ... (existing header and theme menu)
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span className="font-bold">{displayName}</span>
+            <span className="text-xs text-muted-foreground">{isHost ? 'Host' : 'Guest'}</span>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        
+        <DropdownMenuItem onClick={onRename}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          <span>Change Name</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Palette className="mr-2 h-4 w-4" />
+            <span>Theme</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={(val) => setTheme(val as Theme)}>
+              <DropdownMenuRadioItem value="light">
+                <Sun className="mr-2 h-4 w-4" /> Light
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">
+                <Moon className="mr-2 h-4 w-4" /> Dark
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neon">
+                <Sparkles className="mr-2 h-4 w-4" /> Neon
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="sunset">
+                <Sunset className="mr-2 h-4 w-4" /> Sunset
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="ocean">
+                <Waves className="mr-2 h-4 w-4" /> Ocean
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Sparkles className="mr-2 h-4 w-4 text-primary" />
