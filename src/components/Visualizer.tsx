@@ -127,8 +127,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
   // Brain State
-  const beatCount = useRef(0);
   const blackoutCounter = useRef(0);
+  const timeBufferRef = useRef<Uint8Array | null>(null);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -620,8 +620,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const binCount = analyserRef.current.frequencyBinCount; 
 
         // 2. Get Time Domain Data for Essentia (Neural Bridge)
-        const timeData = new Uint8Array(analyserRef.current.fftSize);
-        analyserRef.current.getByteTimeDomainData(timeData);
+        if (!timeBufferRef.current) {
+            timeBufferRef.current = new Uint8Array(analyserRef.current.fftSize);
+        }
+        analyserRef.current.getByteTimeDomainData(timeBufferRef.current);
+        const timeData = timeBufferRef.current;
         
         // --- ESSENTIA NEURAL BRIDGE ---
         if (essentiaRef.current) {
@@ -636,7 +639,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const rms = essentiaRef.current.RMS(vector).rms;
             
             // Dynamic Confidence: If signal is clean (RMS > threshold), confidence goes up
-            if (rms > 0.02) {
+            if (rms > 0.005) { // Very high sensitivity
                 confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
             } else {
                 confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
@@ -644,6 +647,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             
             // Clean up WASM memory
             vector.delete();
+        } else {
+            // Fallback: If Essentia is initializing, use sub-bass as a confidence proxy (capped at 40%)
+            if (d[0] > 50) {
+                confidenceRef.current = Math.min(confidenceRef.current + 0.005, 0.4);
+            }
         }
 
         // AI PREDICTION REACTION (Option 3)
