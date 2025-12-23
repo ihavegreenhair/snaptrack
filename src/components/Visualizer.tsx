@@ -48,7 +48,7 @@ interface VisualizerProps {
 
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
+  const { activeMap, recordCue } = useSongMapper(videoId);
   
   // v8.1 Weighted Agent State
   const [vj, setVj] = useState<VJState>({
@@ -78,13 +78,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const [hasAudioAccess, setHasAudioAccess] = useState(false);
 
   // Brain State
-  const energyHistory = useRef<number[]>([]);
   const beatCount = useRef(0);
-  const lastBeatTime = useRef(0);
-  const energyBuffer = useRef<number[]>([]);
-  const dropCooldown = useRef(0);
   const blackoutCounter = useRef(0);
-  const bpmHistory = useRef<number[]>([]);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -344,7 +339,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
-      let sub = 0, bass = 0, lowMid = 0, mid = 0, high = 0;
+      let sub = 0, bass = 0, mid = 0, high = 0;
       let isBeat = false;
       let isSnare = false;
       let spectralCentroid = 0;
@@ -357,7 +352,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const binCount = analyserRef.current.frequencyBinCount; 
 
         // 1. Precise Band Division
-        let sSum=0, bSum=0, lmSum=0, mSum=0, hSum=0;
+        let sSum=0, bSum=0, mSum=0, hSum=0;
         let geometricMeanNum = 0;
         let arithmeticMeanSum = 0;
 
@@ -378,14 +373,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           // Bands
           if (i < 3) sSum += val;       // Sub-bass (~0-170Hz)
           else if (i < 8) bSum += val;  // Bass (~170-680Hz)
-          else if (i < 24) lmSum += val;// Low-Mids (~680-2kHz)
           else if (i < 64) mSum += val; // Mids (~2k-5kHz)
           else hSum += val;             // Highs (5kHz+)
         }
 
         sub = (sSum / 3 / 255) * sensitivity;
         bass = (bSum / 5 / 255) * sensitivity;
-        lowMid = (lmSum / 16 / 255) * sensitivity;
         mid = (mSum / 40 / 255) * sensitivity;
         high = (hSum / 192 / 255) * sensitivity;
 
@@ -463,14 +456,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
 
         // 3. Build-up & Drop Engine
-        const totalEnergy = (sub + bass + lowMid + mid + high) / 5;
         
         if (high > 0.4 && sub < 0.5 && spectralCentroid > 0.4) {
            analysisRef.current.buildUpScore += 0.05;
         } else {
            analysisRef.current.buildUpScore *= 0.95; 
         }
-        const isBuildUp = analysisRef.current.buildUpScore > 2.0;
 
         if (analysisRef.current.buildUpScore > 1.0 && sub > 0.8 && (now - analysisRef.current.timeSinceLastDrop > 5000)) {
            rollVJ(); 
@@ -568,7 +559,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               // Grid Movement
               const time = now * 0.001;
               const xOffset = Math.sin(time) * 5;
-              const yOffset = Math.cos(time * 2) * 2;
               
               mesh.position.x = ((agent.gridPos.x - 5) * 2) + xOffset;
               
