@@ -89,11 +89,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   useEffect(() => {
     const initEssentia = async () => {
       try {
-        const wasm = await (EssentiaWASM as any)();
+        console.log('[Essentia] 🚀 Starting Neural Engine...');
+        
+        // Fix for different build exports
+        const wasmFunc = (EssentiaWASM as any).EssentiaWASM || EssentiaWASM;
+        const wasm = await wasmFunc();
+        
         essentiaRef.current = new (Essentia as any)(wasm);
-        console.log('[Essentia] Neural Engine Ready');
+        console.log('%c[Essentia] ✅ NEURAL ENGINE READY (WASM)', 'color: #00ff00; font-weight: bold;');
       } catch (e) {
-        console.error('[Essentia] Init failed', e);
+        console.error('%c[Essentia] ❌ Critical Init Failure:', 'color: #ff0000;', e);
       }
     };
     initEssentia();
@@ -129,6 +134,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   // Brain State
   const blackoutCounter = useRef(0);
   const timeBufferRef = useRef<Uint8Array | null>(null);
+  const lastLogTime = useRef(0);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -639,16 +645,22 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const rms = essentiaRef.current.RMS(vector).rms;
             
             // Dynamic Confidence: If signal is clean (RMS > threshold), confidence goes up
-            if (rms > 0.005) { // Very high sensitivity
+            if (rms > 0.005) { 
                 confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
             } else {
                 confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
             }
             
+            // Log Neural activity every 2 seconds
+            if (now - lastLogTime.current > 2000) {
+                console.log(`[Essentia] 🧠 Bridge Active | Energy: ${rms.toFixed(4)} | Confidence: ${Math.round(confidenceRef.current * 100)}%`);
+                lastLogTime.current = now;
+            }
+
             // Clean up WASM memory
             vector.delete();
         } else {
-            // Fallback: If Essentia is initializing, use sub-bass as a confidence proxy (capped at 40%)
+            // Fallback proxy (capped at 40%)
             if (d[0] > 50) {
                 confidenceRef.current = Math.min(confidenceRef.current + 0.005, 0.4);
             }
@@ -659,8 +671,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const currentCue = activeMap.cues.find(c => Math.abs(c.time - currentTime) < 0.1);
             if (currentCue) {
                 if (currentCue.type === 'DROP') {
+                    console.log(`[Mapper] 🎯 Triggering AI Predicted Cue: ${currentCue.type} at ${currentTime.toFixed(1)}s`);
                     rollVJ();
-                    // AI-driven "Force Beat"
                     isBeat = true;
                 }
             }
@@ -732,20 +744,25 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           
           // BPM & Phase Logic
           const interval = isPhaseBeat ? expectedInterval : (now - analysisRef.current.lastBeatTime);
-          analysisRef.current.lastBeatTime = now;
-          analysisRef.current.beatCounter++;
           
-          // Filter crazy intervals (valid: 60-200 BPM -> 300ms to 1000ms)
-          if (interval > 300 && interval < 1000) {
-            // Soft Lock BPM
-            analysisRef.current.beatInterval = analysisRef.current.beatInterval * 0.9 + interval * 0.1;
-            const currentBPM = Math.round(60000 / analysisRef.current.beatInterval);
-            analysisRef.current.bpmEstimate = currentBPM;
-            onBPMChange?.(currentBPM);
+          // FILTER: Ignore crazy intervals (60-220 BPM)
+          if (interval > 270 && interval < 1000) {
+            analysisRef.current.lastBeatTime = now;
+            analysisRef.current.beatCounter++;
             
-            // Auto-save map progress
-            if (currentBPM > 40 && currentBPM < 220) {
-              saveMap(currentBPM);
+            // Soft Lock BPM (Slow smoothing for accuracy)
+            analysisRef.current.beatInterval = analysisRef.current.beatInterval * 0.95 + interval * 0.05;
+            const currentBPM = Math.round(60000 / analysisRef.current.beatInterval);
+            
+            if (Math.abs(currentBPM - analysisRef.current.bpmEstimate) > 1) {
+                console.log(`[BPM] 🔒 Signal Locked: ${currentBPM} BPM`);
+                analysisRef.current.bpmEstimate = currentBPM;
+                onBPMChange?.(currentBPM);
+                
+                // Auto-save map progress
+                if (currentBPM > 40 && currentBPM < 220) {
+                  saveMap(currentBPM);
+                }
             }
           }
 
