@@ -34,6 +34,7 @@ function PartyPage() {
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
   const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
   const [detectedBPM, setDetectedBPM] = useState<number>(120);
+  const [beatConfidence, setBeatConfidence] = useState<number>(0);
   const [currentSongTime, setCurrentSongTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDashboardMode, setIsDashboardMode] = useState(false);
@@ -237,7 +238,9 @@ function PartyPage() {
         isDashboard={isDashboardMode} 
         sensitivity={visualizerSensitivity}
         onBPMChange={handleBPMChange}
+        onBeatConfidenceChange={setBeatConfidence}
         videoId={nowPlaying?.video_id}
+        songTitle={nowPlaying?.title}
         photoUrl={nowPlaying?.photo_url}
         currentTime={currentSongTime}
       />
@@ -443,11 +446,16 @@ function PartyPage() {
                         detectedBPM > 0 ? "bg-green-500 animate-pulse" : "bg-yellow-500"
                       )} />
                       <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">
-                        Signal: {detectedBPM > 0 ? 'Locked' : 'Analyzing'}
+                        Signal: {detectedBPM > 0 ? (beatConfidence > 0.8 ? 'Phase Locked' : 'Analyzing') : 'Searching'}
                       </span>
                     </div>
-                    <div className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-primary">
-                      {detectedBPM > 0 ? 'Auto-VJ Sync' : 'Syncing...'}
+                    <div className="flex gap-2">
+                      <div className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-primary">
+                        Conf: {Math.round(beatConfidence * 100)}%
+                      </div>
+                      <div className="bg-primary/20 border border-primary/30 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-primary animate-pulse">
+                        Neural Bridge
+                      </div>
                     </div>
                   </div>
                 )}

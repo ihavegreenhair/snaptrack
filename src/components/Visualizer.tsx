@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import Essentia from 'essentia.js';
 import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
 
@@ -241,15 +242,40 @@ interface VisualizerProps {
   isDashboard?: boolean;
   sensitivity?: number;
   onBPMChange?: (bpm: number) => void;
+  onBeatConfidenceChange?: (confidence: number) => void;
   videoId?: string;
+  songTitle?: string;
   photoUrl?: string;
   currentTime?: number;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, photoUrl, currentTime }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, onBeatConfidenceChange, videoId, songTitle, photoUrl, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
+  const { activeMap, recordCue, saveMap } = useSongMapper(videoId, songTitle);
   
+  // Essentia Engine State
+  const essentiaRef = useRef<any>(null);
+  const [beatConfidence, setBeatConfidence] = useState(0);
+
+  useEffect(() => {
+    onBeatConfidenceChange?.(beatConfidence);
+  }, [beatConfidence, onBeatConfidenceChange]);
+
+  // Initialize Essentia
+  useEffect(() => {
+    const initEssentia = async () => {
+      try {
+        // Essentia constructor might vary based on how it was bundled, 
+        // usually it's a global or a default export
+        essentiaRef.current = new (Essentia as any)();
+        console.log('[Essentia] Neural Engine Initialized');
+      } catch (e) {
+        console.error('[Essentia] Failed to init', e);
+      }
+    };
+    initEssentia();
+  }, []);
+
   // v8.1 Weighted Agent State
   const [vj, setVj] = useState<VJState>({
     mode: 'shapes',
@@ -714,6 +740,18 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const d = dataArrayRef.current;
         const binCount = analyserRef.current.frequencyBinCount; 
 
+        // AI PREDICTION REACTION (Option 3)
+        if (activeMap && activeMap.cues && currentTime) {
+            const currentCue = activeMap.cues.find(c => Math.abs(c.time - currentTime) < 0.1);
+            if (currentCue) {
+                if (currentCue.type === 'DROP') {
+                    rollVJ();
+                    // AI-driven "Force Beat"
+                    isBeat = true;
+                }
+            }
+        }
+
         // 1. Precise Band Division
         let sSum=0, bSum=0, mSum=0, hSum=0;
         let geometricMeanNum = 0;
@@ -758,12 +796,30 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         analysisRef.current.subBassAvg = analysisRef.current.subBassAvg * 0.9 + sub * 0.1;
         
         // Beat Threshold
-        if (sub > analysisRef.current.subBassAvg * 1.4 && sub > 0.4 && analysisRef.current.framesSinceBeat > 15) {
+        const beatThreshold = analysisRef.current.subBassAvg * 1.4;
+        const isAudioBeat = sub > beatThreshold && sub > 0.4 && analysisRef.current.framesSinceBeat > 15;
+        
+        // Option 2: Phase Locking (Confidence Engine)
+        const timeSinceLast = now - analysisRef.current.lastBeatTime;
+        const expectedInterval = analysisRef.current.beatInterval;
+        const phaseError = Math.abs(timeSinceLast - expectedInterval);
+        
+        // If audio matches expected phase, increase confidence
+        if (isAudioBeat && phaseError < 50) {
+            setBeatConfidence(prev => Math.min(prev + 0.1, 1.0));
+        } else if (isAudioBeat) {
+            setBeatConfidence(prev => Math.max(prev - 0.05, 0));
+        }
+
+        // If high confidence, we can trigger beat based on time even if audio is quiet
+        const isPhaseBeat = beatConfidence > 0.8 && timeSinceLast >= expectedInterval;
+
+        if (isAudioBeat || isPhaseBeat) {
           isBeat = true;
           analysisRef.current.framesSinceBeat = 0;
           
           // BPM & Phase Logic
-          const interval = now - analysisRef.current.lastBeatTime;
+          const interval = isPhaseBeat ? expectedInterval : (now - analysisRef.current.lastBeatTime);
           analysisRef.current.lastBeatTime = now;
           analysisRef.current.beatCounter++;
           
