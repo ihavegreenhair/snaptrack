@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import Essentia from 'essentia.js';
+import Essentia from 'essentia.js/dist/essentia.js-core.es.js';
 import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
 
