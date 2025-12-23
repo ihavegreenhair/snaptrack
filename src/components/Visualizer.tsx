@@ -154,6 +154,19 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   const activeMode = mode === 'vj' ? currentVibe : mode;
 
+  // Reset analysis on song change
+  useEffect(() => {
+    if (videoId) {
+      console.log(`[BPM] 🎵 Song changed to ${videoId}, resetting analysis...`);
+      analysisRef.current.beatInterval = 468; // Reset to 128 BPM default
+      analysisRef.current.lastBeatTime = 0;
+      analysisRef.current.beatCounter = 0;
+      analysisRef.current.phraseEnergy = [];
+      confidenceRef.current = 0;
+      beatHistory.current = [];
+    }
+  }, [videoId]);
+
   // Audio cortex
   useEffect(() => {
     if (activeMode === 'none' || !isPlaying) return;
@@ -755,23 +768,32 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           // BPM & Phase Logic
           const interval = isPhaseBeat ? expectedInterval : (now - analysisRef.current.lastBeatTime);
           
-          // FILTER: Ignore crazy intervals (60-220 BPM)
-          if (interval > 270 && interval < 1000) {
+          // FILTER: Ignore crazy intervals (60-200 BPM -> 300ms to 1000ms)
+          if (interval > 300 && interval < 1000) {
             analysisRef.current.lastBeatTime = now;
             analysisRef.current.beatCounter++;
             
-            // Soft Lock BPM (Slow smoothing for accuracy)
-            analysisRef.current.beatInterval = analysisRef.current.beatInterval * 0.95 + interval * 0.05;
-            const currentBPM = Math.round(60000 / analysisRef.current.beatInterval);
+            // Interval Validation: Require 3 consistent beats before updating
+            const lastInterval = beatHistory.current[beatHistory.current.length - 1] || 0;
+            const intervalDiff = Math.abs(interval - lastInterval);
             
-            if (Math.abs(currentBPM - analysisRef.current.bpmEstimate) > 1) {
-                console.log(`[BPM] 🔒 Signal Locked: ${currentBPM} BPM`);
-                analysisRef.current.bpmEstimate = currentBPM;
-                onBPMChange?.(currentBPM);
+            beatHistory.current.push(interval);
+            if (beatHistory.current.length > 4) beatHistory.current.shift();
+
+            if (intervalDiff < 50 || beatHistory.current.length < 2) {
+                // Soft Lock BPM
+                analysisRef.current.beatInterval = analysisRef.current.beatInterval * 0.9 + interval * 0.1;
+                const currentBPM = Math.round(60000 / analysisRef.current.beatInterval);
                 
-                // Auto-save map progress
-                if (currentBPM > 40 && currentBPM < 220) {
-                  saveMap(currentBPM);
+                if (Math.abs(currentBPM - analysisRef.current.bpmEstimate) > 1) {
+                    console.log(`[BPM] 🔒 Signal Locked: ${currentBPM} BPM`);
+                    analysisRef.current.bpmEstimate = currentBPM;
+                    onBPMChange?.(currentBPM);
+                    
+                    // Auto-save map progress
+                    if (currentBPM > 40 && currentBPM < 220) {
+                      saveMap(currentBPM);
+                    }
                 }
             }
           }
