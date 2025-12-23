@@ -1007,11 +1007,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           const mesh = obj as THREE.Mesh;
           const agent = mesh.userData;
           
+          if (!agent) return;
+
           let localIntensity = 0;
           if (agent.freqIndex < 10) localIntensity = sub;
           else if (agent.freqIndex < 30) localIntensity = bass;
           else if (agent.freqIndex < 80) localIntensity = mid;
-          else localIntensity = high;
+          else if (agent.freqIndex !== undefined) localIntensity = high;
+
+          // SKIP MODULATION FOR SHADER PLANE
+          if (catalogA.includes(activeMode)) return;
 
           // INFINITE SCROLL LOGIC
           if (agent.infiniteZ) {
@@ -1054,38 +1059,40 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             if (mesh.position.y < -30) mesh.position.y = 30;
           }
           else if (agent.isNode) {
-            mesh.position.addScaledVector(agent.driftVec, 0.05);
-            if (mesh.position.length() > 40) agent.driftVec.negate();
+            if (agent.driftVec) mesh.position.addScaledVector(agent.driftVec, 0.05);
+            if (mesh.position.length() > 40 && agent.driftVec) agent.driftVec.negate();
             if (isSnare) mesh.scale.setScalar(2);
             else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
           else if (agent.isBoid) {
-            mesh.position.add(agent.velocity);
-            mesh.lookAt(mesh.position.clone().add(agent.velocity));
-            if (mesh.position.length() > 50) mesh.position.setScalar(0);
-            if (isBeat) agent.velocity.add(new THREE.Vector3(THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2)));
+            if (agent.velocity) {
+                mesh.position.add(agent.velocity);
+                mesh.lookAt(mesh.position.clone().add(agent.velocity));
+                if (mesh.position.length() > 50) mesh.position.setScalar(0);
+                if (isBeat) agent.velocity.add(new THREE.Vector3(THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2)));
+            }
           }
           else if (agent.isJelly) {
             mesh.scale.y = 1 + Math.sin(now * 0.005) * 0.2 + sub * 0.5;
-            mesh.position.y += Math.sin(now * 0.002 + agent.phase) * 0.1;
+            mesh.position.y += Math.sin(now * 0.002 + (agent.phase || 0)) * 0.1;
           }
           else if (agent.isVoxel) {
             const d = mesh.position.distanceTo(new THREE.Vector3(0,0,0));
             mesh.position.z = Math.sin(d * 0.5 - now * 0.005) * (sub * 10.0);
           }
           else if (agent.isIsland) {
-            mesh.position.y += Math.sin(now * 0.001 + agent.phase) * 0.05;
+            mesh.position.y += Math.sin(now * 0.001 + (agent.phase || 0)) * 0.05;
             mesh.rotation.y += 0.01;
           }
           else if (agent.isCoreLayer) {
-            mesh.rotation.x += 0.01 * (agent.layerIndex + 1) * (1 + bass);
-            mesh.rotation.y += 0.015 * (agent.layerIndex + 1);
+            mesh.rotation.x += 0.01 * ((agent.layerIndex || 0) + 1) * (1 + bass);
+            mesh.rotation.y += 0.015 * ((agent.layerIndex || 0) + 1);
             if (isBeat) mesh.scale.setScalar(1.1);
             else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
           // GAME PHYSICS ENGINE
           else if (activeMode === 'pong') {
-             if (agent.role === 'ball') {
+             if (agent.role === 'ball' && agent.vel) {
                  // Move
                  mesh.position.add(agent.vel);
                  // Bounce Y
@@ -1125,17 +1132,19 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               const time = now * 0.001;
               const xOffset = Math.sin(time) * 5;
               
-              mesh.position.x = ((agent.gridPos.x - 5) * 2) + xOffset;
-              
-              // Drop on beat
-              if (isBeat) {
-                  mesh.position.y -= 0.5;
+              if (agent.gridPos) {
+                mesh.position.x = ((agent.gridPos.x - 5) * 2) + xOffset;
+                
+                // Drop on beat
+                if (isBeat) {
+                    mesh.position.y -= 0.5;
+                }
+                // Reset height if too low
+                if (mesh.position.y < -15) mesh.position.y = 15;
+                
+                // Alien bob
+                mesh.position.y += Math.sin(time * 5 + agent.gridPos.x) * 0.2;
               }
-              // Reset height if too low
-              if (mesh.position.y < -15) mesh.position.y = 15;
-              
-              // Alien bob
-              mesh.position.y += Math.sin(time * 5 + agent.gridPos.x) * 0.2;
               
               // Scale on shoot
               if (isSnare && Math.random() > 0.8) {
@@ -1152,13 +1161,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                   mesh.position.z = Math.sin(time * 1.5) * 5;
                   
                   // Store history for body
-                  agent.history.unshift(mesh.position.clone());
-                  if (agent.history.length > 50) agent.history.pop();
+                  if (agent.history) {
+                    agent.history.unshift(mesh.position.clone());
+                    if (agent.history.length > 50) agent.history.pop();
+                  }
               } else {
                   // Body follows head
                   const head = group.children[0];
-                  if (head && head.userData.history[agent.index]) {
-                      mesh.position.copy(head.userData.history[agent.index]);
+                  if (head && head.userData && head.userData.history && head.userData.history[agent.index || 0]) {
+                      mesh.position.copy(head.userData.history[agent.index || 0]);
                   }
               }
               // Pulse on beat
@@ -1170,7 +1181,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               if (agent.role === 'pacman') {
                   mesh.position.x = Math.sin(time) * 12;
                   mesh.position.z = Math.cos(time) * 12;
-                  mesh.lookAt(mesh.position.clone().add(agent.dir));
+                  if (agent.dir) mesh.lookAt(mesh.position.clone().add(agent.dir));
                   // Chomp
                   mesh.scale.y = 1 - Math.abs(Math.sin(now * 0.01)) * 0.5;
               } else if (agent.role === 'ghost') {
@@ -1178,7 +1189,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                   const pacman = group.children[0];
                   if (pacman) {
                       const dir = new THREE.Vector3().subVectors(pacman.position, mesh.position).normalize();
-                      mesh.position.addScaledVector(dir, 0.15); // Slower than pacman?
+                      mesh.position.addScaledVector(dir, 0.15); 
                       mesh.lookAt(pacman.position);
                   }
               }
@@ -1200,7 +1211,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               // Buildings grow on bass
               if (agent.isBuilding) {
                   mesh.scale.y = 1 + (bass * 5);
-                  mesh.position.y = agent.baseY + (mesh.scale.y / 2); // anchor bottom
+                  mesh.position.y = (agent.baseY || 0) + (mesh.scale.y / 2); // anchor bottom
               }
           }
           else {
@@ -1224,10 +1235,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               // POSITION: Drift + Noise
               // Only apply drift if NOT infinite scrolling (to avoid fighting physics)
               if (!agent.infiniteZ && !agent.infiniteY) {
-                  const time = now * 0.001 * agent.speed;
+                  const time = now * 0.001 * (agent.speed || 1);
                   const jitter = (high * 0.5) + (buildupFactor * 0.5);
                   
-                  mesh.position.addScaledVector(agent.driftVec, Math.sin(time + agent.phase) * 0.02 * vj.motionIntensity);
+                  if (agent.driftVec) {
+                    mesh.position.addScaledVector(agent.driftVec, Math.sin(time + (agent.phase || 0)) * 0.02 * vj.motionIntensity);
+                  }
                   
                   if (jitter > 0.1) {
                      mesh.position.x += (Math.random() - 0.5) * jitter;
