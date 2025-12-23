@@ -238,6 +238,7 @@ function PartyPage() {
         sensitivity={visualizerSensitivity}
         onBPMChange={handleBPMChange}
         videoId={nowPlaying?.video_id}
+        photoUrl={nowPlaying?.photo_url}
         currentTime={currentSongTime}
       />
       

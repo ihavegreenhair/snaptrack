@@ -4,8 +4,17 @@ import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
+  // Original Modes
   | 'menger' | 'city' | 'tunnel' | 'matrix' | 'shapes' | 'rings' | 'starfield' | 'fibonacci' | 'voxels' 
   | 'pong' | 'invaders' | 'pacman' | 'snake' | 'tetris' | 'puzzle' | 'population'
+  // Catalog Type A: Raymarching & SDF
+  | 'menger_sponge' | 'neon_pillars' | 'liquid_blob' | 'the_matrix_v2' | 'fractal_landmass' 
+  | 'hyper_torus' | 'recursive_rooms' | 'gyroid_membrane' | 'neon_ribbons' | 'crystal_growth'
+  | 'void_vortex' | 'digital_clouds' | 'hexagonal_hive' | 'mandelbulb' | 'lava_sea'
+  // Catalog Type B: Geometry & Mesh
+  | 'shape_storm' | 'neural_web' | 'vinyl_rain' | 'boids_swarm' | 'audio_rings_v2'
+  | 'jellyfish' | 'voxelizer' | 'spring_field' | 'particle_fountain' | 'floating_islands'
+  | 'light_trails' | 'physics_pile' | 'string_theory' | 'geometric_core' | 'mirror_prism'
   | 'vj' | 'none';
 
 interface VJState {
@@ -34,6 +43,186 @@ const PALETTES = [
   { p: '#ff0055', s: '#ffcc00', ph: 340, sh: 45 }   // Sunset
 ];
 
+const RAYMARCHING_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const RAYMARCHING_FRAGMENT = `
+  uniform float time;
+  uniform vec2 resolution;
+  uniform float subBass;
+  uniform float bass;
+  uniform float mid;
+  uniform float high;
+  uniform vec3 color1;
+  uniform vec3 color2;
+  uniform int mode;
+  varying vec2 vUv;
+
+  #define MAX_STEPS 100
+  #define MAX_DIST 100.
+  #define SURF_DIST .001
+
+  // SDF Functions
+  float sdSphere(vec3 p, float s) { return length(p) - s; }
+  float sdBox(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+  }
+  float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz)-t.x,p.y);
+    return length(q)-t.y;
+  }
+  float sdMenger(vec3 p) {
+    float d = sdBox(p, vec3(1.));
+    float s = 1.0;
+    for(int m=0; m<3; m++) {
+      vec3 a = mod(p*s, 2.0)-1.0;
+      s *= 3.0;
+      vec3 r = abs(1.0 - 3.0*abs(a));
+      float da = max(r.x,r.y);
+      float db = max(r.y,r.z);
+      float dc = max(r.z,r.x);
+      float c = (min(da,min(db,dc))-1.0)/s;
+      d = max(d,c);
+    }
+    return d;
+  }
+
+  mat2 Rot(float a) {
+    float s=sin(a), c=cos(a);
+    return mat2(c, -s, s, c);
+  }
+
+  float GetDist(vec3 p) {
+    float d = 1000.0;
+    
+    if(mode == 1) { // Menger Sponge
+      p.xy *= Rot(time * 0.2);
+      p.xz *= Rot(time * 0.1);
+      float scale = 1.0 + mid * 0.5;
+      d = sdMenger(p / scale) * scale;
+    } else if(mode == 2) { // Neon Pillars
+      vec3 q = p;
+      q.xz = mod(q.xz, 4.0) - 2.0;
+      float h = 5.0 + bass * 10.0;
+      d = sdBox(q, vec3(0.5, h, 0.5));
+    } else if(mode == 3) { // Liquid Blob
+      float noise = sin(p.x*2.+time)*sin(p.y*2.+time)*sin(p.z*2.+time) * subBass;
+      d = length(p) - (2.0 + noise);
+    } else if(mode == 4) { // The Matrix v2
+      vec3 q = p;
+      q.xz = mod(q.xz, 1.0) - 0.5;
+      q.y = mod(q.y - time * 5.0, 10.0) - 5.0;
+      d = sdBox(q, vec3(0.1, 0.4, 0.1));
+    } else if(mode == 5) { // Fractal Landmass
+      float h = sin(p.x * 0.5 + time) * cos(p.z * 0.5) * 2.0;
+      d = p.y + 2.0 - h * bass;
+    } else if(mode == 6) { // Hyper Torus
+      p.xz *= Rot(time);
+      p.yz *= Rot(time * 0.5);
+      d = sdTorus(p, vec2(3.0 + mid, 0.5 + high));
+    } else if(mode == 7) { // Recursive Rooms
+      vec3 q = abs(mod(p, 8.0) - 4.0);
+      d = -sdBox(q, vec3(3.8));
+    } else if(mode == 8) { // Gyroid
+      p *= 2.0;
+      d = abs(dot(sin(p), cos(p.yzx)) - 0.2) / 2.0 - (subBass * 0.1);
+    } else if(mode == 9) { // Neon Ribbons
+      float r = length(p.xz);
+      float h = sin(r - time * 4.0) * mid * 2.0;
+      d = abs(p.y - h) - 0.1;
+    } else if(mode == 10) { // Crystal Growth
+      p.xy *= Rot(time * 0.3);
+      d = sdBox(p, vec3(1.0 + high)) - 0.1 * sin(p.x * 10.0);
+    } else if(mode == 11) { // Void Vortex
+      float angle = atan(p.z, p.x) + length(p.xz) * 0.5 - time * 2.0;
+      float r = length(p.xz);
+      d = length(vec2(r - 2.0, p.y)) - 0.5 * (1.0 - bass);
+    } else if(mode == 12) { // Digital Clouds
+      d = length(p) - 4.0 + sin(p.x + time) * sin(p.y) * sin(p.z) * mid * 2.0;
+    } else if(mode == 13) { // Hexagonal Hive
+      vec2 q = vec2(p.x * 1.73, p.z + (mod(floor(p.x), 2.0) == 0.0 ? 0.0 : 0.5));
+      q = mod(q, 1.0) - 0.5;
+      d = sdBox(vec3(q.x, p.y, q.y), vec3(0.4, 0.5 + bass, 0.4));
+    } else if(mode == 14) { // Mandelbulb (Approx)
+      vec3 z = p;
+      float dr = 1.0;
+      float r = 0.0;
+      float power = 8.0 + sin(time * 0.1) * 4.0 + mid * 4.0;
+      for (int i = 0; i < 5 ; i++) {
+        r = length(z);
+        if (r>2.0) break;
+        float theta = acos(z.z/r);
+        float phi = atan(z.y,z.x);
+        dr =  pow( r, power-1.0)*power*dr + 1.0;
+        float zr = pow( r,power);
+        theta = theta*power;
+        phi = phi*power;
+        z = zr*vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        z+=p;
+      }
+      d = 0.5*log(r)*r/dr;
+    } else if(mode == 15) { // Lava Sea
+      d = p.y + 2.0 + sin(p.x + time) * 0.5 * bass + cos(p.z + time * 0.8) * 0.5 * bass;
+    } else {
+      d = length(p) - 2.0;
+    }
+    
+    return d;
+  }
+
+  float RayMarch(vec3 ro, vec3 rd) {
+    float dO=0.;
+    for(int i=0; i<MAX_STEPS; i++) {
+      vec3 p = ro + rd*dO;
+      float dS = GetDist(p);
+      dO += dS;
+      if(dO>MAX_DIST || abs(dS)<SURF_DIST) break;
+    }
+    return dO;
+  }
+
+  vec3 GetNormal(vec3 p) {
+    float d = GetDist(p);
+    vec2 e = vec2(.01, 0);
+    vec3 n = d - vec3(
+        GetDist(p-e.xyy),
+        GetDist(p-e.yxy),
+        GetDist(p-e.yyx));
+    return normalize(n);
+  }
+
+  void main() {
+    vec2 uv = (vUv - 0.5) * resolution / min(resolution.x, resolution.y);
+    vec3 ro = vec3(0, 0, -10);
+    vec3 rd = normalize(vec3(uv, 1));
+
+    float d = RayMarch(ro, rd);
+    vec3 col = vec3(0);
+
+    if(d<MAX_DIST) {
+      vec3 p = ro + rd * d;
+      vec3 n = GetNormal(p);
+      float diff = dot(n, normalize(vec3(1,2,3)))*.5+.5;
+      col = mix(color1, color2, diff);
+      
+      // Add glow
+      float glow = exp(-d * 0.05) * mid;
+      col += color2 * glow;
+    }
+    
+    // Atmosphere
+    col = mix(col, vec3(0.05, 0.02, 0.1), 1.0 - exp(-0.0005*d*d));
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
 interface VisualizerProps {
   mode: VisualizerMode;
   isPlaying: boolean;
@@ -41,10 +230,11 @@ interface VisualizerProps {
   sensitivity?: number;
   onBPMChange?: (bpm: number) => void;
   videoId?: string;
+  photoUrl?: string;
   currentTime?: number;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, currentTime }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, photoUrl, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { activeMap, recordCue } = useSongMapper(videoId);
   
@@ -111,13 +301,25 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
-    // Curated High-Quality Modes
+    const catalogA: VisualizerMode[] = [
+      'menger_sponge', 'neon_pillars', 'liquid_blob', 'the_matrix_v2', 'fractal_landmass',
+      'hyper_torus', 'recursive_rooms', 'gyroid_membrane', 'neon_ribbons', 'crystal_growth',
+      'void_vortex', 'digital_clouds', 'hexagonal_hive', 'mandelbulb', 'lava_sea'
+    ];
+    const catalogB: VisualizerMode[] = [
+      'shape_storm', 'neural_web', 'vinyl_rain', 'boids_swarm', 'audio_rings_v2',
+      'jellyfish', 'voxelizer', 'spring_field', 'particle_fountain', 'floating_islands',
+      'light_trails', 'physics_pile', 'string_theory', 'geometric_core', 'mirror_prism'
+    ];
     const geometryModes: VisualizerMode[] = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels', 'population'];
     const gameModes: VisualizerMode[] = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'];
     
-    // 30% Chance for Game Mode in VJ Mode for variety
-    const useGame = Math.random() < 0.3;
-    const modes = useGame ? gameModes : geometryModes;
+    const rand = Math.random();
+    let modes: VisualizerMode[] = [];
+    if (rand < 0.25) modes = catalogA;
+    else if (rand < 0.50) modes = catalogB;
+    else if (rand < 0.75) modes = geometryModes;
+    else modes = gameModes;
     
     const nextMode = modes[Math.floor(Math.random() * modes.length)];
     const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
@@ -131,7 +333,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     if (nextMode === 'snake') count = 20; 
     if (nextMode === 'tetris') count = 40; 
     if (nextMode === 'puzzle') count = 15;
-    if (nextMode === 'population') count = 0; // Start empty
+    if (nextMode === 'population') count = 0;
+    if (catalogA.includes(nextMode)) count = 1; // Only 1 plane for shader
 
     setCurrentVibe(nextMode);
     setVj(prev => ({
@@ -148,7 +351,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       individualDamping: 0.02 + Math.random() * 0.2,
       wireframe: Math.random() > 0.3,
       shapeType: shapes[Math.floor(Math.random() * shapes.length)],
-      fov: 60 // Reset to standard, games will override in animate
+      fov: 60
     }));
 
     setVibeFlash(true);
@@ -205,6 +408,34 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     const pMat = new THREE.MeshBasicMaterial({ color: vj.pColor, wireframe: vj.wireframe, transparent: true, opacity: 0.7 });
     const aMat = new THREE.MeshBasicMaterial({ color: vj.sColor, wireframe: true, transparent: true, opacity: 0.4 });
 
+    const catalogA = [
+      'menger_sponge', 'neon_pillars', 'liquid_blob', 'the_matrix_v2', 'fractal_landmass',
+      'hyper_torus', 'recursive_rooms', 'gyroid_membrane', 'neon_ribbons', 'crystal_growth',
+      'void_vortex', 'digital_clouds', 'hexagonal_hive', 'mandelbulb', 'lava_sea'
+    ];
+
+    if (catalogA.includes(activeMode)) {
+      const shaderMat = new THREE.ShaderMaterial({
+        uniforms: {
+          time: { value: 0 },
+          resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+          subBass: { value: 0 },
+          bass: { value: 0 },
+          mid: { value: 0 },
+          high: { value: 0 },
+          color1: { value: vj.pColor },
+          color2: { value: vj.sColor },
+          mode: { value: catalogA.indexOf(activeMode) + 1 }
+        },
+        vertexShader: RAYMARCHING_VERTEX,
+        fragmentShader: RAYMARCHING_FRAGMENT
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), shaderMat);
+      plane.position.z = -5;
+      group.add(plane);
+      (group as any).shaderMat = shaderMat;
+    }
+
     const getGeo = (size = 1, type = vj.shapeType) => {
       if (type === 'box') return new THREE.BoxGeometry(size, size, size);
       if (type === 'sphere') return new THREE.SphereGeometry(size * 0.6, 12, 12);
@@ -216,7 +447,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     // --- Autonomous Agent Factory ---
     const count = vj.objectCount;
     for (let i = 0; i < count; i++) {
-      let mesh;
+      if (catalogA.includes(activeMode)) break; 
+      
+      let mesh: THREE.Mesh | undefined;
       let userData: any = {
          phase: Math.random() * Math.PI * 2,
          speed: 0.5 + Math.random() * 2.0,
@@ -225,8 +458,63 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
          driftVec: new THREE.Vector3(THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1))
       };
 
-      // --- Game Mode Initializers ---
-      if (activeMode === 'pong') {
+      // --- NEW CATALOG B MODES ---
+      if (activeMode === 'shape_storm') {
+        mesh = new THREE.Mesh(getGeo(1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(100));
+        userData.velocity = new THREE.Vector3(THREE.MathUtils.randFloatSpread(0.5), THREE.MathUtils.randFloatSpread(0.5), THREE.MathUtils.randFloatSpread(0.5));
+      }
+      else if (activeMode === 'neural_web') {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+        userData.isNode = true;
+      }
+      else if (activeMode === 'vinyl_rain') {
+        const discGeo = new THREE.CylinderGeometry(2, 2, 0.1, 32);
+        const discMat = pMat.clone();
+        if (photoUrl) {
+          const loader = new THREE.TextureLoader();
+          const tex = loader.load(photoUrl);
+          (discMat as any).map = tex;
+          discMat.needsUpdate = true;
+        }
+        mesh = new THREE.Mesh(discGeo, discMat);
+        mesh.position.set(THREE.MathUtils.randFloatSpread(60), 30 + Math.random() * 50, THREE.MathUtils.randFloatSpread(20));
+        mesh.rotation.x = Math.PI / 2;
+        userData.isVinyl = true;
+      }
+      else if (activeMode === 'boids_swarm') {
+        mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 3), aMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+        userData.isBoid = true;
+        userData.velocity = new THREE.Vector3(THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1));
+      }
+      else if (activeMode === 'jellyfish') {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(2, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(40));
+        userData.isJelly = true;
+      }
+      else if (activeMode === 'voxelizer') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), pMat.clone());
+        const x = (i % 20) - 10;
+        const y = Math.floor(i / 20) % 20 - 10;
+        mesh.position.set(x, y, 0);
+        userData.isVoxel = true;
+        userData.origPos = mesh.position.clone();
+      }
+      else if (activeMode === 'floating_islands') {
+        mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(2 + Math.random() * 3), pMat.clone());
+        mesh.position.set(THREE.MathUtils.randFloatSpread(100), -20 + Math.random() * 40, THREE.MathUtils.randFloatSpread(100));
+        userData.isIsland = true;
+      }
+      else if (activeMode === 'geometric_core') {
+        const sizes = [5, 8, 12, 15];
+        mesh = new THREE.Mesh(getGeo(sizes[i % 4]), i % 2 === 0 ? pMat.clone() : aMat.clone());
+        userData.isCoreLayer = true;
+        userData.layerIndex = i % 4;
+      }
+      // --- ORIGINAL MODES ---
+      else if (activeMode === 'pong') {
          if (i === 0) { // Left Paddle
              mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), pMat.clone());
              mesh.position.set(-15, 0, 0);
@@ -567,6 +855,18 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const buildupFactor = Math.min(analysisRef.current.buildUpScore / 5, 1); 
         const flatness = analysisRef.current.spectralFlatness;
 
+        // Update Shader Uniforms
+        if ((group as any).shaderMat) {
+          const mat = (group as any).shaderMat;
+          mat.uniforms.time.value = now * 0.001;
+          mat.uniforms.subBass.value = sub;
+          mat.uniforms.bass.value = bass;
+          mat.uniforms.mid.value = mid;
+          mat.uniforms.high.value = high;
+          mat.uniforms.color1.value = vj.pColor;
+          mat.uniforms.color2.value = vj.sColor;
+        }
+
         // POPULATION MODE: ADD ENTITIES ON BEAT
         if (activeMode === 'population' && isBeat) {
             const size = 0.5 + Math.random();
@@ -747,8 +1047,44 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               }
           }
 
+          // CATALOG B PHYSICS
+          if (agent.isVinyl) {
+            mesh.position.y -= 0.1 + bass * 0.5;
+            mesh.rotation.z += 0.05 + mid * 0.1;
+            if (mesh.position.y < -30) mesh.position.y = 30;
+          }
+          else if (agent.isNode) {
+            mesh.position.addScaledVector(agent.driftVec, 0.05);
+            if (mesh.position.length() > 40) agent.driftVec.negate();
+            if (isSnare) mesh.scale.setScalar(2);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+          }
+          else if (agent.isBoid) {
+            mesh.position.add(agent.velocity);
+            mesh.lookAt(mesh.position.clone().add(agent.velocity));
+            if (mesh.position.length() > 50) mesh.position.setScalar(0);
+            if (isBeat) agent.velocity.add(new THREE.Vector3(THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2), THREE.MathUtils.randFloatSpread(0.2)));
+          }
+          else if (agent.isJelly) {
+            mesh.scale.y = 1 + Math.sin(now * 0.005) * 0.2 + sub * 0.5;
+            mesh.position.y += Math.sin(now * 0.002 + agent.phase) * 0.1;
+          }
+          else if (agent.isVoxel) {
+            const d = mesh.position.distanceTo(new THREE.Vector3(0,0,0));
+            mesh.position.z = Math.sin(d * 0.5 - now * 0.005) * (sub * 10.0);
+          }
+          else if (agent.isIsland) {
+            mesh.position.y += Math.sin(now * 0.001 + agent.phase) * 0.05;
+            mesh.rotation.y += 0.01;
+          }
+          else if (agent.isCoreLayer) {
+            mesh.rotation.x += 0.01 * (agent.layerIndex + 1) * (1 + bass);
+            mesh.rotation.y += 0.015 * (agent.layerIndex + 1);
+            if (isBeat) mesh.scale.setScalar(1.1);
+            else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+          }
           // GAME PHYSICS ENGINE
-          if (activeMode === 'pong') {
+          else if (activeMode === 'pong') {
              if (agent.role === 'ball') {
                  // Move
                  mesh.position.add(agent.vel);

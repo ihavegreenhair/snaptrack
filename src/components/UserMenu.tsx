@@ -106,7 +106,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
             <Sparkles className="mr-2 h-4 w-4 text-primary" />
             <span>Visualizer</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
+          <DropdownMenuSubContent className="max-h-[500px] overflow-y-auto">
             <DropdownMenuRadioGroup value={visualizerMode} onValueChange={(val) => onVisualizerChange?.(val as VisualizerMode)}>
               <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="vj" className="font-bold text-primary">
@@ -114,22 +114,49 @@ const UserMenu: React.FC<UserMenuProps> = ({
               </DropdownMenuRadioItem>
               
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Geometric Physics</DropdownMenuLabel>
-              <DropdownMenuRadioItem value="shapes">Shape Storm</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="voxels">Voxel Towers</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="rings">Audio Rings</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="core3d">Geometric Core</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="rain">Digital Rain</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="pulse">Pulse Rings</DropdownMenuRadioItem>
-              
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Type A: Raymarching & SDF</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="menger_sponge">Menger Sponge</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neon_pillars">Neon Pillars</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="liquid_blob">Liquid Blob</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="the_matrix_v2">The Matrix v2</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="fractal_landmass">Fractal Landmass</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="hyper_torus">Hyper-Torus</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="recursive_rooms">Recursive Rooms</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="gyroid_membrane">Gyroid Membrane</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neon_ribbons">Neon Ribbons</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="crystal_growth">Crystal Growth</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="void_vortex">Void Vortex</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="digital_clouds">Digital Clouds</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="hexagonal_hive">Hexagonal Hive</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="mandelbulb">Mandelbulb</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="lava_sea">Lava Sea</DropdownMenuRadioItem>
+
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Procedural Swarms</DropdownMenuLabel>
-              <DropdownMenuRadioItem value="neural">Neural Web</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="fibonacci">Fibonacci Spiral</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="helix">DNA Helix</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="flower">Geometric Flower</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="starfield">Starfield Galaxy</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="trees">Fractal Trees</DropdownMenuRadioItem>
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Type B: Geometry & Mesh</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="shape_storm">Shape Storm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="neural_web">Neural Web</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="vinyl_rain">Vinyl Rain</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="boids_swarm">Boids Swarm</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="audio_rings_v2">Audio Rings v2</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="jellyfish">Jellyfish</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="voxelizer">Voxelizer</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="spring_field">Spring Field</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="particle_fountain">Particle Fountain</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="floating_islands">Floating Islands</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="light_trails">Light Trails</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="physics_pile">Physics Pile</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="string_theory">String Theory</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="geometric_core">Geometric Core</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="mirror_prism">Mirror Prism</DropdownMenuRadioItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Classic & Games</DropdownMenuLabel>
+              <DropdownMenuRadioItem value="pong">Pong AI</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="invaders">Space Invaders</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="pacman">Pacman 3D</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="snake">Viper 3D</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="tetris">3D Tetris</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="puzzle">Sliding Puzzle</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
