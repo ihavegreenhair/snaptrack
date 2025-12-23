@@ -195,74 +195,66 @@ const RAYMARCHING_FRAGMENT = `
   void main() {
     vec2 uv = (vUv - 0.5) * resolution / min(resolution.x, resolution.y);
     
-    // Animate camera slightly
-    vec3 ro = vec3(sin(time*0.2)*2.0, 2.0 + cos(time*0.1), -15.0);
-    vec3 rd = normalize(vec3(uv.x, uv.y - 0.1, 1.2));
+    // Zoom out: ro.z moved from -15 to -30
+    vec3 ro = vec3(sin(time*0.1)*5.0, 5.0 + cos(time*0.05)*2.0, -30.0);
+    vec3 rd = normalize(vec3(uv.x, uv.y - 0.2, 1.5)); // Wider perspective
 
     float d = RayMarch(ro, rd);
-    vec3 col = vec3(0.02, 0.01, 0.05); // Deep background
+    vec3 col = vec3(0.01, 0.005, 0.02); // Deeper background
 
     if(d<MAX_DIST) {
       vec3 p = ro + rd * d;
       vec3 n = GetNormal(p);
-      vec3 lightPos = vec3(5, 10, -10);
+      vec3 lightPos = vec3(10, 20, -20);
       vec3 l = normalize(lightPos - p);
       
-      // Lighting
+      // Better Lighting
       float diff = clamp(dot(n, l), 0.1, 1.0);
-      float sky = clamp(0.5 + 0.5 * n.y, 0.0, 1.0);
+      float amb = 0.1;
       
-      col = mix(color1, color2, diff);
-      col += color2 * pow(max(0.0, dot(reflect(-l, n), -rd)), 16.0); // Specular
-      col *= (diff + sky * 0.2);
+      col = mix(color1, color2, diff + amb);
+      col += color2 * pow(max(0.0, dot(reflect(-l, n), -rd)), 32.0); // Sharper Specular
       
       // Fog
-      float fog = 1.0 - exp(-d * 0.02);
-      col = mix(col, vec3(0.02, 0.01, 0.05), fog);
+      float fog = 1.0 - exp(-d * 0.015);
+      col = mix(col, vec3(0.01, 0.005, 0.02), fog);
       
       // Beat Flash
-      col += color1 * subBass * 0.3 * (1.0 - fog);
+      col += color1 * subBass * 0.4 * (1.0 - fog);
     }
 
     gl_FragColor = vec4(col, 1.0);
   }
 `;
 
-interface VisualizerProps {
-  mode: VisualizerMode;
-  isPlaying: boolean;
-  isDashboard?: boolean;
-  sensitivity?: number;
-  onBPMChange?: (bpm: number) => void;
-  onBeatConfidenceChange?: (confidence: number) => void;
-  videoId?: string;
-  songTitle?: string;
-  photoUrl?: string;
-  currentTime?: number;
-}
+// ... (types and interfaces)
 
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, onBeatConfidenceChange, videoId, songTitle, photoUrl, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { activeMap, recordCue, saveMap } = useSongMapper(videoId, songTitle);
   
-  // Essentia Engine State
   const essentiaRef = useRef<any>(null);
+  const confidenceRef = useRef(0);
   const [beatConfidence, setBeatConfidence] = useState(0);
 
+  // Sync state for UI periodically (every 500ms) to avoid 60fps React overhead
   useEffect(() => {
-    onBeatConfidenceChange?.(beatConfidence);
-  }, [beatConfidence, onBeatConfidenceChange]);
+    const interval = setInterval(() => {
+      setBeatConfidence(confidenceRef.current);
+      onBeatConfidenceChange?.(confidenceRef.current);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [onBeatConfidenceChange]);
 
   // Initialize Essentia
   useEffect(() => {
     const initEssentia = async () => {
       try {
-        // Essentia constructor might vary based on how it was bundled, 
-        // usually it's a global or a default export
-        essentiaRef.current = new (Essentia as any)();
-        console.log('[Essentia] Neural Engine Initialized');
+        const wasm = await (EssentiaWASM as any)();
+        essentiaRef.current = new (Essentia as any)(wasm);
+        console.log('[Essentia] Neural Engine Ready');
       } catch (e) {
-        console.error('[Essentia] Failed to init', e);
+        console.error('[Essentia] Init failed', e);
       }
     };
     initEssentia();
@@ -751,14 +743,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const rms = essentiaRef.current.RMS(vector).rms;
             
             // Dynamic Confidence: If signal is clean (RMS > threshold), confidence goes up
-            if (rms > 0.05) {
-                setBeatConfidence(prev => Math.min(prev + 0.02, 1.0));
+            if (rms > 0.02) { // Increased sensitivity from 0.05 to 0.02
+                confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
             } else {
-                // Decay if silence
-                setBeatConfidence(prev => Math.max(prev - 0.01, 0));
+                confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
             }
             
-            // Clean up WASM memory to prevent leaks
+            // Clean up WASM memory
             vector.delete();
         }
 
@@ -826,15 +817,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const expectedInterval = analysisRef.current.beatInterval;
         const phaseError = Math.abs(timeSinceLast - expectedInterval);
         
-        // If audio matches expected phase, increase confidence
+        // If audio matches expected phase, increase confidence Ref
         if (isAudioBeat && phaseError < 50) {
-            setBeatConfidence(prev => Math.min(prev + 0.1, 1.0));
-        } else if (isAudioBeat) {
-            setBeatConfidence(prev => Math.max(prev - 0.05, 0));
+            confidenceRef.current = Math.min(confidenceRef.current + 0.05, 1.0);
         }
 
         // If high confidence, we can trigger beat based on time even if audio is quiet
-        const isPhaseBeat = beatConfidence > 0.8 && timeSinceLast >= expectedInterval;
+        const isPhaseBeat = confidenceRef.current > 0.8 && timeSinceLast >= expectedInterval;
 
         if (isAudioBeat || isPhaseBeat) {
           isBeat = true;
