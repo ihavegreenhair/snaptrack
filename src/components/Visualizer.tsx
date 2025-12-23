@@ -4,9 +4,7 @@ import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
-  | 'menger' | 'columns' | 'blob' | 'lattice' | 'city' | 'landmass' | 'gyroid' | 'tunnel' | 'lava' | 'matrix' | 'rooms' | 'bulb' 
-  | 'shapes' | 'vortex' | 'neural' | 'rings' | 'core3d' | 'cloud' | 'trees' | 'platonic' | 'helix' | 'flower' | 'starfield'
-  | 'crystal' | 'voxels' | 'fibonacci' | 'galaxy' | 'ribbons' | 'swarm' | 'rubik' | 'islands' | 'circuit' | 'rain' | 'pulse'
+  | 'menger' | 'city' | 'tunnel' | 'matrix' | 'shapes' | 'rings' | 'starfield' | 'fibonacci' | 'voxels' 
   | 'pong' | 'invaders' | 'pacman' | 'snake' | 'tetris'
   | 'vj' | 'none';
 
@@ -113,13 +111,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
-    const shaderModes: VisualizerMode[] = ['city', 'columns', 'menger', 'tunnel', 'bulb'];
-    const meshModes: VisualizerMode[] = ['shapes', 'neural', 'rings', 'core3d', 'trees', 'platonic', 'helix', 'flower', 'starfield'];
+    // Curated High-Quality Modes
+    const geometryModes: VisualizerMode[] = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels'];
     const gameModes: VisualizerMode[] = ['pong', 'invaders', 'pacman', 'snake', 'tetris'];
     
-    // 20% Chance for Game Mode in VJ Mode
-    const useGame = Math.random() < 0.2;
-    const modes = useGame ? gameModes : [...shaderModes, ...meshModes];
+    // 30% Chance for Game Mode in VJ Mode for variety
+    const useGame = Math.random() < 0.3;
+    const modes = useGame ? gameModes : geometryModes;
     
     const nextMode = modes[Math.floor(Math.random() * modes.length)];
     const shapes: ('box' | 'sphere' | 'pyramid' | 'torus' | 'icosahedron')[] = ['box', 'sphere', 'pyramid', 'torus', 'icosahedron'];
@@ -127,11 +125,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     
     // Determine counts based on mode
     let count = Math.floor(20 + Math.pow(Math.random(), 2) * 180);
-    if (nextMode === 'pong') count = 3; // L-Paddle, R-Paddle, Ball
-    if (nextMode === 'invaders') count = 55; // 5x11 grid
-    if (nextMode === 'pacman') count = 50; // Pac + 4 Ghosts + 45 dots
-    if (nextMode === 'snake') count = 20; // 20 segments
-    if (nextMode === 'tetris') count = 40; // ~10 blocks * 4 cubes
+    if (nextMode === 'pong') count = 3; 
+    if (nextMode === 'invaders') count = 55; 
+    if (nextMode === 'pacman') count = 50; 
+    if (nextMode === 'snake') count = 20; 
+    if (nextMode === 'tetris') count = 40; 
 
     setCurrentVibe(nextMode);
     setVj(prev => ({
@@ -148,7 +146,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
       individualDamping: 0.02 + Math.random() * 0.2,
       wireframe: Math.random() > 0.3,
       shapeType: shapes[Math.floor(Math.random() * shapes.length)],
-      fov: nextMode === 'pong' ? 60 : 50 + Math.random() * 60
+      fov: 60 // Reset to standard, games will override in animate
     }));
 
     setVibeFlash(true);
@@ -221,6 +219,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
          phase: Math.random() * Math.PI * 2,
          speed: 0.5 + Math.random() * 2.0,
          freqIndex: Math.floor(Math.random() * 128),
+         orbitRadius: 10 + Math.random() * 30,
          driftVec: new THREE.Vector3(THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1), THREE.MathUtils.randFloatSpread(1))
       };
 
@@ -281,24 +280,61 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
          mesh.position.set(THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(30), 0);
          userData.role = 'block';
       }
-      else {
-        // Standard Swarm Generation
-        mesh = new THREE.Mesh(getGeo(0.5 + Math.random() * 1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
-        if (activeMode === 'fibonacci') {
-            const t = i * 0.1;
-            const r = 2 * Math.sqrt(i) * vj.complexity;
-            mesh.position.set(Math.cos(t) * r, Math.sin(t) * r, i * 0.1 - 10);
-        } else if (activeMode === 'voxels') {
-            const x = (i % 10) - 5;
-            const z = Math.floor(i / 10) - 5;
-            mesh.position.set(x * 4, -10, z * 4);
-        } else if (activeMode === 'rings') {
-            const ringGeo = new THREE.TorusGeometry(i * 2, 0.1, 8, 64);
-            mesh.geometry = ringGeo;
-            mesh.position.set(0,0,0);
-        } else {
-            mesh.position.set(THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60));
-        }
+      // --- INFINITE GEOMETRY MODES ---
+      else if (activeMode === 'tunnel') {
+          mesh = new THREE.Mesh(getGeo(1 + Math.random()), i % 2 === 0 ? pMat.clone() : aMat.clone());
+          const angle = i * 0.5;
+          const radius = 10 + Math.random() * 5;
+          const z = -i * 2; 
+          mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
+          mesh.lookAt(0,0,z-10);
+          userData.infiniteZ = true;
+          userData.scrollSpeed = 0.5;
+      }
+      else if (activeMode === 'city') {
+          const buildingHeight = 1 + Math.random() * 8;
+          mesh = new THREE.Mesh(new THREE.BoxGeometry(2, buildingHeight, 2), i % 3 === 0 ? pMat.clone() : aMat.clone());
+          const row = Math.floor(i / 6);
+          const col = i % 6;
+          const spacing = 4;
+          const z = -row * spacing * 2; 
+          const x = (col - 2.5) * spacing * 3;
+          
+          mesh.position.set(x, -10 + buildingHeight/2, z);
+          userData.infiniteZ = true;
+          userData.scrollSpeed = 0.8;
+          userData.baseY = -10 + buildingHeight/2;
+          userData.isBuilding = true;
+      }
+      else if (activeMode === 'starfield' || activeMode === 'galaxy') {
+          mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), pMat.clone());
+          mesh.position.set(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(60), -Math.random() * 200);
+          userData.infiniteZ = true;
+          userData.scrollSpeed = 2.0;
+      }
+      else if (activeMode === 'matrix' || activeMode === 'rain') {
+          mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 0.2), pMat.clone());
+          mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(20));
+          userData.infiniteY = true;
+          userData.fallSpeed = 0.5 + Math.random();
+      }
+      else if (activeMode === 'fibonacci') {
+          const t = i * 0.1;
+          const r = 2 * Math.sqrt(i) * vj.complexity;
+          mesh = new THREE.Mesh(getGeo(1), i % 2 === 0 ? pMat.clone() : aMat.clone());
+          mesh.position.set(Math.cos(t) * r, Math.sin(t) * r, i * 0.1 - 10);
+      } else if (activeMode === 'voxels') {
+          const x = (i % 10) - 5;
+          const z = Math.floor(i / 10) - 5;
+          mesh = new THREE.Mesh(getGeo(0.8), pMat.clone());
+          mesh.position.set(x * 4, -10, z * 4);
+      } else if (activeMode === 'rings') {
+          const ringGeo = new THREE.TorusGeometry(i * 2, 0.1, 8, 64);
+          mesh = new THREE.Mesh(ringGeo, pMat.clone());
+          mesh.position.set(0,0,0);
+      } else {
+          mesh = new THREE.Mesh(getGeo(0.5 + Math.random() * 1.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
+          mesh.position.set(THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(60));
       }
       
       if (mesh) {
@@ -484,31 +520,71 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const buildupFactor = Math.min(analysisRef.current.buildUpScore / 5, 1); 
         const flatness = analysisRef.current.spectralFlatness;
 
-        // 1. Global Scene Movement
+        // 1. Global Scene Movement & Camera Logic
         const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1);
         
-        // Disable global rotation for 2D-like games to keep them playable/viewable
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris'].includes(activeMode);
-        if (!isGame) {
-           group.rotation.y += 0.002 * rotSpeed;
+        const isInfinite = ['city', 'starfield', 'matrix', 'rain'].includes(activeMode);
+        
+        // --- SCENE ROTATION ---
+        if (!isGame && !isInfinite) {
+           if (activeMode === 'tunnel') group.rotation.z += 0.005 * rotSpeed; 
+           else group.rotation.y += 0.002 * rotSpeed;
+        } else if (isGame) {
+           // Lock rotation for games
+           group.rotation.set(0,0,0);
         } else {
-           // Gentle sway for games
-           group.rotation.y = Math.sin(now * 0.0002) * 0.1; 
-           group.rotation.x = Math.sin(now * 0.0001) * 0.05;
+           // Fixed perspective for City/Matrix
+           group.rotation.set(0,0,0);
         }
 
-        if (isBuildUp) {
-            group.position.x = (Math.random() - 0.5) * buildupFactor * 0.5;
-            group.position.y = (Math.random() - 0.5) * buildupFactor * 0.5;
+        // --- CAMERA POSITIONING ---
+        const t = now * 0.0003;
+        
+        if (activeMode === 'pong' || activeMode === 'invaders') {
+            // Classic 2D Front View
+            cam.position.set(0, 0, 25);
+            cam.lookAt(0, 0, 0);
+        } else if (activeMode === 'pacman') {
+            // Top-Down
+            cam.position.set(0, 35, 1);
+            cam.lookAt(0, 0, 0);
+            cam.rotation.z = Math.PI / 2; // Orient correctly
+        } else if (activeMode === 'snake') {
+            // Isometric
+            cam.position.set(0, 20, 20);
+            cam.lookAt(0, 0, 0);
+        } else if (activeMode === 'tetris') {
+            // Tall View
+            cam.position.set(0, 0, 40);
+            cam.lookAt(0, 0, 0);
+        } else if (activeMode === 'city') {
+            // Low Flyover
+            cam.position.set(Math.sin(t) * 5, 2, 10);
+            cam.lookAt(0, 0, -50);
         } else {
-            group.position.x = 0;
-            group.position.y = 0;
+            // Standard Drone Camera
+            cam.position.x = Math.sin(t) * 25.0;
+            cam.position.y = Math.cos(t * 0.8) * 15.0;
+            if (activeMode === 'tunnel' || activeMode === 'starfield') {
+                cam.position.set(0, 0, 10); // Center of tunnel
+                cam.lookAt(0, 0, -50);
+            } else {
+                cam.lookAt(0, 0, 0);
+            }
         }
 
-        // 2. Camera Physics
-        const targetFov = isBeat ? vj.fov + (sub * 15) : vj.fov + (isBuildUp ? -20 : 0); 
+        // 2. Camera Physics (FOV Kick)
+        const baseFov = isGame ? 60 : vj.fov; // Lock FOV for games
+        const targetFov = isBeat ? baseFov + (sub * 5) : baseFov + (isBuildUp ? -10 : 0); 
         cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.2);
         cam.updateProjectionMatrix();
+
+        // Shake Effect
+        if (isBuildUp) {
+            cam.position.x += (Math.random() - 0.5) * buildupFactor * 0.5;
+            cam.position.y += (Math.random() - 0.5) * buildupFactor * 0.5;
+        }
 
         // 3. Object Modulation
         group.children.forEach((obj, i) => {
@@ -520,6 +596,29 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           else if (agent.freqIndex < 30) localIntensity = bass;
           else if (agent.freqIndex < 80) localIntensity = mid;
           else localIntensity = high;
+
+          // INFINITE SCROLL LOGIC
+          if (agent.infiniteZ) {
+              const speed = agent.scrollSpeed * (1 + sub * 2); // Bass boosts speed
+              mesh.position.z += speed;
+              
+              // Recycle geometry
+              if (mesh.position.z > 20) {
+                  mesh.position.z = -150; // Send to back
+                  // Randomize new entry position for starfield
+                  if (activeMode === 'starfield' || activeMode === 'galaxy') {
+                      mesh.position.x = THREE.MathUtils.randFloatSpread(100);
+                      mesh.position.y = THREE.MathUtils.randFloatSpread(60);
+                  }
+              }
+          }
+          if (agent.infiniteY) {
+              // Matrix Rain
+              mesh.position.y -= agent.fallSpeed * (1 + high);
+              if (mesh.position.y < -30) {
+                  mesh.position.y = 30;
+              }
+          }
 
           // GAME PHYSICS ENGINE
           if (activeMode === 'pong') {
@@ -633,6 +732,14 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                   mesh.rotation.z += Math.PI / 2;
               }
           }
+          else if (activeMode === 'city') {
+              // City specific modulation
+              // Buildings grow on bass
+              if (agent.isBuilding) {
+                  mesh.scale.y = 1 + (bass * 5);
+                  mesh.position.y = agent.baseY + (mesh.scale.y / 2); // anchor bottom
+              }
+          }
           else {
               // SWARM PHYSICS (Original Logic)
               let targetScaleX = 1 + localIntensity * vj.distortionScale;
@@ -652,15 +759,18 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               mesh.scale.lerp(new THREE.Vector3(targetScaleX, targetScaleY, targetScaleZ), 0.2);
 
               // POSITION: Drift + Noise
-              const time = now * 0.001 * agent.speed;
-              const jitter = (high * 0.5) + (buildupFactor * 0.5);
-              
-              mesh.position.addScaledVector(agent.driftVec, Math.sin(time + agent.phase) * 0.02 * vj.motionIntensity);
-              
-              if (jitter > 0.1) {
-                 mesh.position.x += (Math.random() - 0.5) * jitter;
-                 mesh.position.y += (Math.random() - 0.5) * jitter;
-                 mesh.position.z += (Math.random() - 0.5) * jitter;
+              // Only apply drift if NOT infinite scrolling (to avoid fighting physics)
+              if (!agent.infiniteZ && !agent.infiniteY) {
+                  const time = now * 0.001 * agent.speed;
+                  const jitter = (high * 0.5) + (buildupFactor * 0.5);
+                  
+                  mesh.position.addScaledVector(agent.driftVec, Math.sin(time + agent.phase) * 0.02 * vj.motionIntensity);
+                  
+                  if (jitter > 0.1) {
+                     mesh.position.x += (Math.random() - 0.5) * jitter;
+                     mesh.position.y += (Math.random() - 0.5) * jitter;
+                     mesh.position.z += (Math.random() - 0.5) * jitter;
+                  }
               }
           }
 
