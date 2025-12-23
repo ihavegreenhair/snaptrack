@@ -33,6 +33,9 @@ function PartyPage() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('none');
   const [visualizerSensitivity, setVisualizerSensitivity] = useState(1.5);
+  const [maxEntities, setMaxEntities] = useState(60);
+  const [rotationSpeed, setRotationSpeed] = useState(1.0);
+  const [crazyFactorMultiplier, setCrazyFactorMultiplier] = useState(1.0);
   const [detectedBPM, setDetectedBPM] = useState<number>(120);
   const [beatConfidence, setBeatConfidence] = useState<number>(0);
   const [currentSongTime, setCurrentSongTime] = useState(0);
@@ -237,6 +240,9 @@ function PartyPage() {
         isPlaying={isPlaying} 
         isDashboard={isDashboardMode} 
         sensitivity={visualizerSensitivity}
+        maxEntities={maxEntities}
+        rotationSpeed={rotationSpeed}
+        crazyFactor={crazyFactorMultiplier}
         onBPMChange={handleBPMChange}
         onBeatConfidenceChange={setBeatConfidence}
         videoId={nowPlaying?.video_id}
@@ -314,6 +320,12 @@ function PartyPage() {
                 onVisualizerChange={setVisualizerMode}
                 visualizerSensitivity={visualizerSensitivity}
                 onSensitivityChange={setVisualizerSensitivity}
+                maxEntities={maxEntities}
+                onMaxEntitiesChange={setMaxEntities}
+                rotationSpeed={rotationSpeed}
+                onRotationSpeedChange={setRotationSpeed}
+                crazyFactor={crazyFactorMultiplier}
+                onCrazyFactorChange={setCrazyFactorMultiplier}
                 isDashboardMode={isDashboardMode}
                 onDashboardChange={setIsDashboardMode}
                 onEndParty={isHost ? () => {

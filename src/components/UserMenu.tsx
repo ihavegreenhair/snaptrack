@@ -31,6 +31,12 @@ interface UserMenuProps {
   onVisualizerChange?: (mode: VisualizerMode) => void;
   visualizerSensitivity?: number;
   onSensitivityChange?: (value: number) => void;
+  maxEntities?: number;
+  onMaxEntitiesChange?: (value: number) => void;
+  rotationSpeed?: number;
+  onRotationSpeedChange?: (value: number) => void;
+  crazyFactor?: number;
+  onCrazyFactorChange?: (value: number) => void;
   isDashboardMode?: boolean;
   onDashboardChange?: (enabled: boolean) => void;
 }
@@ -49,6 +55,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
   onVisualizerChange,
   visualizerSensitivity = 1.5,
   onSensitivityChange,
+  maxEntities = 60,
+  onMaxEntitiesChange,
+  rotationSpeed = 1.0,
+  onRotationSpeedChange,
+  crazyFactor = 1.0,
+  onCrazyFactorChange,
   isDashboardMode,
   onDashboardChange
 }) => {
@@ -56,51 +68,9 @@ const UserMenu: React.FC<UserMenuProps> = ({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full bg-muted">
-          <User className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
+// ... (existing menu trigger)
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span className="font-bold">{displayName}</span>
-            <span className="text-xs text-muted-foreground">{isHost ? 'Host' : 'Guest'}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        
-        <DropdownMenuItem onClick={onRename}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          <span>Change Name</span>
-        </DropdownMenuItem>
-
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Theme</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup value={theme} onValueChange={(val) => setTheme(val as Theme)}>
-              <DropdownMenuRadioItem value="light">
-                <Sun className="mr-2 h-4 w-4" /> Light
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">
-                <Moon className="mr-2 h-4 w-4" /> Dark
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="neon">
-                <Sparkles className="mr-2 h-4 w-4" /> Neon
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="sunset">
-                <Sunset className="mr-2 h-4 w-4" /> Sunset
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="ocean">
-                <Waves className="mr-2 h-4 w-4" /> Ocean
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
+// ... (existing header and theme menu)
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Sparkles className="mr-2 h-4 w-4 text-primary" />
@@ -114,7 +84,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
               </DropdownMenuRadioItem>
               
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Type A: Raymarching & SDF</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Type A: Geometry Versions</DropdownMenuLabel>
               <DropdownMenuRadioItem value="menger_sponge">Menger Sponge</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="neon_pillars">Neon Pillars</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="liquid_blob">Liquid Blob</DropdownMenuRadioItem>
@@ -160,12 +130,39 @@ const UserMenu: React.FC<UserMenuProps> = ({
             </DropdownMenuRadioGroup>
             
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Sensitivity</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Audio Sensitivity</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={visualizerSensitivity.toString()} onValueChange={(val) => onSensitivityChange?.(parseFloat(val))}>
               <DropdownMenuRadioItem value="0.5">Low</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="1.5">Normal</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="3.0">High</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="6.0">MAX</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Max Entities</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={maxEntities.toString()} onValueChange={(val) => onMaxEntitiesChange?.(parseInt(val))}>
+              <DropdownMenuRadioItem value="20">20 (Mobile)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="60">60 (Normal)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="150">150 (High)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="300">300 (Ultra)</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Rotation Speed</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={rotationSpeed.toString()} onValueChange={(val) => onRotationSpeedChange?.(parseFloat(val))}>
+              <DropdownMenuRadioItem value="0.2">Chill</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="1.0">Normal</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="2.5">Fast</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="5.0">HYPER</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Crazy Factor</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={crazyFactor.toString()} onValueChange={(val) => onCrazyFactorChange?.(parseFloat(val))}>
+              <DropdownMenuRadioItem value="0.5">Subtle</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="1.0">Normal</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="2.0">Wild</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="4.0">INSANE</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>

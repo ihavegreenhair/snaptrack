@@ -22,6 +22,9 @@ interface VisualizerProps {
   isPlaying: boolean;
   isDashboard?: boolean;
   sensitivity?: number;
+  maxEntities?: number;
+  rotationSpeed?: number;
+  crazyFactor?: number;
   onBPMChange?: (bpm: number) => void;
   onBeatConfidenceChange?: (confidence: number) => void;
   videoId?: string;
@@ -30,7 +33,21 @@ interface VisualizerProps {
   currentTime?: number;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, onBeatConfidenceChange, videoId, songTitle, photoUrl, currentTime }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ 
+  mode, 
+  isPlaying, 
+  isDashboard, 
+  sensitivity = 1.5, 
+  maxEntities = 60,
+  rotationSpeed = 1.0,
+  crazyFactor = 1.0,
+  onBPMChange, 
+  onBeatConfidenceChange, 
+  videoId, 
+  songTitle, 
+  photoUrl, 
+  currentTime 
+}) => {
   const { activeMap } = useSongMapper(videoId, songTitle);
   const { vj, activeMode, rollVJ, vibeFlash } = useVJEngine(mode);
   
@@ -40,7 +57,14 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     onAICue: () => rollVJ()
   });
 
-  const { containerRef, sceneRef, cameraRef, rendererRef, meshGroupRef } = useThreeScene(activeMode, vj, photoUrl);
+  // Apply Parameter Overrides to VJ State
+  const effectiveVJ = {
+    ...vj,
+    objectCount: maxEntities,
+    rotationSpeed: rotationSpeed * vj.rotationSpeed, // Multiplier
+  };
+
+  const { containerRef, sceneRef, cameraRef, rendererRef, meshGroupRef } = useThreeScene(activeMode, effectiveVJ, photoUrl);
   const requestRef = useRef<number | null>(null);
 
   // Sync state for UI
@@ -60,8 +84,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         const isBuildUp = res.tension > 3.0;
         const buildupFactor = Math.min(res.tension / 5, 1);
-        const crazyFactor = 1.0 + (Math.max(0, res.gradient) * 10.0) + (res.tension * 0.5);
-        const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1) * crazyFactor;
+        
+        // Use the new crazyFactor prop as a base multiplier
+        const baseCrazy = 1.0 + (Math.max(0, res.gradient) * 10.0) + (res.tension * 0.5);
+        const finalCrazyFactor = baseCrazy * crazyFactor;
+        
+        const rotSpeed = effectiveVJ.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1) * finalCrazyFactor;
 
         // --- ADAPTIVE VJ ROLLING ---
         // Instead of locking, we just slow down the probability
@@ -80,15 +108,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         } else if (isGame) {
            if (activeMode !== 'puzzle') {
                // Limit game rotation to prevent camera flying out (Black Screen fix)
-               group.rotation.y = Math.sin(now * 0.0002) * 0.05 * crazyFactor; 
-               group.rotation.x = Math.sin(now * 0.0001) * 0.03 * crazyFactor;
+               group.rotation.y = Math.sin(now * 0.0002) * 0.05 * finalCrazyFactor; 
+               group.rotation.x = Math.sin(now * 0.0001) * 0.03 * finalCrazyFactor;
            } else {
-               group.rotation.z = Math.sin(now * 0.005) * 0.05 * res.bass * crazyFactor;
+               group.rotation.z = Math.sin(now * 0.005) * 0.05 * res.bass * finalCrazyFactor;
            }
         }
 
         // 2. Camera Physics
-        const targetFov = res.isBeat ? vj.fov + (res.sub * 5 * crazyFactor) : vj.fov + (isBuildUp ? -10 : 0); 
+        const targetFov = res.isBeat ? vj.fov + (res.sub * 5 * finalCrazyFactor) : vj.fov + (isBuildUp ? -10 : 0); 
         cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.2);
         
         // Stabilize Camera Frustum
@@ -116,11 +144,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           else if (agent.freqIndex < 30) intensity = res.bass;
           else if (agent.freqIndex < 80) intensity = res.mid;
           else intensity = res.high;
-          intensity *= crazyFactor;
+          intensity *= finalCrazyFactor;
 
           if (agent.isMengerPart) {
-            mesh.rotation.x += 0.01 * crazyFactor; mesh.rotation.y += 0.01 * crazyFactor;
-            if (res.isBeat) mesh.scale.setScalar(1.5 * crazyFactor); else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+            mesh.rotation.x += 0.01 * finalCrazyFactor; mesh.rotation.y += 0.01 * finalCrazyFactor;
+            if (res.isBeat) mesh.scale.setScalar(1.5 * finalCrazyFactor); else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
           else if (agent.isPillar) {
             mesh.scale.y = 1 + intensity * 10; mesh.position.y = -10 + (mesh.scale.y * (agent.baseH || 1) / 2);
@@ -256,16 +284,16 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               }
           }
           else {
-              let tSX = 1 + (intensity/crazyFactor) * vj.distortionScale;
-              let tSY = 1 + (intensity/crazyFactor) * vj.distortionScale;
-              let tSZ = 1 + (intensity/crazyFactor) * vj.distortionScale;
+              let tSX = 1 + (intensity/finalCrazyFactor) * vj.distortionScale;
+              let tSY = 1 + (intensity/finalCrazyFactor) * vj.distortionScale;
+              let tSZ = 1 + (intensity/finalCrazyFactor) * vj.distortionScale;
               if (res.isBeat && agent.freqIndex < 20) { tSX *= 1.5; tSY *= 1.5; tSZ *= 1.5; }
-              mesh.scale.lerp(new THREE.Vector3(tSX * crazyFactor, tSY * crazyFactor, tSZ * crazyFactor), 0.2);
+              mesh.scale.lerp(new THREE.Vector3(tSX * finalCrazyFactor, tSY * finalCrazyFactor, tSZ * finalCrazyFactor), 0.2);
 
               if (!agent.infiniteZ && !agent.infiniteY) {
                   const time = now * 0.001 * (agent.speed || 1);
                   const jitter = (res.high * 0.5) + (buildupFactor * 0.5);
-                  if (agent.driftVec) mesh.position.addScaledVector(agent.driftVec, Math.sin(time + (agent.phase || 0)) * 0.02 * vj.motionIntensity);
+                  if (agent.driftVec) mesh.position.addScaledVector(agent.driftVec, Math.sin(time + (agent.phase || 0)) * 0.02 * (vj.motionIntensity * finalCrazyFactor));
                   if (jitter > 0.1) { mesh.position.x += (Math.random() - 0.5) * jitter; mesh.position.y += (Math.random() - 0.5) * jitter; mesh.position.z += (Math.random() - 0.5) * jitter; }
               }
           }
@@ -273,7 +301,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           if (mesh.material instanceof THREE.MeshBasicMaterial) {
             const baseHue = i % 2 === 0 ? vj.primaryHue : vj.secondaryHue;
             const activeHue = isBuildUp ? THREE.MathUtils.lerp(baseHue, 0, buildupFactor) : (baseHue + hueShift) % 360;
-            const lightness = res.isBeat ? 0.7 : (0.4 + (intensity/crazyFactor) * 0.4);
+            const lightness = res.isBeat ? 0.7 : (0.4 + (intensity/finalCrazyFactor) * 0.4);
             mesh.material.color.setHSL(activeHue / 360, isBuildUp ? 1.0 : 0.8, lightness);
             mesh.material.opacity = res.spectralFlatness > 0.6 ? 0.2 + (Math.random() * 0.5) : 0.7; 
           }
