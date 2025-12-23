@@ -5,7 +5,7 @@ import { useSongMapper } from '@/hooks/useSongMapper';
 
 export type VisualizerMode = 
   | 'menger' | 'city' | 'tunnel' | 'matrix' | 'shapes' | 'rings' | 'starfield' | 'fibonacci' | 'voxels' 
-  | 'pong' | 'invaders' | 'pacman' | 'snake' | 'tetris'
+  | 'pong' | 'invaders' | 'pacman' | 'snake' | 'tetris' | 'puzzle' | 'population'
   | 'vj' | 'none';
 
 interface VJState {
@@ -112,8 +112,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
     // Curated High-Quality Modes
-    const geometryModes: VisualizerMode[] = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels'];
-    const gameModes: VisualizerMode[] = ['pong', 'invaders', 'pacman', 'snake', 'tetris'];
+    const geometryModes: VisualizerMode[] = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels', 'population'];
+    const gameModes: VisualizerMode[] = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'];
     
     // 30% Chance for Game Mode in VJ Mode for variety
     const useGame = Math.random() < 0.3;
@@ -130,6 +130,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     if (nextMode === 'pacman') count = 50; 
     if (nextMode === 'snake') count = 20; 
     if (nextMode === 'tetris') count = 40; 
+    if (nextMode === 'puzzle') count = 15;
+    if (nextMode === 'population') count = 0; // Start empty
 
     setCurrentVibe(nextMode);
     setVj(prev => ({
@@ -280,6 +282,32 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
          mesh.position.set(THREE.MathUtils.randFloatSpread(20), THREE.MathUtils.randFloatSpread(30), 0);
          userData.role = 'block';
       }
+      else if (activeMode === 'puzzle') {
+         // 4x4 Grid (15 tiles)
+         const col = i % 4;
+         const row = Math.floor(i / 4);
+         
+         const size = 3.5;
+         const spacing = 3.6;
+         const offsetX = -1.5 * spacing;
+         const offsetY = -1.5 * spacing; // Center the 4x4 grid
+         
+         mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, 0.5), i % 2 === 0 ? pMat.clone() : aMat.clone());
+         
+         const x = (col * spacing) + offsetX;
+         const y = (row * spacing) + offsetY;
+         
+         mesh.position.set(x, y, 0);
+         
+         userData.gridPos = { x: col, y: row }; // Logical Position (0-3)
+         userData.targetPos = new THREE.Vector3(x, y, 0); // Animation Target
+         userData.tileId = i;
+         
+         // Color Gradient
+         if (mesh.material instanceof THREE.MeshBasicMaterial) {
+             mesh.material.color.setHSL((vj.primaryHue + (i * 10)) / 360, 0.8, 0.5);
+         }
+      }
       // --- INFINITE GEOMETRY MODES ---
       else if (activeMode === 'tunnel') {
           mesh = new THREE.Mesh(getGeo(1 + Math.random()), i % 2 === 0 ? pMat.clone() : aMat.clone());
@@ -366,13 +394,23 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
     spectralFlatness: 0,
     // Phase Engine
     bpmEstimate: 128,
-    beatInterval: 468, // 128bpm start
+    beatInterval: 468, 
     lastBeatTime: 0,
-    beatCounter: 0,   // Total beats
-    barPhase: 0,      // 0-3 (Beat 1-4)
-    phrasePhase: 0,   // 0-15 (Bar 1-16)
-    phraseEnergy: [] as number[], // Avg energy per bar
-    predictedState: 'FLOW'
+    beatCounter: 0,   
+    barPhase: 0,      
+    phrasePhase: 0,   
+    phraseEnergy: [] as number[], 
+    predictedState: 'FLOW',
+    // Puzzle State
+    puzzleState: {
+        empty: { x: 3, y: 3 }, // Start bottom-right empty
+        grid: [
+            [0, 1, 2, 3],
+            [4, 5, 6, 7],
+            [8, 9, 10, 11],
+            [12, 13, 14, -1] // -1 is empty
+        ]
+    }
   });
 
   useEffect(() => {
@@ -606,7 +644,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               if (mesh.position.z > 20) {
                   mesh.position.z = -150; // Send to back
                   // Randomize new entry position for starfield
-                  if (activeMode === 'starfield' || activeMode === 'galaxy') {
+                  if (activeMode === 'starfield') {
                       mesh.position.x = THREE.MathUtils.randFloatSpread(100);
                       mesh.position.y = THREE.MathUtils.randFloatSpread(60);
                   }
