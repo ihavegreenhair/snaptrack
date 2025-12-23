@@ -13,6 +13,8 @@ export interface AudioAnalysis {
   confidence: number;
   isBeat: boolean;
   isSnare: boolean;
+  isBuilding: boolean;
+  isBreakdown: boolean;
   bpm: number;
   spectralFlatness: number;
 }
@@ -47,7 +49,7 @@ export function useVisualizerAudio({
   
   const [analysis] = useState<AudioAnalysis>({
     sub: 0, bass: 0, mid: 0, high: 0, energy: 0, gradient: 0, tension: 0, confidence: 0,
-    isBeat: false, isSnare: false, bpm: 128, spectralFlatness: 0
+    isBeat: false, isSnare: false, isBuilding: false, isBreakdown: false, bpm: 128, spectralFlatness: 0
   });
 
   const confidenceRef = useRef(0);
@@ -64,7 +66,7 @@ export function useVisualizerAudio({
   // Initialize Essentia
   useEffect(() => {
     let isMounted = true;
-    const init = async () => {
+    const initEssentia = async () => {
       try {
         const wasmModule = typeof EssentiaWASM === 'function' ? await (EssentiaWASM as any)() : (EssentiaWASM as any).default ? await (EssentiaWASM as any).default() : EssentiaWASM;
         if (!isMounted) return;
@@ -72,7 +74,7 @@ export function useVisualizerAudio({
         console.log('%c[Essentia] 🧠 NEURAL ENGINE READY', 'color: #00ff00; font-weight: bold;');
       } catch (e) { console.error('[Essentia] Setup failed:', e); }
     };
-    init();
+    initEssentia();
     return () => { isMounted = false; };
   }, []);
 
@@ -130,9 +132,13 @@ export function useVisualizerAudio({
     
     energyHistory.current.push(currentEnergy);
     if (energyHistory.current.length > 30) energyHistory.current.shift();
-    const avgEnergy = energyHistory.current.reduce((a,b)=>a+b,0) / energyHistory.current.length;
+    const avgEnergy = energyHistory.current.length > 0 ? energyHistory.current.reduce((a,b)=>a+b,0) / energyHistory.current.length : 0.5;
     const gradient = currentEnergy - avgEnergy;
     tensionRef.current = (tensionRef.current * 0.98) + (Math.max(0, gradient) * 2.0);
+
+    // BUILDING & BREAKDOWN DETECTION
+    const isBuilding = tensionRef.current > 2.0 && gradient > 0.01;
+    const isBreakdown = gradient < -0.05 && currentEnergy < 0.3;
 
     // Essentia Bridge
     if (essentiaRef.current) {
@@ -144,7 +150,7 @@ export function useVisualizerAudio({
       else confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
       
       if (now - lastLogTime.current > 2000) {
-        console.log(`[Essentia] 🧠 Bridge Active | Energy: ${rms.toFixed(4)} | Confidence: ${Math.round(confidenceRef.current * 100)}%`);
+        console.log(`[Essentia] 🧠 Bridge Active | Energy: ${rms.toFixed(4)} | Confidence: ${Math.round(confidenceRef.current * 100)}% | State: ${isBuilding ? 'BUILDING' : isBreakdown ? 'BREAKDOWN' : 'FLOW'}`);
         lastLogTime.current = now;
       }
       vector.delete();
@@ -193,6 +199,8 @@ export function useVisualizerAudio({
       confidence: confidenceRef.current,
       isBeat, 
       isSnare: (mid > 0.6 && sub < 0.3),
+      isBuilding,
+      isBreakdown,
       bpm: bpmEstimate.current,
       spectralFlatness: flatness
     };

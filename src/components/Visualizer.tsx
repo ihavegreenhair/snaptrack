@@ -63,8 +63,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const crazyFactor = 1.0 + (Math.max(0, res.gradient) * 10.0) + (res.tension * 0.5);
         const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1) * crazyFactor;
 
-        // Auto-roll on massive tension
-        if (res.tension > 5.0 && Math.random() > 0.99) rollVJ();
+        // Auto-roll logic: Only roll if NOT building or in a breakdown
+        const shouldLockMode = res.isBuilding || res.isBreakdown;
+        if (res.tension > 5.0 && !shouldLockMode && Math.random() > 0.99) rollVJ();
 
         // 1. Global Scene Movement
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
