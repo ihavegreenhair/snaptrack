@@ -301,7 +301,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
       }
       
-      group.add(mesh);
+      if (mesh) {
+        mesh.userData = userData;
+        group.add(mesh);
+      }
     }
 
     camera.fov = vj.fov;
