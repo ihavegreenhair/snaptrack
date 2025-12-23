@@ -199,6 +199,13 @@
   --border: oklch(0.65 0.15 200 / 30%);
   --input: oklch(0.25 0.05 240);
   --ring: oklch(0.65 0.15 200);
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @layer base {

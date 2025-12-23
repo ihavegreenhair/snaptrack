@@ -424,7 +424,7 @@ function PartyPage() {
             <div className={cn(
               "grid grid-cols-1 gap-4 sm:gap-6 xl:gap-6 2xl:gap-8",
               isDashboardMode 
-                ? "fixed right-0 top-0 bottom-0 w-[28vw] min-w-[320px] p-6 bg-black/40 backdrop-blur-3xl border-l border-white/5 z-50 flex flex-col gap-4 overflow-y-auto custom-scrollbar shadow-[-20px_0_50px_rgba(0,0,0,0.5)]" 
+                ? "fixed right-0 top-0 bottom-0 w-[28vw] min-w-[320px] p-6 bg-black/60 backdrop-blur-3xl border-l border-white/10 z-50 flex flex-col gap-4 overflow-y-auto hide-scrollbar shadow-[-20px_0_50px_rgba(0,0,0,0.8)]" 
                 : (isHost ? 'xl:grid-cols-5 2xl:grid-cols-7' : 'xl:grid-cols-4 2xl:grid-cols-6')
             )}>
               {/* Now Playing Section */}
@@ -434,9 +434,27 @@ function PartyPage() {
                   ? "flex-shrink-0" 
                   : (isHost ? 'xl:col-span-3 2xl:col-span-4' : 'xl:col-span-1 2xl:col-span-2')
               )} ref={nowPlayingEl}>
+                {/* VJ Status Indicator (Dashboard Mode) */}
+                {isDashboardMode && nowPlaying && (
+                  <div className="flex items-center justify-between mb-4 px-2 animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full",
+                        detectedBPM > 0 ? "bg-green-500 animate-pulse" : "bg-yellow-500"
+                      )} />
+                      <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">
+                        Signal: {detectedBPM > 0 ? 'Locked' : 'Analyzing'}
+                      </span>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-primary">
+                      {detectedBPM > 0 ? 'Auto-VJ Sync' : 'Syncing...'}
+                    </div>
+                  </div>
+                )}
+                
                 <div className={cn(
                   "transition-all duration-700",
-                  isDashboardMode ? "scale-75 -mt-8 origin-top" : ""
+                  isDashboardMode ? "scale-90 -mt-4 origin-top" : ""
                 )}>
                                   <NowPlaying
                                     song={nowPlaying}

@@ -248,7 +248,7 @@ interface VisualizerProps {
 
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, videoId, photoUrl, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { activeMap, recordCue } = useSongMapper(videoId);
+  const { activeMap, recordCue, saveMap } = useSongMapper(videoId);
   
   // v8.1 Weighted Agent State
   const [vj, setVj] = useState<VJState>({
@@ -426,8 +426,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         vertexShader: RAYMARCHING_VERTEX,
         fragmentShader: RAYMARCHING_FRAGMENT
       });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), shaderMat);
-      plane.position.z = -5;
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), shaderMat);
+      plane.position.z = 0;
       group.add(plane);
       (group as any).shaderMat = shaderMat;
     }
@@ -774,6 +774,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             const currentBPM = Math.round(60000 / analysisRef.current.beatInterval);
             analysisRef.current.bpmEstimate = currentBPM;
             onBPMChange?.(currentBPM);
+            
+            // Auto-save map progress
+            if (currentBPM > 40 && currentBPM < 220) {
+              saveMap(currentBPM);
+            }
           }
 
           // Phase Increment
@@ -932,9 +937,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
         const isInfinite = ['city', 'starfield', 'matrix'].includes(activeMode);
+        const isRaymarching = catalogA.includes(activeMode);
         
         // --- SCENE ROTATION ---
-        if (!isGame && !isInfinite) {
+        if (!isGame && !isInfinite && !isRaymarching) {
            if (activeMode === 'tunnel') group.rotation.z += 0.005 * rotSpeed; 
            else group.rotation.y += 0.002 * rotSpeed;
         } else if (isGame) {
@@ -946,7 +952,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
                group.rotation.z = Math.sin(now * 0.005) * 0.05 * bass;
            }
         } else {
-           // Fixed perspective for City/Matrix
+           // Fixed perspective for City/Matrix/Raymarching
            group.rotation.set(0,0,0);
         }
 
@@ -974,6 +980,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
             // Low Flyover
             cam.position.set(Math.sin(t) * 5, 2, 10);
             cam.lookAt(0, 0, -50);
+        } else if (isRaymarching) {
+            // Locked view for Raymarching (Shader handles movement)
+            cam.position.set(0, 0, 10);
+            cam.lookAt(0, 0, 0);
         } else {
             // Standard Drone Camera
             cam.position.x = Math.sin(t) * 25.0;
