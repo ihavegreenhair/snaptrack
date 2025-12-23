@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { EssentiaWASM } from 'essentia.js/dist/essentia-wasm.es.js';
 import Essentia from 'essentia.js/dist/essentia.js-core.es.js';
 import { cn } from '@/lib/utils';
 import { useSongMapper } from '@/hooks/useSongMapper';
@@ -227,7 +228,18 @@ const RAYMARCHING_FRAGMENT = `
   }
 `;
 
-// ... (types and interfaces)
+interface VisualizerProps {
+  mode: VisualizerMode;
+  isPlaying: boolean;
+  isDashboard?: boolean;
+  sensitivity?: number;
+  onBPMChange?: (bpm: number) => void;
+  onBeatConfidenceChange?: (confidence: number) => void;
+  videoId?: string;
+  songTitle?: string;
+  photoUrl?: string;
+  currentTime?: number;
+}
 
 const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, sensitivity = 1.5, onBPMChange, onBeatConfidenceChange, videoId, songTitle, photoUrl, currentTime }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -235,12 +247,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   
   const essentiaRef = useRef<any>(null);
   const confidenceRef = useRef(0);
-  const [beatConfidence, setBeatConfidence] = useState(0);
 
   // Sync state for UI periodically (every 500ms) to avoid 60fps React overhead
   useEffect(() => {
     const interval = setInterval(() => {
-      setBeatConfidence(confidenceRef.current);
       onBeatConfidenceChange?.(confidenceRef.current);
     }, 500);
     return () => clearInterval(interval);
