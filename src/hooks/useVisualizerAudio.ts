@@ -47,7 +47,7 @@ export function useVisualizerAudio({
   const timeBufferRef = useRef<Uint8Array | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
-  const [analysis] = useState<AudioAnalysis>({
+  const [analysis, setAnalysis] = useState<AudioAnalysis>({
     sub: 0, bass: 0, mid: 0, high: 0, energy: 0, gradient: 0, tension: 0, confidence: 0,
     isBeat: false, isSnare: false, isBuilding: false, isBreakdown: false, bpm: 128, spectralFlatness: 0
   });
@@ -66,21 +66,25 @@ export function useVisualizerAudio({
   // Initialize Essentia
   useEffect(() => {
     let isMounted = true;
-    const initEssentia = async () => {
+    const init = async () => {
       try {
+        console.log('[Essentia] ⚙️ Initializing WASM Module...');
         const wasmModule = typeof EssentiaWASM === 'function' ? await (EssentiaWASM as any)() : (EssentiaWASM as any).default ? await (EssentiaWASM as any).default() : EssentiaWASM;
         if (!isMounted) return;
         essentiaRef.current = new (Essentia as any)(wasmModule);
         console.log('%c[Essentia] 🧠 NEURAL ENGINE READY', 'color: #00ff00; font-weight: bold;');
-      } catch (e) { console.error('[Essentia] Setup failed:', e); }
+      } catch (e) { 
+        console.error('[Essentia] ❌ Setup failed:', e); 
+      }
     };
-    initEssentia();
+    init();
     return () => { isMounted = false; };
   }, []);
 
   // Reset on song change
   useEffect(() => {
     if (videoId) {
+      console.log(`[BPM] 🎵 Song changed: ${videoId}. Resetting confidence.`);
       beatInterval.current = 468;
       lastBeatTime.current = 0;
       confidenceRef.current = 0;
@@ -146,11 +150,13 @@ export function useVisualizerAudio({
       for(let i=0; i<timeBufferRef.current.length; i++) floatBuffer[i] = (timeBufferRef.current[i] - 128) / 128.0;
       const vector = essentiaRef.current.arrayToVector(floatBuffer);
       const rms = essentiaRef.current.RMS(vector).rms;
+      
+      // Dynamic Confidence
       if (rms > 0.005) confidenceRef.current = Math.min(confidenceRef.current + 0.01, 1.0);
       else confidenceRef.current = Math.max(confidenceRef.current - 0.005, 0);
       
       if (now - lastLogTime.current > 2000) {
-        console.log(`[Essentia] 🧠 Bridge Active | Energy: ${rms.toFixed(4)} | Confidence: ${Math.round(confidenceRef.current * 100)}% | State: ${isBuilding ? 'BUILDING' : isBreakdown ? 'BREAKDOWN' : 'FLOW'}`);
+        console.log(`[Neural] RMS: ${rms.toFixed(4)} | Conf: ${Math.round(confidenceRef.current * 100)}% | Engine: ${essentiaRef.current ? 'WASM' : 'OFF'}`);
         lastLogTime.current = now;
       }
       vector.delete();
@@ -164,7 +170,16 @@ export function useVisualizerAudio({
     const timeSinceLast = now - lastBeatTime.current;
     const phaseError = Math.abs(timeSinceLast - beatInterval.current);
     
-    if (isAudioBeat && phaseError < 50) confidenceRef.current = Math.min(confidenceRef.current + 0.05, 1.0);
+    // Phase Lock Logic
+    if (isAudioBeat) {
+        if (phaseError < 60) { // Slightly more forgiving threshold
+            confidenceRef.current = Math.min(confidenceRef.current + 0.05, 1.0);
+            if (now - lastLogTime.current > 500) console.log(`[Phase] Match! Error: ${Math.round(phaseError)}ms`);
+        } else {
+            confidenceRef.current = Math.max(confidenceRef.current - 0.02, 0);
+        }
+    }
+
     const isPhaseBeat = confidenceRef.current > 0.8 && timeSinceLast >= beatInterval.current;
     
     let isBeat = false;
@@ -191,7 +206,7 @@ export function useVisualizerAudio({
       framesSinceBeat.current++;
     }
 
-    return {
+    const result = {
       sub, bass, mid, high, 
       energy: currentEnergy, 
       gradient, 
@@ -204,7 +219,12 @@ export function useVisualizerAudio({
       bpm: bpmEstimate.current,
       spectralFlatness: flatness
     };
-  }, [analysis, isPlaying, sensitivity, onBPMChange, onBeatTrigger, activeMap, currentTime, onAICue]);
+
+    // Update state occasionally for UI (every 10th frame approx)
+    if (now % 10 === 0) setAnalysis(result);
+
+    return result;
+  }, [isPlaying, sensitivity, onBPMChange, onBeatTrigger, activeMap, currentTime, onAICue]);
 
   return { analysis, updateAnalysis, audioContextRef, analyserRef, dataArrayRef };
 }
