@@ -145,6 +145,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
   const blackoutCounter = useRef(0);
   const timeBufferRef = useRef<Uint8Array | null>(null);
   const lastLogTime = useRef(0);
+  const beatHistory = useRef<number[]>([]);
+  const energyHistory = useRef<number[]>([]);
+  const tensionRef = useRef(0);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -732,6 +735,25 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         mid = (mSum / 40 / 255) * sensitivity;
         high = (hSum / 192 / 255) * sensitivity;
 
+        // --- ENERGY GRADIENT ENGINE ---
+        const currentEnergy = (sub * 0.4) + (bass * 0.3) + (mid * 0.2) + (high * 0.1);
+        energyHistory.current.push(currentEnergy);
+        if (energyHistory.current.length > 30) energyHistory.current.shift(); // 0.5s window at 60fps
+
+        const avgEnergy = energyHistory.current.reduce((a,b)=>a+b,0) / energyHistory.current.length;
+        const energyGradient = currentEnergy - avgEnergy; // Positive = building, Negative = dropping
+        const smoothedGradient = Math.max(0, energyGradient); // Only care about the upward "build" for tension
+
+        // Accumulate Tension based on Gradient
+        tensionRef.current = (tensionRef.current * 0.98) + (smoothedGradient * 2.0);
+        
+        // If tension is extremely high, speed up transitions
+        if (tensionRef.current > 5.0) {
+            console.log(`[VJ] 🔥 Tension Peak: ${tensionRef.current.toFixed(2)}, accelerating...`);
+            if (Math.random() > 0.98) rollVJ(); // 2% chance per frame at peak tension to roll
+            tensionRef.current *= 0.5; // Reset tension after potential trigger
+        }
+
         // Spectral Centroid (Brightness) 0-1
         spectralCentroid = energySum > 0 ? (weightedSum / energySum) / binCount : 0;
         
@@ -908,19 +930,25 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
 
         // 1. Global Scene Movement & Camera Logic
-        const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1);
+        const currentEnergy = (sub * 0.4) + (bass * 0.3) + (mid * 0.2) + (high * 0.1);
+        const avgEnergy = energyHistory.current.length > 0 ? energyHistory.current.reduce((a,b)=>a+b,0) / energyHistory.current.length : 0.5;
+        const energyGradient = currentEnergy - avgEnergy;
+        
+        // Crazy Factor: Boost visuals during high-gradient moments (drops)
+        const crazyFactor = 1.0 + (Math.max(0, energyGradient) * 10.0) + (tensionRef.current * 0.5);
+        const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1) * crazyFactor;
+        
         const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
-        const isInfinite = ['city', 'starfield', 'matrix'].includes(activeMode);
+        const isInfinite = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels', 'population'].includes(activeMode) || catalogA.includes(activeMode) || catalogB.includes(activeMode);
         
         if (!isGame && !isInfinite) {
-           if (activeMode === 'tunnel') group.rotation.z += 0.005 * rotSpeed; 
-           else group.rotation.y += 0.002 * rotSpeed;
+           group.rotation.y += 0.002 * rotSpeed;
         } else if (isGame) {
            if (activeMode !== 'puzzle') {
-               group.rotation.y = Math.sin(now * 0.0002) * 0.1; 
-               group.rotation.x = Math.sin(now * 0.0001) * 0.05;
+               group.rotation.y = Math.sin(now * 0.0002) * 0.1 * crazyFactor; 
+               group.rotation.x = Math.sin(now * 0.0001) * 0.05 * crazyFactor;
            } else {
-               group.rotation.z = Math.sin(now * 0.005) * 0.05 * bass;
+               group.rotation.z = Math.sin(now * 0.005) * 0.05 * bass * crazyFactor;
            }
         } else {
            group.rotation.set(0,0,0);
@@ -957,13 +985,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         }
 
         const baseFov = isGame ? 60 : vj.fov;
-        const targetFov = isBeat ? baseFov + (sub * 5) : baseFov + (isBuildUp ? -10 : 0); 
+        const targetFov = isBeat ? baseFov + (sub * 5 * crazyFactor) : baseFov + (isBuildUp ? -10 : 0); 
         cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.2);
         cam.updateProjectionMatrix();
 
-        if (isBuildUp) {
-            cam.position.x += (Math.random() - 0.5) * buildupFactor * 0.5;
-            cam.position.y += (Math.random() - 0.5) * buildupFactor * 0.5;
+        // Shake Effect (Influenced by Drop Energy)
+        if (isBuildUp || energyGradient > 0.05) {
+            const shake = (buildupFactor * 0.5) + (Math.max(0, energyGradient) * 5.0);
+            cam.position.x += (Math.random() - 0.5) * shake;
+            cam.position.y += (Math.random() - 0.5) * shake;
         }
 
         // 3. Object Modulation
@@ -978,11 +1008,14 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           else if (agent.freqIndex < 80) localIntensity = mid;
           else if (agent.freqIndex !== undefined) localIntensity = high;
 
+          // Apply Crazy Factor
+          localIntensity *= crazyFactor;
+
           // CATALOG A GEOMETRY ANIMATIONS
           if (agent.isMengerPart) {
-            mesh.rotation.x += 0.01;
-            mesh.rotation.y += 0.01;
-            if (isBeat) mesh.scale.setScalar(1.5);
+            mesh.rotation.x += 0.01 * crazyFactor;
+            mesh.rotation.y += 0.01 * crazyFactor;
+            if (isBeat) mesh.scale.setScalar(1.5 * crazyFactor);
             else mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
           }
           else if (agent.isPillar) {
