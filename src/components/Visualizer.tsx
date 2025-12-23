@@ -43,6 +43,18 @@ const PALETTES = [
   { p: '#ff0055', s: '#ffcc00', ph: 340, sh: 45 }   // Sunset
 ];
 
+const catalogA: VisualizerMode[] = [
+  'menger_sponge', 'neon_pillars', 'liquid_blob', 'the_matrix_v2', 'fractal_landmass',
+  'hyper_torus', 'recursive_rooms', 'gyroid_membrane', 'neon_ribbons', 'crystal_growth',
+  'void_vortex', 'digital_clouds', 'hexagonal_hive', 'mandelbulb', 'lava_sea'
+];
+
+const catalogB: VisualizerMode[] = [
+  'shape_storm', 'neural_web', 'vinyl_rain', 'boids_swarm', 'audio_rings_v2',
+  'jellyfish', 'voxelizer', 'spring_field', 'particle_fountain', 'floating_islands',
+  'light_trails', 'physics_pile', 'string_theory', 'geometric_core', 'mirror_prism'
+];
+
 const RAYMARCHING_VERTEX = `
   varying vec2 vUv;
   void main() {
@@ -301,16 +313,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
   // VJ Brain (Deep Randomization)
   const rollVJ = useCallback(() => {
-    const catalogA: VisualizerMode[] = [
-      'menger_sponge', 'neon_pillars', 'liquid_blob', 'the_matrix_v2', 'fractal_landmass',
-      'hyper_torus', 'recursive_rooms', 'gyroid_membrane', 'neon_ribbons', 'crystal_growth',
-      'void_vortex', 'digital_clouds', 'hexagonal_hive', 'mandelbulb', 'lava_sea'
-    ];
-    const catalogB: VisualizerMode[] = [
-      'shape_storm', 'neural_web', 'vinyl_rain', 'boids_swarm', 'audio_rings_v2',
-      'jellyfish', 'voxelizer', 'spring_field', 'particle_fountain', 'floating_islands',
-      'light_trails', 'physics_pile', 'string_theory', 'geometric_core', 'mirror_prism'
-    ];
     const geometryModes: VisualizerMode[] = ['city', 'tunnel', 'matrix', 'shapes', 'rings', 'starfield', 'fibonacci', 'voxels', 'population'];
     const gameModes: VisualizerMode[] = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'];
     
@@ -407,12 +409,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
 
     const pMat = new THREE.MeshBasicMaterial({ color: vj.pColor, wireframe: vj.wireframe, transparent: true, opacity: 0.7 });
     const aMat = new THREE.MeshBasicMaterial({ color: vj.sColor, wireframe: true, transparent: true, opacity: 0.4 });
-
-    const catalogA = [
-      'menger_sponge', 'neon_pillars', 'liquid_blob', 'the_matrix_v2', 'fractal_landmass',
-      'hyper_torus', 'recursive_rooms', 'gyroid_membrane', 'neon_ribbons', 'crystal_growth',
-      'void_vortex', 'digital_clouds', 'hexagonal_hive', 'mandelbulb', 'lava_sea'
-    ];
 
     if (catalogA.includes(activeMode)) {
       const shaderMat = new THREE.ShaderMaterial({
