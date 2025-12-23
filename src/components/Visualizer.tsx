@@ -334,13 +334,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           userData.baseY = -10 + buildingHeight/2;
           userData.isBuilding = true;
       }
-      else if (activeMode === 'starfield' || activeMode === 'galaxy') {
+      else if (activeMode === 'starfield') {
+          // Warp Speed
           mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), pMat.clone());
           mesh.position.set(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(60), -Math.random() * 200);
           userData.infiniteZ = true;
           userData.scrollSpeed = 2.0;
       }
-      else if (activeMode === 'matrix' || activeMode === 'rain') {
+      else if (activeMode === 'matrix') {
+          // Digital Rain
           mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 0.2), pMat.clone());
           mesh.position.set(THREE.MathUtils.randFloatSpread(40), THREE.MathUtils.randFloatSpread(30), THREE.MathUtils.randFloatSpread(20));
           userData.infiniteY = true;
@@ -497,26 +499,33 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
           if (analysisRef.current.barPhase === 0) {
              analysisRef.current.phrasePhase = (analysisRef.current.phrasePhase + 1) % 16;
              
-             // Energy Analysis for this Bar
-             const barEnergy = (sub + bass + mid) / 3;
+             // Energy Analysis - FIXED: Include Highs to catch builds
+             const barEnergy = (sub + bass + mid + high) / 4;
+             
+             // Calculate average BEFORE pushing current bar to see relative jump
+             const avgPhraseEnergy = analysisRef.current.phraseEnergy.length > 0 
+                ? analysisRef.current.phraseEnergy.reduce((a,b)=>a+b,0) / analysisRef.current.phraseEnergy.length
+                : 0.5;
+
              analysisRef.current.phraseEnergy.push(barEnergy);
              if (analysisRef.current.phraseEnergy.length > 16) analysisRef.current.phraseEnergy.shift();
              
-             // Prediction Logic
-             const avgPhraseEnergy = analysisRef.current.phraseEnergy.reduce((a,b)=>a+b,0) / analysisRef.current.phraseEnergy.length;
+             // Sensitive Prediction Logic
              let state = 'FLOW';
-             if (barEnergy > avgPhraseEnergy * 1.3 && high > 0.5) state = 'BUILD';
-             if (sub > 0.8 && analysisRef.current.buildUpScore > 0.5) state = 'DROP';
+             // If this bar is louder than average AND has highs -> Build
+             if (barEnergy > avgPhraseEnergy * 1.1 && high > 0.3) state = 'BUILD';
+             // Drop if we had a build score and sub bass returns
+             if (sub > 0.6 && analysisRef.current.buildUpScore > 0.5) state = 'DROP';
              analysisRef.current.predictedState = state;
 
              // Console Report
              console.log(
-               `%c🔊 [VJ CORE] Bar: ${analysisRef.current.phrasePhase + 1}/16 | BPM: ${analysisRef.current.bpmEstimate} | Energy: ${barEnergy.toFixed(2)} | State: ${state}`,
+               `%c🔊 [VJ] Bar: ${analysisRef.current.phrasePhase + 1} | Energy: ${barEnergy.toFixed(2)} | Trend: ${(barEnergy - avgPhraseEnergy).toFixed(2)} | State: ${state}`,
                `color: ${state === 'DROP' ? '#ff0055' : state === 'BUILD' ? '#ffcc00' : '#00ffff'}; font-weight: bold;`
              );
 
-             // Change Visual Mode on Phrase Change (every 16 bars)
-             if (analysisRef.current.phrasePhase === 0 && mode === 'vj') {
+             // Change Visual Mode every 8 Bars (Phrase End)
+             if (analysisRef.current.phrasePhase % 8 === 0 && mode === 'vj') {
                 rollVJ();
              }
           }
@@ -558,19 +567,88 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
         const buildupFactor = Math.min(analysisRef.current.buildUpScore / 5, 1); 
         const flatness = analysisRef.current.spectralFlatness;
 
+        // POPULATION MODE: ADD ENTITIES ON BEAT
+        if (activeMode === 'population' && isBeat) {
+            const size = 0.5 + Math.random();
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(size, size, size),
+                new THREE.MeshBasicMaterial({ 
+                    color: new THREE.Color().setHSL(Math.random(), 0.8, 0.5), 
+                    wireframe: true 
+                })
+            );
+            mesh.position.set(
+                THREE.MathUtils.randFloatSpread(40),
+                THREE.MathUtils.randFloatSpread(30),
+                THREE.MathUtils.randFloatSpread(40)
+            );
+            mesh.userData = {
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random(),
+                driftVec: new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5),
+                freqIndex: Math.floor(Math.random() * 64)
+            };
+            group.add(mesh);
+            
+            // Limit Population
+            if (group.children.length > 200) {
+                group.remove(group.children[0]);
+            }
+        }
+
+        // PUZZLE LOGIC (Run once per beat or fast interval)
+        if (activeMode === 'puzzle' && isBeat && group.children.length > 0) {
+            // Pick neighbor
+            const { x, y } = analysisRef.current.puzzleState.empty;
+            const neighbors = [
+                { x: x, y: y - 1 }, // Up
+                { x: x, y: y + 1 }, // Down
+                { x: x - 1, y: y }, // Left
+                { x: x + 1, y: y }  // Right
+            ].filter(n => n.x >= 0 && n.x < 4 && n.y >= 0 && n.y < 4);
+            
+            const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+            
+            // Find the mesh at 'target' logical position
+            const tileMesh = group.children.find(m => m.userData.gridPos.x === target.x && m.userData.gridPos.y === target.y);
+            
+            if (tileMesh) {
+                // Swap logic
+                // 1. Move empty to target
+                analysisRef.current.puzzleState.empty = target;
+                // 2. Move tile to old empty
+                tileMesh.userData.gridPos = { x, y };
+                
+                // 3. Update Target World Position
+                const spacing = 3.6;
+                const offsetX = -1.5 * spacing;
+                const offsetY = -1.5 * spacing;
+                tileMesh.userData.targetPos.set(
+                    (x * spacing) + offsetX, 
+                    (y * spacing) + offsetY, 
+                    0
+                );
+            }
+        }
+
         // 1. Global Scene Movement & Camera Logic
         const rotSpeed = vj.rotationSpeed * (isBuildUp ? (1 + buildupFactor * 4) : 1);
         
-        const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris'].includes(activeMode);
-        const isInfinite = ['city', 'starfield', 'matrix', 'rain'].includes(activeMode);
+        const isGame = ['pong', 'invaders', 'pacman', 'snake', 'tetris', 'puzzle'].includes(activeMode);
+        const isInfinite = ['city', 'starfield', 'matrix'].includes(activeMode);
         
         // --- SCENE ROTATION ---
         if (!isGame && !isInfinite) {
            if (activeMode === 'tunnel') group.rotation.z += 0.005 * rotSpeed; 
            else group.rotation.y += 0.002 * rotSpeed;
         } else if (isGame) {
-           // Lock rotation for games
-           group.rotation.set(0,0,0);
+           if (activeMode !== 'puzzle') {
+               group.rotation.y = Math.sin(now * 0.0002) * 0.1; 
+               group.rotation.x = Math.sin(now * 0.0001) * 0.05;
+           } else {
+               // Puzzle bounce
+               group.rotation.z = Math.sin(now * 0.005) * 0.05 * bass;
+           }
         } else {
            // Fixed perspective for City/Matrix
            group.rotation.set(0,0,0);
@@ -655,6 +733,17 @@ const Visualizer: React.FC<VisualizerProps> = ({ mode, isPlaying, isDashboard, s
               mesh.position.y -= agent.fallSpeed * (1 + high);
               if (mesh.position.y < -30) {
                   mesh.position.y = 30;
+              }
+          }
+
+          // PUZZLE INTERPOLATION
+          if (activeMode === 'puzzle' && agent.targetPos) {
+              mesh.position.lerp(agent.targetPos, 0.2); 
+              // Scale Pulse
+              if (isBeat) {
+                  mesh.scale.setScalar(1.1);
+              } else {
+                  mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
               }
           }
 
